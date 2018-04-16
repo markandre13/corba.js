@@ -1,0 +1,3 @@
+interface Server {
+    void login(in string session)
+}

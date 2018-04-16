@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "traceResolution": true,
+    "lib": ["es6"],
+    "declaration": true,
+    "strict": true,
+    "allowJs": false,
+    "noImplicitAny": true,
+    "sourceMap": true
+  },
+  "include": [
+    "src"
+  ]
+}

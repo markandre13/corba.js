@@ -1,0 +1,19 @@
+{
+  "name": "glue",
+  "version": "0.0.1",
+  "description": "glue.js object request broker (orb) and interface definition language (idl) compiler",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Mark-André Hopf <mhopf@mark13.org>",
+  "license": "GPL-3.0",
+  "devDependencies": {
+    "@types/es6-shim": "^0.31.36",
+    "@types/node": "^9.6.5",
+    "typescript": "^2.8.1"
+  },
+  "dependencies": {
+    "ws": "^5.1.1"
+  }
+}
