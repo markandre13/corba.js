@@ -18,22 +18,6 @@ function connect(url: string): Promise<WebSocket> {
     })
 }
 
-function send(server: WebSocket, data: any): Promise<any> {
-    return new Promise<any>(function(resolve, reject) {
-        server.onmessage = function(message) {
-            console.log("promise: message")
-            resolve(JSON.parse(message.data))
-        }
-        server.onerror = function(err) {
-            reject(err)
-        }
-console.log("send(): send")
-        server.send(JSON.stringify(data))
-console.log("send(): done")
-    });
-}
-
-
 class ORB {
     client?: ws
     id: number
@@ -56,16 +40,22 @@ class ORB {
         let reqid = ++this.reqid
         data.reqid = reqid
         console.log("ORB.send(", data, ")")
-        if (!this.client)
-            throw Error("fuck")
-        let msg = await send(this.client, data)
-        console.log("ORB.send(): got msg ", msg)
-        if (msg.glue !== "1.0")
-            throw Error("expected glue version 1.0 but got "+msg.glue)
-        if (msg.reqid !== reqid) {
-            throw Error("got reqid "+msg.reqid+" but expected "+reqid)
-        }
-        return msg
+
+        return new Promise<any>( (resolve, reject) => {
+            if (!this.client)
+                throw Error("fuck")
+            this.client.onmessage = function(message) {
+                let msg = JSON.parse(message.data)
+                if (msg.glue !== "1.0")
+                    throw Error("expected glue version 1.0 but got "+msg.glue)
+                if (reqid == msg.reqid)
+                    resolve(msg)
+            }
+            this.client.onerror = function(err) {
+                reject(err)
+            }
+            this.client.send(JSON.stringify(data))
+        })
     }
 
     async create(stub: Stub, name: string): Promise<void> {
