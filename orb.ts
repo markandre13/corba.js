@@ -30,12 +30,17 @@ export class ORB {
 
     reqid: number		// counter to assign request id's to send messages
     
-    constructor() {
-        this.debug = 0
+    constructor(orb?: ORB) {
+        if (orb === undefined) {
+            this.debug = 0
+            this.cls = new Map<string, any>()
+        } else {
+            this.debug = orb.debug
+            this.cls = orb.cls
+        }
         this.id = 0
         this.reqid = 0
         this.obj = new Map<number, Stub>()
-        this.cls = new Map<string, any>()
     }
     
     //
@@ -142,16 +147,14 @@ export class ORB {
                 }
             })
             wss.on("connection", (socket) => {
-                let orb = new ORB()
-                orb.debug = this.debug
-                orb.cls = this.cls
-                orb.socket = socket
-                orb.accept()
+                let orb = new ORB(this)
+                orb.accept(socket)
             })
         })
     }
     
-    accept() {
+    accept(socket: WebSocket) {
+        this.socket = socket
         this.socket.onmessage = (message) => {
             if (this.debug>0) {
                 console.log("ORB.accept(): got message ", message.data)
