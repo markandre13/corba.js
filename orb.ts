@@ -31,7 +31,7 @@ export class ORB {
     reqid: number		// counter to assign request id's to send messages
     
     constructor() {
-        this.debug = 1
+        this.debug = 0
         this.id = 0
         this.reqid = 0
         this.obj = new Map<number, Stub>()
@@ -58,11 +58,11 @@ export class ORB {
     }
     
     async send(data: any): Promise<any> {
+        let reqid = ++this.reqid
+        data.reqid = reqid
         if (this.debug>0) {
             console.log("ORB.send("+JSON.stringify(data)+")")
         }
-        let reqid = ++this.reqid
-        data.reqid = reqid
 
         return new Promise<any>( (resolve, reject) => {
             if (!this.socket)
@@ -74,8 +74,15 @@ export class ORB {
                 let msg = JSON.parse(message.data)
                 if (msg.glue !== "1.0")
                     throw Error("expected glue version 1.0 but got "+msg.glue)
-                if (reqid == msg.reqid)
+                if (msg.new !== undefined) {
+                    this.handleNew(msg)
+                } else
+                if (msg.method !== undefined) {
+                    this.handleMethod(msg)
+                } else
+                if (reqid == msg.reqid) {
                     resolve(msg)
+                }
             }
             this.socket.onerror = function(err) {
                 reject(err)
@@ -86,7 +93,7 @@ export class ORB {
 
     create(stub: Stub, name: string) {
         if (this.debug>0) {
-            console.log("ORB.create(<stub>, '"+name+"'")
+            console.log("ORB.create(<stub>, '"+name+"')")
         }
         
         let id = ++this.id
@@ -136,6 +143,7 @@ export class ORB {
             })
             wss.on("connection", (socket) => {
                 let orb = new ORB()
+                orb.debug = this.debug
                 orb.cls = this.cls
                 orb.socket = socket
                 orb.accept()
@@ -144,51 +152,58 @@ export class ORB {
     }
     
     accept() {
-        this.socket.on("message", (message, flags) => {
+        this.socket.onmessage = (message) => {
             if (this.debug>0) {
-                console.log("ORB.accept(): got message "+message)
+                console.log("ORB.accept(): got message ", message.data)
             }
-            let msg = JSON.parse(message)
+            let msg = JSON.parse(message.data)
             if (msg.glue !== "1.0") {
                 throw Error("expected glue version 1.0 but got "+msg.glue)
             }
             if (msg.new !== undefined) {
-                
-                let cons = this.cls.get(msg.new)
-                if (cons===undefined)
-                    throw Error("peer requested instantiation of unknown class '"+msg.new+"'")
-                
-                let obj = Object.create(cons.prototype)
-                obj.constructor(this)
-
-                obj.id = msg.id
-                this.obj.set(msg.id, obj)
-
-                if (this.debug>0) {
-                    console.log("ORB.accept(): created new object of class '"+msg.new+"' with id "+msg.id)
-                }
-            }
+                this.handleNew(msg)
+            } else
             if (msg.method !== undefined) {
-                let stub = this.obj.get(msg.id)
-                if (stub===undefined)
-                    throw Error("ORB.accept(): client required method '"+msg.method+"' on server for unknown object "+msg.id)
-                if (stub[msg.method]===undefined)
-                    throw Error("ORB.accept(): client required unknown method '"+msg.method+"' on server for known object "+msg.id)
-                let result = stub[msg.method](msg.params[0], msg.params[1], msg.params[2], msg.params[3], msg.params[4], msg.params[5])
-                if (result !== undefined) {
-                    let answer = {
-                        "glue": "1.0",
-                        "result": result,
-                        "reqid": msg.reqid
-                    }
-                    let text = JSON.stringify(answer)
-                    if (this.debug>0) {
-                        console.log("ORB.accept(): sending call reply "+text)
-                    }
-                    this.socket.send(text)
-                }
+                this.handleMethod(msg)
             }
-        })
+        }
+    }
+    
+    handleNew(msg: any) {
+        let cons = this.cls.get(msg.new)
+        if (cons===undefined)
+            throw Error("peer requested instantiation of unknown class '"+msg.new+"'")
+                
+        let obj = Object.create(cons.prototype)
+        obj.constructor(this)
+
+        obj.id = msg.id
+        this.obj.set(msg.id, obj)
+
+        if (this.debug>0) {
+            console.log("ORB.handleNew(): created new object of class '"+msg.new+"' with id "+msg.id)
+        }
+    }
+    
+    handleMethod(msg: any) {
+        let stub = this.obj.get(msg.id)
+        if (stub===undefined)
+            throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server for unknown object "+msg.id)
+        if (stub[msg.method]===undefined)
+            throw Error("ORB.handleMethod(): client required unknown method '"+msg.method+"' on server for known object "+msg.id)
+        let result = stub[msg.method](msg.params[0], msg.params[1], msg.params[2], msg.params[3], msg.params[4], msg.params[5])
+        if (result !== undefined) {
+            let answer = {
+                "glue": "1.0",
+                "result": result,
+                "reqid": msg.reqid
+            }
+            let text = JSON.stringify(answer)
+            if (this.debug>0) {
+                console.log("ORB.handleMethod(): sending call reply "+text)
+            }
+            this.socket.send(text)
+        }
     }
 }
 
@@ -230,11 +245,8 @@ class Server_impl extends Server_skel
 
     constructor(orb: ORB) {
         super(orb)
-/*
         this.client = new Client(orb)
-        this.client.create()
         this.client.question()
-*/
     }
 
     hello(): void {
@@ -316,7 +328,6 @@ async function client() {
     console.log("orb is connected")
 
     let server = new Server(orb)
-
     server.hello()
     server.answer(2, 9)
     let n = await server.answer(7, 6)
