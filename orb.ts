@@ -19,7 +19,8 @@
 import * as ws from "ws"
 const WebSocket = ws
 
-class ORB {
+export class ORB {
+    debug: number
     socket?: ws
 
     id: number			// counter to assign id's to locally created objects
@@ -30,6 +31,7 @@ class ORB {
     reqid: number		// counter to assign request id's to send messages
     
     constructor() {
+        this.debug = 1
         this.id = 0
         this.reqid = 0
         this.obj = new Map<number, Stub>()
@@ -41,6 +43,8 @@ class ORB {
     //
 
     async connect(host: string, port: number): Promise<void> {
+        if (this.debug>0)
+            console.log("ORB.connect('"+host+"', "+port+")")
         let orb = this
         return new Promise<void>( (resolve, reject) => {
             orb.socket = new WebSocket("ws://"+host+":"+port)
@@ -54,6 +58,9 @@ class ORB {
     }
     
     async send(data: any): Promise<any> {
+        if (this.debug>0) {
+            console.log("ORB.send("+JSON.stringify(data)+")")
+        }
         let reqid = ++this.reqid
         data.reqid = reqid
 
@@ -61,6 +68,9 @@ class ORB {
             if (!this.socket)
                 throw Error("fuck")
             this.socket.onmessage = function(message) {
+                if (this.debug>0) {
+                    console.log("ORB.send(...) received "+message)
+                }
                 let msg = JSON.parse(message.data)
                 if (msg.glue !== "1.0")
                     throw Error("expected glue version 1.0 but got "+msg.glue)
@@ -75,6 +85,9 @@ class ORB {
     }
 
     async create(stub: Stub, name: string): Promise<void> {
+        if (this.debug>0) {
+            console.log("ORB.create(<stub>, '"+name+"'")
+        }
         let data = {
             "glue": "1.0",
             "new": name,
@@ -82,6 +95,7 @@ class ORB {
 
         let msg = await this.send(data)
         if (msg.created === undefined) {
+            console.log("ORB.create() received", msg)
             throw Error("ORB.create(): message did not contain 'created'")
         }
         stub.id = msg.id
@@ -121,13 +135,19 @@ class ORB {
                 }
             })
             wss.on("connection", (client) => {
-                this.accept(client)
+                let orb = new ORB()
+                orb.cls = this.cls
+                orb.socket = client
+                orb.accept()
             })
         })
     }
     
-    accept(client: ws.WebSocket) {
-        client.on("message", (message, flags) => {
+    accept() {
+        this.socket.on("message", (message, flags) => {
+            if (this.debug>0) {
+                console.log("ORB.accept(): got message "+message)
+            }
             let msg = JSON.parse(message)
             if (msg.glue !== "1.0") {
                 throw Error("expected glue version 1.0 but got "+msg.glue)
@@ -151,7 +171,11 @@ class ORB {
                     "id": id,
                     "reqid": msg.reqid
                 }
-                client.send(JSON.stringify(answer))
+                let text = JSON.stringify(answer)
+                if (this.debug>0) {
+                    console.log("ORB.accept(): sending new reply "+text)
+                }
+                this.socket.send(text)
             }
             if (msg.method !== undefined) {
                 let stub = this.obj.get(msg.id)
@@ -166,18 +190,33 @@ class ORB {
                         "result": result,
                         "reqid": msg.reqid
                     }
-                    client.send(JSON.stringify(answer))
+                    let text = JSON.stringify(answer)
+                    if (this.debug>0) {
+                        console.log("ORB.accept(): sending call reply "+text)
+                    }
+                    this.socket.send(text)
                 }
             }
         })
     }
 }
 
-class Skeleton
+export class Skeleton
 {
     orb: ORB
     id: number
 
+    constructor(orb: ORB) {
+        this.orb = orb
+        this.id = 0
+    }
+}
+
+export class Stub
+{
+    orb: ORB
+    id: number
+    
     constructor(orb: ORB) {
         this.orb = orb
         this.id = 0
@@ -196,10 +235,17 @@ abstract class Server_skel extends Skeleton
 
 class Server_impl extends Server_skel
 {
+    client: Client
+
     constructor(orb: ORB) {
         super(orb)
+/*
+        this.client = new Client(orb)
+        this.client.create()
+        this.client.question()
+*/
     }
-    
+
     hello(): void {
         console.log("Server_impl.hello()")
     }
@@ -210,24 +256,13 @@ class Server_impl extends Server_skel
     }
 }
 
-class Stub
-{
-    orb: ORB
-    id: number
-    
-    constructor(orb: ORB) {
-        this.orb = orb
-        this.id = 0
-    }
-}
-
 class Server extends Stub
 {
     constructor(orb: ORB) {
         super(orb)
     }
 
-    async create() {
+    async create() { // FIXME: when we create the object id on the client, we could get rid of this method
         await this.orb.create(this, "Server")
     }
 
@@ -241,6 +276,42 @@ class Server extends Stub
 
 }
 
+class Client extends Stub
+{
+    constructor(orb: ORB) {
+        super(orb)
+    }
+    
+    async create() { // FIXME: when we create the object id on the client, we could get rid of this method
+        await this.orb.create(this, "Client")
+    }
+
+    question(): void {
+        this.orb.call(this.id, "question", [])
+    }
+}
+
+abstract class Client_skel extends Skeleton
+{
+    constructor(orb: ORB) {
+        super(orb)
+    }
+    
+    abstract question(): void
+}
+
+class Client_impl extends Client_skel
+{
+    constructor(orb: ORB) {
+        super(orb)
+    }
+    
+    question(): void {
+        console.log("Client_impl.question()")
+    }
+}
+
+
 if (process.argv.length!==3) {
     console.log("please provide one argument: --server | --client")
     process.exit(1)
@@ -250,13 +321,14 @@ async function server() {
     let orb = new ORB()
     orb.register("Server", Server_impl)
     await orb.listen("0.0.0.0", 8000)
-    console.log("orb ready")
+    console.log("orb is listening")
 }
 
 async function client() {
     let orb = new ORB()
+    orb.register("Client", Client_impl)
     await orb.connect("127.0.0.1", 8000)
-    console.log("orb connected")
+    console.log("orb is connected")
 
     let server = new Server(orb)
     await server.create()
