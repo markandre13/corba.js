@@ -21,14 +21,19 @@ const WebSocket = ws
 
 class ORB {
     socket?: ws
-    id: number
-    obj: Map<number, Stub>
-    reqid: number
+
+    id: number			// counter to assign id's to locally created objects
+    obj: Map<number, Stub>	// maps ids to objects
+
+    cls: Map<string, any>	// maps class names to constructor functions from which objects can be created
+
+    reqid: number		// counter to assign request id's to send messages
     
     constructor() {
         this.id = 0
         this.reqid = 0
         this.obj = new Map<number, Stub>()
+        this.cls = new Map<string, any>()
     }
     
     //
@@ -97,12 +102,16 @@ class ORB {
     /// Server
     ///
 
+    register(name: string, cls: any) {
+        this.cls.set(name, cls)
+    }
+
     async listen(host: string, port: number): Promise<void> {
         return new Promise<void>( (resolve, reject) => {
             const wss = new ws.Server({host: host,port: port}, function() {
                 resolve()
             })
-            wss.on("error", function(error) {
+            wss.on("error", (error) => {
                 switch(error.code) {
                     case "EADDRINUSE":
                         reject(new Error("another server is already running at "+error.address+":"+error.port))
@@ -111,34 +120,41 @@ class ORB {
                         reject(error)
                 }
             })
-            wss.on("connection", function(client) {
-                let orb = new ORB()
-                orb.accept(client)
+            wss.on("connection", (client) => {
+                this.accept(client)
             })
         })
     }
     
     accept(client: ws.WebSocket) {
-        let orb = this
-        client.on("message", function(message, flags) {
+        client.on("message", (message, flags) => {
             let msg = JSON.parse(message)
             if (msg.glue !== "1.0") {
                 throw Error("expected glue version 1.0 but got "+msg.glue)
             }
             if (msg.new !== undefined) {
-                ++orb.id
-                let obj = new Server_impl(orb)
-                orb.obj.set(orb.id, obj)
+                let id = ++this.id
+                
+                let cons = this.cls.get(msg.new)
+                if (cons===undefined)
+                    throw Error("peer requested instantiation of unknown class '"+msg.new+"'")
+                
+                let obj = Object.create(cons.prototype)
+                obj.constructor(this)
+
+                obj.id = id
+                this.obj.set(id, obj)
+
                 let answer = {
                     "glue": "1.0",
                     "created": msg.new,
-                    "id": orb.id,
+                    "id": id,
                     "reqid": msg.reqid
                 }
                 client.send(JSON.stringify(answer))
             }
             if (msg.method !== undefined) {
-                let stub = orb.obj.get(msg.id)
+                let stub = this.obj.get(msg.id)
                 if (stub===undefined)
                     throw Error("ORB.accept(): client required method '"+msg.method+"' on server for unknown object "+msg.id)
                 if (stub[msg.method]===undefined)
@@ -164,7 +180,7 @@ class Skeleton
 
     constructor(orb: ORB) {
         this.orb = orb
-        this.id = orb.id
+        this.id = 0
     }
 }
 
@@ -216,17 +232,10 @@ class Server extends Stub
     }
 
     hello(): void {
-        console.log("Server stub: hello()")
-        this.orb.send({
-            "glue": "1.0",
-            "method": "hello",
-            "params": [],
-            "id": this.id
-        })
+        this.orb.call(this.id, "hello", [])
     }
 
     async answer(a: number, b: number): Promise<number> {
-        console.log("Server stub: answer()")
         return await this.orb.call(this.id, "answer", [a, b])
     }
 
@@ -239,17 +248,19 @@ if (process.argv.length!==3) {
 
 async function server() {
     let orb = new ORB()
-    new Server_impl(orb)		// register new Server class
+    orb.register("Server", Server_impl)
     await orb.listen("0.0.0.0", 8000)
-    console.log("server ready")
+    console.log("orb ready")
 }
 
 async function client() {
     let orb = new ORB()
     await orb.connect("127.0.0.1", 8000)
     console.log("orb connected")
+
     let server = new Server(orb)
     await server.create()
+
     server.hello()
     server.answer(2, 9)
     let n = await server.answer(7, 6)
