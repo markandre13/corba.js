@@ -67,9 +67,9 @@ export class ORB {
         return new Promise<any>( (resolve, reject) => {
             if (!this.socket)
                 throw Error("fuck")
-            this.socket.onmessage = function(message) {
+            this.socket.onmessage = (message) => {
                 if (this.debug>0) {
-                    console.log("ORB.send(...) received "+message)
+                    console.log("ORB.send(...) received "+message.data)
                 }
                 let msg = JSON.parse(message.data)
                 if (msg.glue !== "1.0")
@@ -84,22 +84,22 @@ export class ORB {
         })
     }
 
-    async create(stub: Stub, name: string): Promise<void> {
+    create(stub: Stub, name: string) {
         if (this.debug>0) {
             console.log("ORB.create(<stub>, '"+name+"'")
         }
+        
+        let id = ++this.id
+        
         let data = {
             "glue": "1.0",
             "new": name,
+            "id": id
         }
 
-        let msg = await this.send(data)
-        if (msg.created === undefined) {
-            console.log("ORB.create() received", msg)
-            throw Error("ORB.create(): message did not contain 'created'")
-        }
-        stub.id = msg.id
-        this.obj.set(msg.id, stub)
+        stub.id = id
+        this.obj.set(id, stub)
+        this.send(data)
     }
 
     async call(id: number, method: string, params: any) {
@@ -134,10 +134,10 @@ export class ORB {
                         reject(error)
                 }
             })
-            wss.on("connection", (client) => {
+            wss.on("connection", (socket) => {
                 let orb = new ORB()
                 orb.cls = this.cls
-                orb.socket = client
+                orb.socket = socket
                 orb.accept()
             })
         })
@@ -153,7 +153,6 @@ export class ORB {
                 throw Error("expected glue version 1.0 but got "+msg.glue)
             }
             if (msg.new !== undefined) {
-                let id = ++this.id
                 
                 let cons = this.cls.get(msg.new)
                 if (cons===undefined)
@@ -162,20 +161,12 @@ export class ORB {
                 let obj = Object.create(cons.prototype)
                 obj.constructor(this)
 
-                obj.id = id
-                this.obj.set(id, obj)
+                obj.id = msg.id
+                this.obj.set(msg.id, obj)
 
-                let answer = {
-                    "glue": "1.0",
-                    "created": msg.new,
-                    "id": id,
-                    "reqid": msg.reqid
-                }
-                let text = JSON.stringify(answer)
                 if (this.debug>0) {
-                    console.log("ORB.accept(): sending new reply "+text)
+                    console.log("ORB.accept(): created new object of class '"+msg.new+"' with id "+msg.id)
                 }
-                this.socket.send(text)
             }
             if (msg.method !== undefined) {
                 let stub = this.obj.get(msg.id)
@@ -260,10 +251,7 @@ class Server extends Stub
 {
     constructor(orb: ORB) {
         super(orb)
-    }
-
-    async create() { // FIXME: when we create the object id on the client, we could get rid of this method
-        await this.orb.create(this, "Server")
+        this.orb.create(this, "Server")
     }
 
     hello(): void {
@@ -280,12 +268,9 @@ class Client extends Stub
 {
     constructor(orb: ORB) {
         super(orb)
+        this.orb.create(this, "Client")
     }
     
-    async create() { // FIXME: when we create the object id on the client, we could get rid of this method
-        await this.orb.create(this, "Client")
-    }
-
     question(): void {
         this.orb.call(this.id, "question", [])
     }
@@ -331,7 +316,6 @@ async function client() {
     console.log("orb is connected")
 
     let server = new Server(orb)
-    await server.create()
 
     server.hello()
     server.answer(2, 9)
