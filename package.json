@@ -1,7 +1,7 @@
 {
-  "name": "glue",
+  "name": "glue.js",
   "version": "0.0.1",
-  "description": "glue.js object request broker (orb) and interface definition language (idl) compiler",
+  "description": "glue.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
