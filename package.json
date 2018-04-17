@@ -9,8 +9,8 @@
   "author": "Mark-André Hopf <mhopf@mark13.org>",
   "license": "GPL-3.0",
   "devDependencies": {
-    "@types/es6-shim": "^0.31.36",
     "@types/node": "^9.6.5",
+    "@types/ws": "^4.0.2",
     "typescript": "^2.8.1"
   },
   "dependencies": {

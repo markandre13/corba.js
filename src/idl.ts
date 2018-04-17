@@ -65,6 +65,7 @@ class Token
             case TokenType.INTERFACE:
                 return "interface"
         }
+        throw Error("unknown type")
     }
 }
 
@@ -72,7 +73,7 @@ class Lexer {
     data: string
     pos: number
     state: number
-    text: string
+    text?: string
     tokenStack: Array<Token>
 
     static isAlpha(c: string): boolean {

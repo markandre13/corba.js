@@ -26,17 +26,17 @@ export class ORB {
     id: number			// counter to assign id's to locally created objects
     obj: Map<number, Stub>	// maps ids to objects
 
-    cls: Map<string, any>	// maps class names to constructor functions from which objects can be created
+    classes: Map<string, any>	// maps class names to constructor functions from which objects can be created
 
     reqid: number		// counter to assign request id's to send messages
     
     constructor(orb?: ORB) {
         if (orb === undefined) {
             this.debug = 0
-            this.cls = new Map<string, any>()
+            this.classes = new Map<string, any>()
         } else {
             this.debug = orb.debug
-            this.cls = orb.cls
+            this.classes = orb.classes
         }
         this.id = 0
         this.reqid = 0
@@ -76,7 +76,7 @@ export class ORB {
                 if (this.debug>0) {
                     console.log("ORB.send(...) received "+message.data)
                 }
-                let msg = JSON.parse(message.data)
+                let msg = JSON.parse(String(message.data))
                 if (msg.glue !== "1.0")
                     throw Error("expected glue version 1.0 but got "+msg.glue)
                 if (msg.new !== undefined) {
@@ -128,8 +128,8 @@ export class ORB {
     /// Server
     ///
 
-    register(name: string, cls: any) {
-        this.cls.set(name, cls)
+    register(name: string, aClass: any) {
+        this.classes.set(name, aClass)
     }
 
     async listen(host: string, port: number): Promise<void> {
@@ -137,7 +137,7 @@ export class ORB {
             const wss = new ws.Server({host: host,port: port}, function() {
                 resolve()
             })
-            wss.on("error", (error) => {
+            wss.on("error", (error: any) => {
                 switch(error.code) {
                     case "EADDRINUSE":
                         reject(new Error("another server is already running at "+error.address+":"+error.port))
@@ -153,13 +153,13 @@ export class ORB {
         })
     }
     
-    accept(socket: WebSocket) {
+    accept(socket: ws) {
         this.socket = socket
         this.socket.onmessage = (message) => {
             if (this.debug>0) {
                 console.log("ORB.accept(): got message ", message.data)
             }
-            let msg = JSON.parse(message.data)
+            let msg = JSON.parse(String(message.data))
             if (msg.glue !== "1.0") {
                 throw Error("expected glue version 1.0 but got "+msg.glue)
             }
@@ -173,12 +173,11 @@ export class ORB {
     }
     
     handleNew(msg: any) {
-        let cons = this.cls.get(msg.new)
-        if (cons===undefined)
+        let template = this.classes.get(msg.new)
+        if (template===undefined)
             throw Error("peer requested instantiation of unknown class '"+msg.new+"'")
-                
-        let obj = Object.create(cons.prototype)
-        obj.constructor(this)
+
+        let obj = new template(this)
 
         obj.id = msg.id
         this.obj.set(msg.id, obj)
@@ -189,12 +188,12 @@ export class ORB {
     }
     
     handleMethod(msg: any) {
-        let stub = this.obj.get(msg.id)
+        let stub = this.obj.get(msg.id) as any
         if (stub===undefined)
             throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server for unknown object "+msg.id)
         if (stub[msg.method]===undefined)
             throw Error("ORB.handleMethod(): client required unknown method '"+msg.method+"' on server for known object "+msg.id)
-        let result = stub[msg.method](msg.params[0], msg.params[1], msg.params[2], msg.params[3], msg.params[4], msg.params[5])
+        let result = stub[msg.method].apply(stub, msg.params)
         if (result !== undefined) {
             let answer = {
                 "glue": "1.0",
@@ -205,7 +204,7 @@ export class ORB {
             if (this.debug>0) {
                 console.log("ORB.handleMethod(): sending call reply "+text)
             }
-            this.socket.send(text)
+            this.socket!.send(text)
         }
     }
 }

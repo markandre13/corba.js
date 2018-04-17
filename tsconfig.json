@@ -3,7 +3,7 @@
     "target": "es6",
     "module": "commonjs",
     "moduleResolution": "node",
-    "traceResolution": true,
+    "traceResolution": false,
     "lib": ["es6"],
     "declaration": true,
     "strict": true,
