@@ -29,32 +29,31 @@ export function registerLocalClass(name: string, aClass: any) {
 
 function serialize(object: any): string
 {
-    if (typeof object === "object") {
-        let data = ""
-
-        if (object instanceof Array) {
-            let data = ""
-            for(let x of object) {
-                if (data.length!==0)
-                    data += ","
-                data += serialize(x)
-            }
-            return "["+data+"]"
-        }
-
-        let prototype = Object.getPrototypeOf(object)
-        let name = localClassNameByPrototype.get(prototype)
-        if (name === undefined)
-            throw Error("can not serialize object of unregistered class "+object.constructor.name)
-        for(let [attribute, value] of Object.entries(object)) {
-            if (data.length!==0)
-                data += ","
-            data += '"'+attribute+'":'+serialize(value)
-        }
-        return `{"#T":"${name}","#V":{${data}}}`
-    } else {
+    if (typeof object !== "object") {
         return JSON.stringify(object)
     }
+
+    if (object instanceof Array) {
+        let data = ""
+        for(let x of object) {
+            if (data.length!==0)
+                data += ","
+            data += serialize(x)
+        }
+        return "["+data+"]"
+    }
+
+    let data = ""
+    let prototype = Object.getPrototypeOf(object)
+    let name = localClassNameByPrototype.get(prototype)
+    if (name === undefined)
+        throw Error("ORB: can not serialize object of unregistered class "+object.constructor.name)
+    for(let [attribute, value] of Object.entries(object)) {
+        if (data.length!==0)
+            data += ","
+        data += '"'+attribute+'":'+serialize(value)
+    }
+    return `{"#T":"${name}","#V":{${data}}}`
 }
 
 function deserialize(text: string): any {
@@ -63,9 +62,10 @@ function deserialize(text: string): any {
 
 function _deserialize(data: any): any
 {
-    if (typeof data === "object" &&
-        data instanceof Array)
-    {
+    if (typeof data !== "object")
+        return data
+        
+    if (data instanceof Array) {
         for(let i in data) {
             data[i] = _deserialize(data[i])
         }
@@ -74,18 +74,17 @@ function _deserialize(data: any): any
 
     let type = data["#T"]
     let value = data["#V"]
-    if (type !== undefined && value !== undefined) {
-        let aClass = localClassesByName.get(type)
-        if (aClass === undefined)
-            throw Error("can not deserialize object of unregistered class "+type)
-        let object = Object.create(aClass.prototype)
-        for(let [innerAttribute, innerValue] of Object.entries(value)) {
-            object[innerAttribute] = _deserialize(innerValue)
-        }
-        return object
+    if (type === undefined || value === undefined) {
+        throw Error("ORB: no type/value information in serialized data")
     }
-
-    return data
+    let aClass = localClassesByName.get(type)
+    if (aClass === undefined)
+        throw Error("ORB: can not deserialize object of unregistered class "+type)
+    let object = Object.create(aClass.prototype)
+    for(let [innerAttribute, innerValue] of Object.entries(value)) {
+        object[innerAttribute] = _deserialize(innerValue)
+    }
+    return object
 }
 
 
