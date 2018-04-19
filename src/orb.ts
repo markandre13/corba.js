@@ -193,7 +193,7 @@ export class ORB {
             "params": params,
             "id": id
         })
-        return msg.result
+        return deserialize(msg.result)
     }
 
     ///
@@ -272,7 +272,7 @@ export class ORB {
         if (result !== undefined) {
             let answer = {
                 "glue": "1.0",
-                "result": result,
+                "result": serialize(result),
                 "reqid": msg.reqid
             }
             let text = JSON.stringify(answer)
