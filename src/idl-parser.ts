@@ -20,11 +20,21 @@ import { Type, Node } from "./idl-node"
 import { Lexer } from "./idl-lexer"
 
 let lexer: Lexer
+let typenames: Set<string>
+
+function expect(text: string): void {
+    let t0 = lexer.lex()
+    if (t0 === undefined)
+        throw Error("expected '"+text+"' but found end of file")
+    if (t0.type !== Type.TKN_TEXT || t0.text !== text)
+        throw Error("expected '"+text+"' but found "+t0.toString())
+}
 
 // 1
 export function specification(aLexer: Lexer): Node | undefined
 {
     lexer = aLexer
+    typenames = new Set<string>()
     
     let node = new Node(Type.SYN_SPECIFICATION)
     while(true) {
@@ -45,12 +55,9 @@ function definition(): Node | undefined
         t0 = value()
     
     if (t0 !== undefined) {
-        let t1 = lexer.lex()
-        if (t1 !== undefined && t1.type === Type.TKN_TEXT && t1.text === ';')
-            return t0
-        lexer.unlex(t1)
+        expect(';')
     }
-    lexer.unlex(t0)
+    return t0
 }
 
 // 4
@@ -67,7 +74,6 @@ function interface_dcl(): Node | undefined
     
         t0 = lexer.lex()
         if (t0) {
-            console.log("looked for header but found "+t0.toString())
             lexer.unlex(t0)
         }
     
@@ -143,18 +149,22 @@ function interface_body(): Node
 // 9
 function _export(): Node | undefined
 {
-    let t0
-    t0 = op_decl()
+    let t0 = op_decl()
     if (t0===undefined)
         return undefined
+    expect(';')
+    return t0
+}
 
-    let t1 = lexer.lex()    
-    if (t1 !== undefined && t1.type === Type.TKN_TEXT && t1.text === ';')
-        return t0
-    if (t1 !== undefined)
-        throw Error("expected ';' but got "+t1.toString())
-    else
-        throw Error("expected ';' but got end of file")
+// 12
+function scoped_name(): Node | undefined
+{
+    let t0
+    t0 = identifier()
+    if (t0 !== undefined && !typenames.has(t0.text!))
+        throw Error("encountered undefined type '"+t0.text+"'")
+    // "::" stuff is missing
+    return t0
 }
 
 // 13
@@ -197,12 +207,56 @@ function value_abs_dcl(): Node | undefined
 // 17
 function value_dcl(): Node | undefined
 {
-    return undefined
+    let t0 = value_header()
+    if (t0 === undefined) {
+        lexer.unlex(t0)
+        return undefined
+    }
+
+    expect('{')
+
+    let node = new Node(Type.SYN_VALUE_DCL)
+    while(true) {
+        let t1 = value_element()
+        if (t1 === undefined)
+            break
+        node.add(t1)
+    }
+
+    expect('}')
+
+    return node
 }
 
 // 18
 function value_header(): Node | undefined
 {
+    let t0 = lexer.lex()
+    if (t0 !== undefined) {
+        let t1
+        if (t0.type === Type.TKN_CUSTOM) {
+            t1 = lexer.lex()
+        } else {
+            t1 = t0
+            t0 = undefined
+        }
+        if (t1 !== undefined && t1.type === Type.TKN_VALUETYPE) {
+            let t2 = identifier()
+            if (t2 === undefined)
+                throw Error("expected an identifier after valuetype")
+            let t3 = value_inheritance_spec()
+            
+            typenames.add(t2.text!)
+            
+            let node = new Node(Type.SYN_VALUE_HEADER)
+            node.add(t0)
+            node.add(t2)
+            node.add(t3)
+            return node
+        }
+        lexer.unlex(t1)
+    }
+    lexer.unlex(t0)
     return undefined
 }
 
@@ -221,13 +275,71 @@ function value_name(): Node | undefined
 // 21
 function value_element(): Node | undefined
 {
-    return undefined
+    let t0 = _export()
+    if (t0 === undefined)
+        t0 = state_member()
+/*
+    if (t0 === undefined)
+        t0 = init_dcl()
+*/
+    return t0
 }
 
 // 22
 function state_member(): Node | undefined
 {
-    return undefined
+    let t0 = lexer.lex()
+    if (t0 === undefined)
+        return undefined
+    if (t0.type !== Type.TKN_PUBLIC && t0.type !== Type.TKN_PRIVATE) {
+        lexer.unlex(t0)
+        t0 = undefined
+    }
+
+    let t1 = type_spec()
+    if (t1 === undefined) {
+        lexer.unlex(t0)
+        return undefined
+    }
+
+    let t2 = declarators()
+    if (t2 === undefined) {
+        throw Error("expected declarators")
+    }
+
+    expect(";")
+
+    let node = new Node(Type.SYN_STATE_MEMBER)
+    node.add(t0)
+    node.add(t1)
+    node.add(t2)
+    return node
+}
+
+// 44
+function type_spec(): Node | undefined
+{
+    let t0
+    t0 = simple_type_spec()
+/*
+    if (t0 === undefined)
+        t0 = constr_type_spec()
+*/
+    return t0
+}
+
+// 45
+function simple_type_spec(): Node | undefined
+{
+    let t0
+    t0 = base_type_spec()
+/*
+    if (t0 === undefined)
+        t0 = template_type_spec()
+*/
+    if (t0 === undefined)
+        t0 = scoped_name()
+    return t0
 }
 
 // 46
@@ -256,6 +368,39 @@ function base_type_spec(): Node | undefined
     if (t0 !== undefined)
         return t0
     return undefined
+}
+
+// 49
+function declarators(): Node | undefined
+{
+    let t0 = declarator()
+    if (t0 === undefined)
+        return undefined
+    let node = new Node(Type.SYN_DECLARATORS)
+    while(true) {
+        node.add(t0)
+        let t1 = lexer.lex()
+        if (t1 === undefined || t1.type !== Type.TKN_TEXT || t1.text !== ",") {
+            lexer.unlex(t1)
+            break
+        }
+        t0 = declarator()
+        if (t0 === undefined)
+            throw Error("expected another declarator after ','")
+    }
+    return node
+}
+
+// 50
+function declarator(): Node | undefined
+{
+    let t0
+    t0 = simple_declarator()
+/*
+    if (t0 === undefined)
+        t0 = complex_declarator()
+*/
+    return t0
 }
 
 // 51
@@ -498,8 +643,13 @@ function op_decl(): Node | undefined
         throw Error("expected identifier")
     }
     let t3 = parameter_dcls()
-    if (t3 === undefined)
-        throw Error("expected parameter declaration")
+    if (t3 === undefined) {
+        // throw Error("expected parameter declaration after "+t2.toString())
+        lexer.unlex(t2)
+        lexer.unlex(t1)
+        lexer.unlex(t0)
+        return undefined
+    }
 
     let node = new Node(Type.SYN_OPERATION_DECLARATION)
     node.add(t0)
@@ -564,9 +714,9 @@ function parameter_dcls(): Node | undefined
             continue
         }
         if (t2 !== undefined)
-            throw Error("expected ')' at end for parameter declaration but got "+t2.toString())
+            throw Error("expected 'in', 'out', 'inout' or ')' to end for parameter declaration but got "+t2.toString())
         else
-            throw Error("expected ')' at end for parameter declaration but end of file")
+            throw Error("expected 'in', 'out', 'inout' or ')' to end for parameter declaration but end of file")
     }
     return declarations
 }
@@ -628,13 +778,13 @@ function param_type_spec(): Node | undefined
     if (t0 !== undefined)
         return t0
 /*
-    if (t0)
-        return t0
     t0 = wide_string_type()
+    if (t0 !== undefined)
+        return t0
+*/
+    t0 = scoped_name()
     if (t0)
         return t0
-    t0 = scoped_name()
-*/
     return undefined
 }
 

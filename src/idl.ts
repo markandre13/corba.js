@@ -27,6 +27,8 @@ function typeIDLtoTS(type: Node | undefined): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
     switch(type!.type) {
+        case Type.TKN_IDENTIFIER:
+            return type.text!
         case Type.TKN_VOID:
             return "void"
         case Type.TKN_BOOLEAN:
@@ -54,6 +56,8 @@ let generatorTSStub = new Map<Type, Function>([
             this.generate(definition!)
         }
     }],
+    [ Type.SYN_VALUE_DCL, function(this: Generator) {
+    }],
     [ Type.SYN_INTERFACE, function(this: Generator) {
         let identifier = this.node.child[0]!.child[1]!.text
         this.out.write("class "+identifier+" extends Stub {\n")
@@ -73,7 +77,7 @@ let generatorTSStub = new Map<Type, Function>([
             if (oneway && type!.type !== Type.TKN_VOID)
                 throw Error("glue.js currently requires every oneway function to return void")
             if (!oneway && type!.type === Type.TKN_VOID)
-                throw Error("oneway operations can not return values")
+                throw Error("glue.js currently requires operations returning void to be oneway")
             
             let identifier = op_decl!.child[2]!.text
             let parameter_decls = op_decl!.child[3]!.child

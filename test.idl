@@ -2,6 +2,22 @@
  * Workflow IDL
  */
 
+custom valuetype Origin {
+    double x, y;
+};
+
+custom valuetype Size {
+    double width, height;
+};
+
+custom valuetype Figure {
+};
+
+custom valuetype Rectangle {
+    Origin origin;
+    Size size;
+};
+
 interface Server {
     oneway void init(in string session);
     oneway void logon(in string user, in string password);
@@ -11,6 +27,8 @@ interface Client {
     oneway void logonRequest(in unsigned long lifetime, in string disclaimer);
 
     unsigned long hello();
+    oneway void foo(in Rectangle r);
+    Rectangle bar();
 
     // oneway void home(in User user);
 };

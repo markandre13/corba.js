@@ -79,7 +79,7 @@ export class Lexer {
         if (token === undefined)
             return
         if (token.child.length !== 0)
-            throw Error("can not unlex tokens with children")
+            throw Error("can not unlex token "+token.toString()+" with children")
         // FIXME: adjust this.line and this.column
         this.tokenStack.push(token)
     }

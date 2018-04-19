@@ -18,12 +18,11 @@
 
 export enum Type {
     NONE,
-    SYNTAX,
 
     TKN_IDENTIFIER,
     TKN_TEXT,
     
-    // CORBA IDL KEYWORDS
+    // CORBA 3.0 IDL keywords
     TKN_ABSTRACT,
     TKN_ANY,
     TKN_ATTRIBUTE,
@@ -89,15 +88,20 @@ export enum Type {
     TKN_WCHAR,
     TKN_WSTRING,
     
+    // nodes for the syntax parse tree
     SYN_SPECIFICATION, // 1
     SYN_INTERFACE, // 5
     SYN_INTERFACE_HEADER, // 7
     SYN_INTERFACE_BODY, // 8
+    SYN_VALUE_DCL, // 17
+    SYN_VALUE_HEADER, // 18
+    SYN_STATE_MEMBER, // 22
+    SYN_DECLARATORS, // 49
     SYN_OPERATION_DECLARATION, // 87
+    SYN_PARAMETER_DECLARATIONS, // 90
+    SYN_PARAMETER_DECLARATION, // 91
     
-    SYN_PARAMETER_DECLARATIONS,
-    SYN_PARAMETER_DECLARATION,
-    
+    // synthetic tokens combining other tokens
     SYN_LONGLONG,
     SYN_UNSIGNED_SHORT,
     SYN_UNSIGNED_LONG,
@@ -121,7 +125,6 @@ export class Node
     toString(): string {
         switch(this.type) {
             case Type.NONE:            return "none"
-            case Type.SYNTAX:          return "toString() not overloaded for syntax node "+this.constructor.name
             
             case Type.TKN_TEXT:        return "text '"+this.text+"'"
             case Type.TKN_IDENTIFIER:  return "identifier '"+this.text+"'"
@@ -195,10 +198,14 @@ export class Node
             case Type.SYN_INTERFACE:              return "SYN_INTERFACE" // 5
             case Type.SYN_INTERFACE_HEADER:       return "SYN_INTERFACE_HEADER" // 7
             case Type.SYN_INTERFACE_BODY:         return "SYN_INTERFACE_BODY" // 8
+            case Type.SYN_VALUE_DCL:              return "SYN_VALUE_DCL" // 17
+            case Type.SYN_VALUE_HEADER:           return "SYN_VALUE_HEADER" // 18
+            case Type.SYN_STATE_MEMBER:           return "SYN_STATE_MEMBER" // 22
+            case Type.SYN_DECLARATORS:            return "SYN_DECLARATORS" // 49
             case Type.SYN_OPERATION_DECLARATION:  return "SYN_OPERATION_DECLARATION" // 87
     
-            case Type.SYN_PARAMETER_DECLARATIONS: return "SYN_PARAMETER_DECLARATIONS"
-            case Type.SYN_PARAMETER_DECLARATION:  return "SYN_PARAMETER_DECLARATION"
+            case Type.SYN_PARAMETER_DECLARATIONS: return "SYN_PARAMETER_DECLARATIONS" // 90
+            case Type.SYN_PARAMETER_DECLARATION:  return "SYN_PARAMETER_DECLARATION" // 91
 
             case Type.SYN_LONGLONG:               return "long long"
             case Type.SYN_UNSIGNED_SHORT:         return "unsigned short"
