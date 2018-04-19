@@ -39,7 +39,11 @@ export function specification(aLexer: Lexer): Node | undefined
 // 2
 function definition(): Node | undefined
 {
-    let t0 = _interface()
+    let t0
+    t0 = _interface()
+    if (t0 === undefined)
+        t0 = value()
+    
     if (t0 !== undefined) {
         let t1 = lexer.lex()
         if (t1 !== undefined && t1.type === Type.TKN_TEXT && t1.text === ';')
@@ -151,6 +155,79 @@ function _export(): Node | undefined
         throw Error("expected ';' but got "+t1.toString())
     else
         throw Error("expected ';' but got end of file")
+}
+
+// 13
+function value(): Node | undefined
+{
+    let t0
+    t0 = value_dcl()
+    if (t0 !== undefined)
+        return t0
+    t0 = value_abs_dcl()
+    if (t0 !== undefined)
+        return t0
+    t0 = value_box_dcl()
+    if (t0 !== undefined)
+        return t0
+    t0 = value_forward_dcl()
+    if (t0 !== undefined)
+        return t0
+    return undefined
+}
+
+// 14
+function value_forward_dcl(): Node | undefined
+{
+    return undefined
+}
+
+// 15
+function value_box_dcl(): Node | undefined
+{
+    return undefined
+}
+
+// 16
+function value_abs_dcl(): Node | undefined
+{
+    return undefined
+}
+
+// 17
+function value_dcl(): Node | undefined
+{
+    return undefined
+}
+
+// 18
+function value_header(): Node | undefined
+{
+    return undefined
+}
+
+// 19
+function value_inheritance_spec(): Node | undefined
+{
+    return undefined
+}
+
+// 20
+function value_name(): Node | undefined
+{
+    return undefined
+}
+
+// 21
+function value_element(): Node | undefined
+{
+    return undefined
+}
+
+// 22
+function state_member(): Node | undefined
+{
+    return undefined
 }
 
 // 46
