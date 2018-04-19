@@ -1,3 +1,49 @@
+/*
+ * Workflow IDL
+ */
+
 interface Server {
-    void login(in string session)
+    oneway void init(in string session);
+    oneway void logon(in string user, in string password);
+};
+
+/*
+module toad {
+
+    struct Figure {
+    };
+
+    struct Origin {
+        double x, y;
+    }
+
+    struct Size {
+        double width, height;
+    };
+
+    struct Rectangle: Figure {
+        Origin origin;
+        Size size;
+    };
+
+    struct FigureModel {
+        sequence<Figure> data;
+    }
 }
+
+module workflow {
+    struct User {
+        string name;
+        string fullname;
+        string email;
+        string avatar;
+      };
+
+    interface Client {
+       oneway void logonRequest(in number lifetime, in string disclaimer);
+        oneway void home(in User user);
+    };
+}
+
+*/
+
