@@ -35,6 +35,7 @@ import * as fs from "fs"
 enum TokenType {
     NONE,
     IDENTIFIER,
+    TEXT,
     
     ABSTRACT,
     ANY,
@@ -115,7 +116,7 @@ class Token
     toString(): string {
         switch(this.type) {
             case TokenType.NONE:        return "none"
-            case TokenType.CHAR:        return "char '"+this.text+"'"
+            case TokenType.TEXT:        return "text '"+this.text+"'"
             case TokenType.IDENTIFIER:  return "identifier '"+this.text+"'"
 
             case TokenType.ABSTRACT:    return "abstract"
@@ -279,7 +280,7 @@ class Lexer {
                             if (Lexer.isAlpha(c)) {
                                 this.state = 2
                             } else {
-                                return new Token(TokenType.CHAR, c)
+                                return new Token(TokenType.TEXT, c)
                             }
                             break
                     }
@@ -375,7 +376,7 @@ class Lexer {
                             break
                         default:
                             this.ungetc()
-                            return new Token(TokenType.CHAR, '/')
+                            return new Token(TokenType.TEXT, '/')
                     }
                     break
                 case 4: // //...
@@ -432,6 +433,7 @@ try {
 }
 catch(error) {
     console.log(error.message+" at line "+lexer.line+", column "+lexer.column)
+    console.log(error.stack)
 }
 
 // 1
@@ -461,13 +463,13 @@ function interface_dcl()
     let t0 = lexer.lex()
     if (!t0)
         throw Error("unexpected end of file")
-    if (t0.type !== TokenType.CHAR && t0.text != '{')
+    if (t0.type !== TokenType.TEXT && t0.text != '{')
         throw Error("expected { after interface header but got "+t0.toString())
     interface_body()
     let t2 = lexer.lex()
     if (!t2)
         throw Error("unexpected end of file")
-    if (t2.type !== TokenType.CHAR && t2.text != '}')
+    if (t2.type !== TokenType.TEXT && t2.text != '}')
         throw Error("expected } after interface header but got "+t2.toString())
 }
 
@@ -475,36 +477,42 @@ function interface_dcl()
 function interface_header(): Token | undefined
 {
     let t0 = lexer.lex()
-    if (!t0)
-        return
-    // missing: abstract | local
-    if (t0.type !== TokenType.INTERFACE) {
-        lexer.unlex(t0)
-        return
+    if (t0 !== undefined && t0.type === TokenType.INTERFACE) {
+        let t1 = identifier()
+        if (t1 !== undefined)
+            return t1
+        throw Error("expected identifier after 'interface'")
     }
-    let t1 = lexer.lex()
-    if (!t1)
-        return
-    if (t1.type !== TokenType.IDENTIFIER) {
-        lexer.unlex(t1)
-        lexer.unlex(t0)
-        return
-    }
-    console.log("got interface")
-    t0.text = t1.text
+    lexer.unlex(t0)
     return t0
 }
 
 // 8
-function interface_body()
+function interface_body(): Token | undefined
 {
-    _export()
+    while(true) {
+        let t0 = _export()
+        if (t0 === undefined)
+            return t0
+        console.log("interface_body got one export at line "+lexer.line)
+    }
 }
 
 // 9
-function _export()
+function _export(): Token | undefined
 {
-    op_decl()
+    let t0
+    t0 = op_decl()
+    if (t0===undefined)
+        return undefined
+
+    let t1 = lexer.lex()    
+    if (t1 !== undefined && t1.type === TokenType.TEXT && t1.text === ';')
+        return t1
+    if (t1 !== undefined)
+        throw Error("expected ';' but got "+t1.toString())
+    else
+        throw Error("expected ';' but got end of file")
 }
 
 // 46
@@ -512,10 +520,10 @@ function base_type_spec(): Token | undefined
 {
     let t0
     t0 = floating_pt_type()
-    if (t0 != undefined)
+    if (t0 !== undefined)
         return t0
     t0 = integer_type()
-    if (t0 != undefined)
+    if (t0 !== undefined)
         return t0
     t0 = char_type()
     if (t0 !== undefined)
@@ -529,7 +537,10 @@ function base_type_spec(): Token | undefined
     t0 = octet_type()
     if (t0 !== undefined)
         return t0
-    return any_type()
+    t0 = any_type()
+    if (t0 !== undefined)
+        return t0
+    return undefined
 }
 
 // 51
@@ -746,22 +757,32 @@ function any_type(): Token | undefined
 function string_type()
 {
     let t0 = lexer.lex()
-    if (t0 === undefined)
-        return undefined
-    if (t0.type !== TokenType.STRING) {
-        lexer.unlex(t0)
+    if (t0 !== undefined && t0.type === TokenType.STRING) {
+        // 'string' '<' <positive_int_const> '>'
+        return t0
     }
-    // 'string' '<' <positive_int_const> '>'
-    return t0
+    lexer.unlex(t0)
+    return undefined
 }
 
 // 87
 function op_decl()
 {
-    let t0 = op_attribute()
+    let t0 = op_attribute() // opt
     let t1 = op_type_spec()
+    if (t1 === undefined) {
+        lexer.unlex(t0)
+        return undefined
+    }
     let t2 = identifier()
     let t3 = parameter_dcls()
+    
+if (t0) console.log("t0: "+t0.toString())
+if (t1) console.log("t1: "+t1.toString())
+if (t2) console.log("t2: "+t2.toString())
+if (t3) console.log("t3: "+t3.toString())
+
+    return t1
 }
 
 // 88
@@ -781,51 +802,41 @@ function op_attribute(): Token | undefined
 function op_type_spec(): Token | undefined
 {
     let t0 = param_type_spec()
-    if (t0 === undefined) {
-        t0 = lexer.lex()
-        if (t0 === undefined)
-            throw Error("unexpected end of file")
-        if (t0.type !== TokenType.VOID) {
-            lexer.unlex(t0)
-            return undefined
-        }
+    if (t0 !== undefined)
         return t0
-    }
+    t0 = lexer.lex()
+    if (t0 !== undefined && t0.type === TokenType.VOID)
+         return t0
+    lexer.unlex(t0)
+    return undefined
 }
 
 // 90
 function parameter_dcls(): Token | undefined
 {
     let t0 = lexer.lex()
-    if (!t0)
+    if (!t0) {
         return undefined
-    if (t0.type !== TokenType.CHAR || t0.text !== '(')
+    }
+    if (t0.type !== TokenType.TEXT || t0.text !== '(')
     {
         lexer.unlex(t0)
         return undefined
     }
  
-    let t1 = parameter_dcls_list()
+    while(true) {
+        let t1 = param_dcl()
     
-    let t2 = lexer.lex()
-    if (t2 !== undefined && t2.type === TokenType.CHAR || t2!.text === ')') {
-        return t1 // FIXME: t1 maybe undefined because the list exists but is empty
+        let t2 = lexer.lex()
+    
+        if (t2 !== undefined && t2.type === TokenType.TEXT && t2.text === ')') {
+            return t0 // FIXME: t1 maybe undefined because the list exists but is empty
+        }
+        if (t2 !== undefined && t2.type === TokenType.TEXT && t2.text === ",") {
+            continue
+        }
+        throw Error("expected ')' at end for parameter declaration")
     }
-    throw Error("expected ')'")
-}
-
-function parameter_dcls_list(): Token | undefined
-{
-    let t0 = param_dcl()
-    if (t0 === undefined)
-        return undefined
-    let t1 = lexer.lex()
-    if (t1 !== undefined && t1.type !== TokenType.CHAR && t1.text === ",") {
-        lexer.unlex(t1)
-        return t0
-    }
-    let t2 = parameter_dcls_list()
-    return t2
 }
 
 // 91
@@ -857,9 +868,13 @@ function param_type_spec(): Token | undefined
 {
     let t0
     t0 = base_type_spec()
-    if (t0)
+    if (t0 !== undefined) {
         return t0
+    }
     t0 = string_type()
+    if (t0 !== undefined) {
+        return t0
+    }
 /*
     if (t0)
         return t0
