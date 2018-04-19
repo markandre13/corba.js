@@ -32,157 +32,160 @@
 
 import * as fs from "fs"
 
-enum TokenType {
+enum Type {
     NONE,
-    IDENTIFIER,
-    TEXT,
+
+    TKN_IDENTIFIER,
+    TKN_TEXT,
     
-    ABSTRACT,
-    ANY,
-    ATTRIBUTE,
-    BOOLEAN,
-    CASE,
-    CHAR,
-    COMPONENT,
-    CONST,
-    CONSUMES,
-    CONTEXT,
-    CUSTOM,
-    DEFAULT,
-    DOUBLE,
-    EXCEPTION,
-    EMITS,
-    ENUM,
-    EVENTTYPE,
-    FACTORY,
-    FALSE,
-    FINDER,
-    FIXED,
-    FLOAT,
-    GETRAISES,
-    HOME,
-    IMPORT,
-    IN,
-    INOUT,
-    INTERFACE,
-    LOCAL,
-    LONG,
-    MODULE,
-    MULTIPLE,
-    NATIVE,
-    OBJECT,
-    OCTET,
-    ONEWAY,
-    OUT,
-    PRIMARYKEY,
-    PRIVATE,
-    PROVIDES,
-    PUBLIC,
-    PUBLISHES,
-    RAISES,
-    READONLY,
-    SETRAISES,
-    SEQUENCE,
-    SHORT,
-    STRING,
-    STRUCT,
-    SUPPORTS,
-    SWITCH,
-    TRUE,
-    TRUNCATABLE,
-    TYPEDEF,
-    TYPEID,
-    TYPEPREFIX,
-    UNSIGNED,
-    UNION,
-    USES,
-    VALUEBASE,
-    VALUETYPE,
-    VOID,
-    WCHAR,
-    WSTRING
+    // CORBA IDL KEYWORDS
+    TKN_ABSTRACT,
+    TKN_ANY,
+    TKN_ATTRIBUTE,
+    TKN_BOOLEAN,
+    TKN_CASE,
+    TKN_CHAR,
+    TKN_COMPONENT,
+    TKN_CONST,
+    TKN_CONSUMES,
+    TKN_CONTEXT,
+    TKN_CUSTOM,
+    TKN_DEFAULT,
+    TKN_DOUBLE,
+    TKN_EXCEPTION,
+    TKN_EMITS,
+    TKN_ENUM,
+    TKN_EVENTTYPE,
+    TKN_FACTORY,
+    TKN_FALSE,
+    TKN_FINDER,
+    TKN_FIXED,
+    TKN_FLOAT,
+    TKN_GETRAISES,
+    TKN_HOME,
+    TKN_IMPORT,
+    TKN_IN,
+    TKN_INOUT,
+    TKN_INTERFACE,
+    TKN_LOCAL,
+    TKN_LONG,
+    TKN_MODULE,
+    TKN_MULTIPLE,
+    TKN_NATIVE,
+    TKN_OBJECT,
+    TKN_OCTET,
+    TKN_ONEWAY,
+    TKN_OUT,
+    TKN_PRIMARYKEY,
+    TKN_PRIVATE,
+    TKN_PROVIDES,
+    TKN_PUBLIC,
+    TKN_PUBLISHES,
+    TKN_RAISES,
+    TKN_READONLY,
+    TKN_SETRAISES,
+    TKN_SEQUENCE,
+    TKN_SHORT,
+    TKN_STRING,
+    TKN_STRUCT,
+    TKN_SUPPORTS,
+    TKN_SWITCH,
+    TKN_TRUE,
+    TKN_TRUNCATABLE,
+    TKN_TYPEDEF,
+    TKN_TYPEID,
+    TKN_TYPEPREFIX,
+    TKN_UNSIGNED,
+    TKN_UNION,
+    TKN_USES,
+    TKN_VALUEBASE,
+    TKN_VALUETYPE,
+    TKN_VOID,
+    TKN_WCHAR,
+    TKN_WSTRING
 }
 
-class Token
+class Node
 {
-    type: TokenType
+    type: Type
     text?: string
     
-    constructor(type: TokenType, text?: string) {
+    constructor(type: Type, text?: string) {
         this.type = type
         this.text = text
     }
     
     toString(): string {
         switch(this.type) {
-            case TokenType.NONE:        return "none"
-            case TokenType.TEXT:        return "text '"+this.text+"'"
-            case TokenType.IDENTIFIER:  return "identifier '"+this.text+"'"
+            case Type.NONE:            return "none"
+            
+            case Type.TKN_TEXT:        return "text '"+this.text+"'"
+            case Type.TKN_IDENTIFIER:  return "identifier '"+this.text+"'"
 
-            case TokenType.ABSTRACT:    return "abstract"
-            case TokenType.ANY:         return "any"
-            case TokenType.ATTRIBUTE:   return "attribute"
-            case TokenType.BOOLEAN:     return "boolean"
-            case TokenType.CASE:        return "case"
-            case TokenType.CHAR:        return "char"
-            case TokenType.COMPONENT:   return "component"
-            case TokenType.CONST:       return "const"
-            case TokenType.CONSUMES:    return "consumes"
-            case TokenType.CONTEXT:     return "context"
-            case TokenType.CUSTOM:      return "custom"
-            case TokenType.DEFAULT:     return "default"
-            case TokenType.DOUBLE:      return "double"
-            case TokenType.EXCEPTION:   return "exception"
-            case TokenType.EMITS:       return "emits"
-            case TokenType.ENUM:        return "enum"
-            case TokenType.EVENTTYPE:   return "eventtype"
-            case TokenType.FACTORY:     return "factory"
-            case TokenType.FALSE:       return "FALSE"
-            case TokenType.FINDER:      return "finder"
-            case TokenType.FIXED:       return "fixed"
-            case TokenType.FLOAT:       return "float"
-            case TokenType.GETRAISES:   return "getraises"
-            case TokenType.HOME:        return "home"
-            case TokenType.IMPORT:      return "import"
-            case TokenType.IN:          return "in"
-            case TokenType.INOUT:       return "inout"
-            case TokenType.INTERFACE:   return "interface"
-            case TokenType.LOCAL:       return "local"
-            case TokenType.LONG:        return "long"
-            case TokenType.MODULE:      return "module"
-            case TokenType.MULTIPLE:    return "multiple"
-            case TokenType.NATIVE:      return "native"
-            case TokenType.OBJECT:      return "Object"
-            case TokenType.OCTET:       return "octet"
-            case TokenType.ONEWAY:      return "oneway"
-            case TokenType.OUT:         return "out"
-            case TokenType.PRIMARYKEY:  return "primarykey"
-            case TokenType.PRIVATE:     return "private"
-            case TokenType.PROVIDES:    return "provides"
-            case TokenType.PUBLIC:      return "public"
-            case TokenType.PUBLISHES:   return "publishes"
-            case TokenType.RAISES:      return "raises"
-            case TokenType.READONLY:    return "readonly"
-            case TokenType.SETRAISES:   return "setraises"
-            case TokenType.SEQUENCE:    return "sequence"
-            case TokenType.SHORT:       return "short"
-            case TokenType.STRING:      return "string"
-            case TokenType.STRUCT:      return "struct"
-            case TokenType.SUPPORTS:    return "supports"
-            case TokenType.SWITCH:      return "switch"
-            case TokenType.TRUE:        return "TRUE"
-            case TokenType.TRUNCATABLE: return "truncatable"
-            case TokenType.TYPEDEF:     return "typedef"
-            case TokenType.TYPEID:      return "typeid"
-            case TokenType.TYPEPREFIX:  return "typeprefix"
-            case TokenType.UNSIGNED:    return "unsigned"
-            case TokenType.UNION:       return "union"
-            case TokenType.USES:        return "uses"
-            case TokenType.VALUEBASE:   return "ValueBase"
-            case TokenType.VALUETYPE:   return "valuetype"
-            case TokenType.VOID:        return "void"
-            case TokenType.WCHAR:       return "wchar"
-            case TokenType.WSTRING:     return "wstring"
+            case Type.TKN_ABSTRACT:    return "abstract"
+            case Type.TKN_ANY:         return "any"
+            case Type.TKN_ATTRIBUTE:   return "attribute"
+            case Type.TKN_BOOLEAN:     return "boolean"
+            case Type.TKN_CASE:        return "case"
+            case Type.TKN_CHAR:        return "char"
+            case Type.TKN_COMPONENT:   return "component"
+            case Type.TKN_CONST:       return "const"
+            case Type.TKN_CONSUMES:    return "consumes"
+            case Type.TKN_CONTEXT:     return "context"
+            case Type.TKN_CUSTOM:      return "custom"
+            case Type.TKN_DEFAULT:     return "default"
+            case Type.TKN_DOUBLE:      return "double"
+            case Type.TKN_EXCEPTION:   return "exception"
+            case Type.TKN_EMITS:       return "emits"
+            case Type.TKN_ENUM:        return "enum"
+            case Type.TKN_EVENTTYPE:   return "eventtype"
+            case Type.TKN_FACTORY:     return "factory"
+            case Type.TKN_FALSE:       return "FALSE"
+            case Type.TKN_FINDER:      return "finder"
+            case Type.TKN_FIXED:       return "fixed"
+            case Type.TKN_FLOAT:       return "float"
+            case Type.TKN_GETRAISES:   return "getraises"
+            case Type.TKN_HOME:        return "home"
+            case Type.TKN_IMPORT:      return "import"
+            case Type.TKN_IN:          return "in"
+            case Type.TKN_INOUT:       return "inout"
+            case Type.TKN_INTERFACE:   return "interface"
+            case Type.TKN_LOCAL:       return "local"
+            case Type.TKN_LONG:        return "long"
+            case Type.TKN_MODULE:      return "module"
+            case Type.TKN_MULTIPLE:    return "multiple"
+            case Type.TKN_NATIVE:      return "native"
+            case Type.TKN_OBJECT:      return "Object"
+            case Type.TKN_OCTET:       return "octet"
+            case Type.TKN_ONEWAY:      return "oneway"
+            case Type.TKN_OUT:         return "out"
+            case Type.TKN_PRIMARYKEY:  return "primarykey"
+            case Type.TKN_PRIVATE:     return "private"
+            case Type.TKN_PROVIDES:    return "provides"
+            case Type.TKN_PUBLIC:      return "public"
+            case Type.TKN_PUBLISHES:   return "publishes"
+            case Type.TKN_RAISES:      return "raises"
+            case Type.TKN_READONLY:    return "readonly"
+            case Type.TKN_SETRAISES:   return "setraises"
+            case Type.TKN_SEQUENCE:    return "sequence"
+            case Type.TKN_SHORT:       return "short"
+            case Type.TKN_STRING:      return "string"
+            case Type.TKN_STRUCT:      return "struct"
+            case Type.TKN_SUPPORTS:    return "supports"
+            case Type.TKN_SWITCH:      return "switch"
+            case Type.TKN_TRUE:        return "TRUE"
+            case Type.TKN_TRUNCATABLE: return "truncatable"
+            case Type.TKN_TYPEDEF:     return "typedef"
+            case Type.TKN_TYPEID:      return "typeid"
+            case Type.TKN_TYPEPREFIX:  return "typeprefix"
+            case Type.TKN_UNSIGNED:    return "unsigned"
+            case Type.TKN_UNION:       return "union"
+            case Type.TKN_USES:        return "uses"
+            case Type.TKN_VALUEBASE:   return "ValueBase"
+            case Type.TKN_VALUETYPE:   return "valuetype"
+            case Type.TKN_VOID:        return "void"
+            case Type.TKN_WCHAR:       return "wchar"
+            case Type.TKN_WSTRING:     return "wstring"
         }
         throw Error("unknown type")
     }
@@ -196,7 +199,7 @@ class Lexer {
     pos: number
     state: number
     text?: string
-    tokenStack: Array<Token>
+    tokenStack: Array<Node>
 
     static isAlpha(c: string): boolean {
         let n = c.charCodeAt(0)
@@ -212,7 +215,7 @@ class Lexer {
         this.column = 1
         this.pos = 0
         this.state = 0
-        this.tokenStack = new Array<Token>()
+        this.tokenStack = new Array<Node>()
     }
     
     eof(): boolean {
@@ -245,14 +248,14 @@ class Lexer {
         }
     }
     
-    unlex(token: Token | undefined): void {
+    unlex(token: Node | undefined): void {
         if (token === undefined)
             return
         // FIXME: adjust this.line and this.column
         this.tokenStack.push(token)
     }
     
-    lex(): Token | undefined {
+    lex(): Node | undefined {
         if (this.tokenStack.length > 0) {
             return this.tokenStack.pop()
         }
@@ -280,7 +283,7 @@ class Lexer {
                             if (Lexer.isAlpha(c)) {
                                 this.state = 2
                             } else {
-                                return new Token(TokenType.TEXT, c)
+                                return new Node(Type.TKN_TEXT, c)
                             }
                             break
                     }
@@ -289,7 +292,7 @@ class Lexer {
                     if (!Lexer.isAlpha(c)) {
                         this.ungetc()
                         this.state = 0
-                        return new Token(TokenType.IDENTIFIER, this.text)
+                        return new Node(Type.TKN_IDENTIFIER, this.text)
                     }
                     break
                 case 2: // <identifier>
@@ -297,72 +300,72 @@ class Lexer {
                         this.ungetc()
                         this.state = 0
                         switch(this.text) {
-                            case "abstract":    return new Token(TokenType.ABSTRACT)
-                            case "any":         return new Token(TokenType.ANY)
-                            case "attribute":   return new Token(TokenType.ATTRIBUTE)
-                            case "boolean":     return new Token(TokenType.BOOLEAN)
-                            case "case":        return new Token(TokenType.CASE)
-                            case "char":        return new Token(TokenType.CHAR)
-                            case "component":   return new Token(TokenType.COMPONENT)
-                            case "const":       return new Token(TokenType.CONST)
-                            case "consumes":    return new Token(TokenType.CONSUMES)
-                            case "context":     return new Token(TokenType.CONTEXT)
-                            case "custom":      return new Token(TokenType.CUSTOM)
-                            case "default":     return new Token(TokenType.DEFAULT)
-                            case "double":      return new Token(TokenType.DOUBLE)
-                            case "exception":   return new Token(TokenType.EXCEPTION)
-                            case "emits":       return new Token(TokenType.EMITS)
-                            case "enum":        return new Token(TokenType.ENUM)
-                            case "eventtype":   return new Token(TokenType.EVENTTYPE)
-                            case "factory":     return new Token(TokenType.FACTORY)
-                            case "FALSE":       return new Token(TokenType.FALSE)
-                            case "finder":      return new Token(TokenType.FINDER)
-                            case "fixed":       return new Token(TokenType.FIXED)
-                            case "float":       return new Token(TokenType.FLOAT)
-                            case "getraises":   return new Token(TokenType.GETRAISES)
-                            case "home":        return new Token(TokenType.HOME)
-                            case "import":      return new Token(TokenType.IMPORT)
-                            case "in":          return new Token(TokenType.IN)
-                            case "inout":       return new Token(TokenType.INOUT)
-                            case "interface":   return new Token(TokenType.INTERFACE)
-                            case "local":       return new Token(TokenType.LOCAL)
-                            case "long":        return new Token(TokenType.LONG)
-                            case "module":      return new Token(TokenType.MODULE)
-                            case "multiple":    return new Token(TokenType.MULTIPLE)
-                            case "native":      return new Token(TokenType.NATIVE)
-                            case "Object":      return new Token(TokenType.OBJECT)
-                            case "octet":       return new Token(TokenType.OCTET)
-                            case "oneway":      return new Token(TokenType.ONEWAY)
-                            case "out":         return new Token(TokenType.OUT)
-                            case "primarykey":  return new Token(TokenType.PRIMARYKEY)
-                            case "private":     return new Token(TokenType.PRIVATE)
-                            case "provides":    return new Token(TokenType.PROVIDES)
-                            case "public":      return new Token(TokenType.PUBLIC)
-                            case "publishes":   return new Token(TokenType.PUBLISHES)
-                            case "raises":      return new Token(TokenType.RAISES)
-                            case "readonly":    return new Token(TokenType.READONLY)
-                            case "setraises":   return new Token(TokenType.SETRAISES)
-                            case "sequence":    return new Token(TokenType.SEQUENCE)
-                            case "short":       return new Token(TokenType.SHORT)
-                            case "string":      return new Token(TokenType.STRING)
-                            case "struct":      return new Token(TokenType.STRUCT)
-                            case "supports":    return new Token(TokenType.SUPPORTS)
-                            case "switch":      return new Token(TokenType.SWITCH)
-                            case "TRUE":        return new Token(TokenType.TRUE)
-                            case "truncatable": return new Token(TokenType.TRUNCATABLE)
-                            case "typedef":     return new Token(TokenType.TYPEDEF)
-                            case "typeid":      return new Token(TokenType.TYPEID)
-                            case "typeprefix":  return new Token(TokenType.TYPEPREFIX)
-                            case "unsigned":    return new Token(TokenType.UNSIGNED)
-                            case "union":       return new Token(TokenType.UNION)
-                            case "uses":        return new Token(TokenType.USES)
-                            case "ValueBase":   return new Token(TokenType.VALUEBASE)
-                            case "valuetype":   return new Token(TokenType.VALUETYPE)
-                            case "void":        return new Token(TokenType.VOID)
-                            case "wchar":       return new Token(TokenType.WCHAR)
-                            case "wstring":     return new Token(TokenType.WSTRING)
+                            case "abstract":    return new Node(Type.TKN_ABSTRACT)
+                            case "any":         return new Node(Type.TKN_ANY)
+                            case "attribute":   return new Node(Type.TKN_ATTRIBUTE)
+                            case "boolean":     return new Node(Type.TKN_BOOLEAN)
+                            case "case":        return new Node(Type.TKN_CASE)
+                            case "char":        return new Node(Type.TKN_CHAR)
+                            case "component":   return new Node(Type.TKN_COMPONENT)
+                            case "const":       return new Node(Type.TKN_CONST)
+                            case "consumes":    return new Node(Type.TKN_CONSUMES)
+                            case "context":     return new Node(Type.TKN_CONTEXT)
+                            case "custom":      return new Node(Type.TKN_CUSTOM)
+                            case "default":     return new Node(Type.TKN_DEFAULT)
+                            case "double":      return new Node(Type.TKN_DOUBLE)
+                            case "exception":   return new Node(Type.TKN_EXCEPTION)
+                            case "emits":       return new Node(Type.TKN_EMITS)
+                            case "enum":        return new Node(Type.TKN_ENUM)
+                            case "eventtype":   return new Node(Type.TKN_EVENTTYPE)
+                            case "factory":     return new Node(Type.TKN_FACTORY)
+                            case "FALSE":       return new Node(Type.TKN_FALSE)
+                            case "finder":      return new Node(Type.TKN_FINDER)
+                            case "fixed":       return new Node(Type.TKN_FIXED)
+                            case "float":       return new Node(Type.TKN_FLOAT)
+                            case "getraises":   return new Node(Type.TKN_GETRAISES)
+                            case "home":        return new Node(Type.TKN_HOME)
+                            case "import":      return new Node(Type.TKN_IMPORT)
+                            case "in":          return new Node(Type.TKN_IN)
+                            case "inout":       return new Node(Type.TKN_INOUT)
+                            case "interface":   return new Node(Type.TKN_INTERFACE)
+                            case "local":       return new Node(Type.TKN_LOCAL)
+                            case "long":        return new Node(Type.TKN_LONG)
+                            case "module":      return new Node(Type.TKN_MODULE)
+                            case "multiple":    return new Node(Type.TKN_MULTIPLE)
+                            case "native":      return new Node(Type.TKN_NATIVE)
+                            case "Object":      return new Node(Type.TKN_OBJECT)
+                            case "octet":       return new Node(Type.TKN_OCTET)
+                            case "oneway":      return new Node(Type.TKN_ONEWAY)
+                            case "out":         return new Node(Type.TKN_OUT)
+                            case "primarykey":  return new Node(Type.TKN_PRIMARYKEY)
+                            case "private":     return new Node(Type.TKN_PRIVATE)
+                            case "provides":    return new Node(Type.TKN_PROVIDES)
+                            case "public":      return new Node(Type.TKN_PUBLIC)
+                            case "publishes":   return new Node(Type.TKN_PUBLISHES)
+                            case "raises":      return new Node(Type.TKN_RAISES)
+                            case "readonly":    return new Node(Type.TKN_READONLY)
+                            case "setraises":   return new Node(Type.TKN_SETRAISES)
+                            case "sequence":    return new Node(Type.TKN_SEQUENCE)
+                            case "short":       return new Node(Type.TKN_SHORT)
+                            case "string":      return new Node(Type.TKN_STRING)
+                            case "struct":      return new Node(Type.TKN_STRUCT)
+                            case "supports":    return new Node(Type.TKN_SUPPORTS)
+                            case "switch":      return new Node(Type.TKN_SWITCH)
+                            case "TRUE":        return new Node(Type.TKN_TRUE)
+                            case "truncatable": return new Node(Type.TKN_TRUNCATABLE)
+                            case "typedef":     return new Node(Type.TKN_TYPEDEF)
+                            case "typeid":      return new Node(Type.TKN_TYPEID)
+                            case "typeprefix":  return new Node(Type.TKN_TYPEPREFIX)
+                            case "unsigned":    return new Node(Type.TKN_UNSIGNED)
+                            case "union":       return new Node(Type.TKN_UNION)
+                            case "uses":        return new Node(Type.TKN_USES)
+                            case "ValueBase":   return new Node(Type.TKN_VALUEBASE)
+                            case "valuetype":   return new Node(Type.TKN_VALUETYPE)
+                            case "void":        return new Node(Type.TKN_VOID)
+                            case "wchar":       return new Node(Type.TKN_WCHAR)
+                            case "wstring":     return new Node(Type.TKN_WSTRING)
                             default:
-                                return new Token(TokenType.IDENTIFIER, this.text)
+                                return new Node(Type.TKN_IDENTIFIER, this.text)
                         }
                     }
                     break
@@ -376,7 +379,7 @@ class Lexer {
                             break
                         default:
                             this.ungetc()
-                            return new Token(TokenType.TEXT, '/')
+                            return new Node(Type.TKN_TEXT, '/')
                     }
                     break
                 case 4: // //...
@@ -463,21 +466,21 @@ function interface_dcl()
     let t0 = lexer.lex()
     if (!t0)
         throw Error("unexpected end of file")
-    if (t0.type !== TokenType.TEXT && t0.text != '{')
+    if (t0.type !== Type.TKN_TEXT && t0.text != '{')
         throw Error("expected { after interface header but got "+t0.toString())
     interface_body()
     let t2 = lexer.lex()
     if (!t2)
         throw Error("unexpected end of file")
-    if (t2.type !== TokenType.TEXT && t2.text != '}')
+    if (t2.type !== Type.TKN_TEXT && t2.text != '}')
         throw Error("expected } after interface header but got "+t2.toString())
 }
 
 // 7
-function interface_header(): Token | undefined
+function interface_header(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === TokenType.INTERFACE) {
+    if (t0 !== undefined && t0.type === Type.TKN_INTERFACE) {
         let t1 = identifier()
         if (t1 !== undefined)
             return t1
@@ -488,7 +491,7 @@ function interface_header(): Token | undefined
 }
 
 // 8
-function interface_body(): Token | undefined
+function interface_body(): Node | undefined
 {
     while(true) {
         let t0 = _export()
@@ -499,7 +502,7 @@ function interface_body(): Token | undefined
 }
 
 // 9
-function _export(): Token | undefined
+function _export(): Node | undefined
 {
     let t0
     t0 = op_decl()
@@ -507,7 +510,7 @@ function _export(): Token | undefined
         return undefined
 
     let t1 = lexer.lex()    
-    if (t1 !== undefined && t1.type === TokenType.TEXT && t1.text === ';')
+    if (t1 !== undefined && t1.type === Type.TKN_TEXT && t1.text === ';')
         return t1
     if (t1 !== undefined)
         throw Error("expected ';' but got "+t1.toString())
@@ -516,7 +519,7 @@ function _export(): Token | undefined
 }
 
 // 46
-function base_type_spec(): Token | undefined
+function base_type_spec(): Node | undefined
 {
     let t0
     t0 = floating_pt_type()
@@ -544,24 +547,24 @@ function base_type_spec(): Token | undefined
 }
 
 // 51
-function simple_declarator(): Token | undefined
+function simple_declarator(): Node | undefined
 {
     return identifier()
 }
 
 // 53
-function floating_pt_type(): Token | undefined
+function floating_pt_type(): Node | undefined
 {
     let t0 = lexer.lex()
     if (t0 === undefined)
         return undefined
-    if (t0.type === TokenType.FLOAT)
+    if (t0.type === Type.TKN_FLOAT)
         return t0
-    if (t0.type === TokenType.DOUBLE)
+    if (t0.type === Type.TKN_DOUBLE)
         return t0
-    if (t0.type === TokenType.LONG) {
+    if (t0.type === Type.TKN_LONG) {
         let t1 = lexer.lex()
-        if (t1 !== undefined && t1.type === TokenType.DOUBLE) {
+        if (t1 !== undefined && t1.type === Type.TKN_DOUBLE) {
 //            return t0.add(t1) FIXME
             return t1
         }
@@ -572,7 +575,7 @@ function floating_pt_type(): Token | undefined
 }
 
 // 54
-function integer_type(): Token | undefined
+function integer_type(): Node | undefined
 {
     let t0
     t0 = signed_int()
@@ -585,7 +588,7 @@ function integer_type(): Token | undefined
 }
 
 // 55
-function signed_int(): Token | undefined
+function signed_int(): Node | undefined
 {
     let t0
     t0 = signed_short_int()
@@ -601,34 +604,34 @@ function signed_int(): Token | undefined
 }
 
 // 56
-function signed_short_int(): Token | undefined
+function signed_short_int(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === TokenType.SHORT)
+    if (t0 !== undefined && t0.type === Type.TKN_SHORT)
         return t0
     lexer.unlex(t0)
     return undefined
 }
 
 // 57
-function signed_long_int(): Token | undefined
+function signed_long_int(): Node | undefined
 {
     let t0 = lexer.lex()
     if (t0 === undefined)
         return undefined
-    if (t0.type === TokenType.LONG)
+    if (t0.type === Type.TKN_LONG)
         return t0
     lexer.unlex(t0)
     return undefined
 }
 
 // 58
-function signed_longlong_int(): Token | undefined
+function signed_longlong_int(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === TokenType.LONG) {
+    if (t0 !== undefined && t0.type === Type.TKN_LONG) {
         let t1 = lexer.lex()
-        if (t1 !== undefined && t1.type === TokenType.LONG) {
+        if (t1 !== undefined && t1.type === Type.TKN_LONG) {
             // FIXME
             return t0
         }
@@ -639,7 +642,7 @@ function signed_longlong_int(): Token | undefined
 }
 
 // 59
-function unsigned_int(): Token | undefined
+function unsigned_int(): Node | undefined
 {
     let t0
     t0 = unsigned_short_int()
@@ -655,12 +658,12 @@ function unsigned_int(): Token | undefined
 }
 
 // 60
-function unsigned_short_int(): Token | undefined
+function unsigned_short_int(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === TokenType.UNSIGNED) {
+    if (t0 !== undefined && t0.type === Type.TKN_UNSIGNED) {
         let t1 = lexer.lex()
-        if (t1 !== undefined && t1.type === TokenType.SHORT) {
+        if (t1 !== undefined && t1.type === Type.TKN_SHORT) {
             // FIXME
             return t0
         }
@@ -671,12 +674,12 @@ function unsigned_short_int(): Token | undefined
 }
 
 // 61
-function unsigned_long_int(): Token | undefined
+function unsigned_long_int(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === TokenType.UNSIGNED) {
+    if (t0 !== undefined && t0.type === Type.TKN_UNSIGNED) {
         let t1 = lexer.lex()
-        if (t1 !== undefined && t1.type === TokenType.LONG) {
+        if (t1 !== undefined && t1.type === Type.TKN_LONG) {
             // FIXME
             return t0
         }
@@ -687,14 +690,14 @@ function unsigned_long_int(): Token | undefined
 }
 
 // 62
-function unsigned_longlong_int(): Token | undefined
+function unsigned_longlong_int(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === TokenType.UNSIGNED) {
+    if (t0 !== undefined && t0.type === Type.TKN_UNSIGNED) {
         let t1 = lexer.lex()
-        if (t1 !== undefined && t1.type === TokenType.LONG) {
+        if (t1 !== undefined && t1.type === Type.TKN_LONG) {
             let t2 = lexer.lex()
-            if (t2 !== undefined && t2.type === TokenType.LONG)
+            if (t2 !== undefined && t2.type === Type.TKN_LONG)
                 return t0
         }
         lexer.unlex(t1)
@@ -704,50 +707,50 @@ function unsigned_longlong_int(): Token | undefined
 }
 
 // 63
-function char_type(): Token | undefined
+function char_type(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type == TokenType.CHAR)
+    if (t0 !== undefined && t0.type == Type.TKN_CHAR)
         return t0
     lexer.unlex(t0)
     return undefined
 }
 
 // 64
-function wide_char_type(): Token | undefined
+function wide_char_type(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type == TokenType.WCHAR)
+    if (t0 !== undefined && t0.type == Type.TKN_WCHAR)
         return t0
     lexer.unlex(t0)
     return undefined
 }
 
 // 65
-function boolean_type(): Token | undefined
+function boolean_type(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type == TokenType.BOOLEAN)
+    if (t0 !== undefined && t0.type == Type.TKN_BOOLEAN)
         return t0
     lexer.unlex(t0)
     return undefined
 }
 
 // 66
-function octet_type(): Token | undefined
+function octet_type(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type == TokenType.OCTET)
+    if (t0 !== undefined && t0.type == Type.TKN_OCTET)
         return t0
     lexer.unlex(t0)
     return undefined
 }
 
 // 67
-function any_type(): Token | undefined
+function any_type(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type == TokenType.ANY)
+    if (t0 !== undefined && t0.type == Type.TKN_ANY)
         return t0
     lexer.unlex(t0)
     return undefined
@@ -757,7 +760,7 @@ function any_type(): Token | undefined
 function string_type()
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === TokenType.STRING) {
+    if (t0 !== undefined && t0.type === Type.TKN_STRING) {
         // 'string' '<' <positive_int_const> '>'
         return t0
     }
@@ -786,12 +789,12 @@ if (t3) console.log("t3: "+t3.toString())
 }
 
 // 88
-function op_attribute(): Token | undefined
+function op_attribute(): Node | undefined
 {
     let t0 = lexer.lex()
     if (!t0)
         return undefined
-    if (t0.type !== TokenType.ONEWAY) {
+    if (t0.type !== Type.TKN_ONEWAY) {
         lexer.unlex(t0)
         return undefined
     }
@@ -799,26 +802,26 @@ function op_attribute(): Token | undefined
 }
 
 // 89
-function op_type_spec(): Token | undefined
+function op_type_spec(): Node | undefined
 {
     let t0 = param_type_spec()
     if (t0 !== undefined)
         return t0
     t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === TokenType.VOID)
+    if (t0 !== undefined && t0.type === Type.TKN_VOID)
          return t0
     lexer.unlex(t0)
     return undefined
 }
 
 // 90
-function parameter_dcls(): Token | undefined
+function parameter_dcls(): Node | undefined
 {
     let t0 = lexer.lex()
     if (!t0) {
         return undefined
     }
-    if (t0.type !== TokenType.TEXT || t0.text !== '(')
+    if (t0.type !== Type.TKN_TEXT || t0.text !== '(')
     {
         lexer.unlex(t0)
         return undefined
@@ -829,10 +832,10 @@ function parameter_dcls(): Token | undefined
     
         let t2 = lexer.lex()
     
-        if (t2 !== undefined && t2.type === TokenType.TEXT && t2.text === ')') {
+        if (t2 !== undefined && t2.type === Type.TKN_TEXT && t2.text === ')') {
             return t0 // FIXME: t1 maybe undefined because the list exists but is empty
         }
-        if (t2 !== undefined && t2.type === TokenType.TEXT && t2.text === ",") {
+        if (t2 !== undefined && t2.type === Type.TKN_TEXT && t2.text === ",") {
             continue
         }
         throw Error("expected ')' at end for parameter declaration")
@@ -840,7 +843,7 @@ function parameter_dcls(): Token | undefined
 }
 
 // 91
-function param_dcl(): Token | undefined
+function param_dcl(): Node | undefined
 {
     param_attribute()
     param_type_spec()
@@ -849,22 +852,22 @@ function param_dcl(): Token | undefined
 }
 
 // 92
-function param_attribute(): Token | undefined
+function param_attribute(): Node | undefined
 {
     let t0 = lexer.lex()
     if (t0 === undefined)
         return undefined
     switch(t0.type) {
-        case TokenType.IN:
-        case TokenType.OUT:
-        case TokenType.INOUT:
+        case Type.TKN_IN:
+        case Type.TKN_OUT:
+        case Type.TKN_INOUT:
             return t0
     }
     throw Error("expected either 'in', 'out' or 'inout'")
 }
 
 // 95
-function param_type_spec(): Token | undefined
+function param_type_spec(): Node | undefined
 {
     let t0
     t0 = base_type_spec()
@@ -886,10 +889,10 @@ function param_type_spec(): Token | undefined
     return t0
 }
 
-function identifier(): Token | undefined
+function identifier(): Node | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === TokenType.IDENTIFIER)
+    if (t0 !== undefined && t0.type === Type.TKN_IDENTIFIER)
         return t0
     lexer.unlex(t0)
     return undefined
