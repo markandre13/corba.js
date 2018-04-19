@@ -34,6 +34,7 @@ import * as fs from "fs"
 
 enum Type {
     NONE,
+    SYNTAX,
 
     TKN_IDENTIFIER,
     TKN_TEXT,
@@ -102,13 +103,17 @@ enum Type {
     TKN_VALUETYPE,
     TKN_VOID,
     TKN_WCHAR,
-    TKN_WSTRING
+    TKN_WSTRING,
+    
+    SYN_PARAMETER_DECLARATION
 }
 
 class Node
 {
     type: Type
     text?: string
+    next?: Node
+    down?: Node
     
     constructor(type: Type, text?: string) {
         this.type = type
@@ -118,6 +123,7 @@ class Node
     toString(): string {
         switch(this.type) {
             case Type.NONE:            return "none"
+            case Type.SYNTAX:          return "toString() not overloaded for syntax node "+this.constructor.name
             
             case Type.TKN_TEXT:        return "text '"+this.text+"'"
             case Type.TKN_IDENTIFIER:  return "identifier '"+this.text+"'"
@@ -188,6 +194,150 @@ class Node
             case Type.TKN_WSTRING:     return "wstring"
         }
         throw Error("unknown type")
+    }
+
+    add(node: Node): void {
+        if (this.down === undefined) {
+            this.down = node
+            return
+        }
+        let lastChild = this.down
+        while(lastChild.next !== undefined)
+            lastChild = lastChild.next
+        lastChild.next = node
+    }
+}
+
+class SyntaxNode extends Node {
+    constructor() {
+        super(Type.SYNTAX)
+    }
+}
+
+class Interface extends SyntaxNode
+{
+    header: InterfaceHeader
+    body: InterfaceBody
+
+    constructor(header: InterfaceHeader, body: InterfaceBody) {
+        super()
+        this.header = header
+        this.body = body
+    }
+    
+    toString(): string {
+        return "interface { { " + this.header.toString() + " }, { " + this.body.toString() + " } }"
+    }
+}
+
+class InterfaceHeader extends SyntaxNode
+{
+    attribute?: Node
+    identifier: Node
+    interface_inheritance_spec?: Node
+
+    constructor(attribute: Node | undefined, identifier: Node, interface_inheritance_spec: Node | undefined) {
+        super()
+        this.attribute = attribute
+        this.identifier = identifier
+        this.interface_inheritance_spec = interface_inheritance_spec
+    }
+
+    toString(): string {
+        let text = "interface_header {"
+        if (this.attribute)
+            text = this.attribute.toString() + " "
+        text += this.identifier.toString()
+        if (this.interface_inheritance_spec)
+            text += " " + this.interface_inheritance_spec.toString()
+        text += " }"
+        return text
+    }
+}
+
+class InterfaceBody extends SyntaxNode
+{
+    constructor() {
+        super()
+    }
+    
+    toString(): string {
+        let text = "interface_body {\n"
+        for(let node = this.down; node; node=node.next)
+            text += "  " + node.toString() + "\n"
+        text += "}\n"
+        return text
+    }
+}
+
+class OperationDeclaration extends SyntaxNode
+{
+    op_attribute?: Node
+    op_type_spec: Node
+    identifier: Node
+    parameter_dcls: ParameterDeclarations
+    raises_expr?: Node
+    context_expr?: Node
+
+    constructor(op_attribute: Node | undefined,
+                op_type_spec: Node,
+                identifier: Node,
+                parameter_dcls: ParameterDeclarations,
+                raises_expr: Node | undefined,
+                context_expr: Node | undefined)
+    {
+        super()
+        this.op_attribute   = op_attribute
+        this.op_type_spec   = op_type_spec
+        this.identifier     = identifier
+        this.parameter_dcls = parameter_dcls
+        this.raises_expr    = raises_expr
+        this.context_expr   = context_expr  
+    }
+    
+    toString(): string {
+        let text = ""
+        if (this.op_attribute)
+            text += this.op_attribute.toString() + " "
+        text += this.op_type_spec.toString() + " "
+        text += this.identifier.toString() + " "
+        text += this.parameter_dcls.toString()
+        return text
+    }
+}
+
+class ParameterDeclarations extends SyntaxNode
+{
+    constructor() {
+        super()
+    }
+    
+    toString(): string {
+        let text = "parameter_dcls {\n"
+        for(let node = this.down; node; node=node.next)
+            text += "  " + node.toString() + "\n"
+        text += "}\n"
+        return text
+    }
+}
+
+class ParameterDeclaration extends SyntaxNode
+{
+    param_attribute: Node
+    param_type_spec: Node
+    simple_declarator: Node
+    constructor(param_attribute: Node, param_type_spec: Node, simple_declarator: Node) {
+        super()
+        this.param_attribute   = param_attribute
+        this.param_type_spec   = param_type_spec
+        this.simple_declarator = simple_declarator
+    }
+    
+    toString(): string {
+        return "param_dcl { " 
+            + this.param_attribute.toString() + ", "
+            + this.param_type_spec.toString() + ", "
+            + this.simple_declarator.toString() + "}"
     }
 }
 
@@ -431,8 +581,10 @@ while(true) {
 */
 
 try {
-    specification()
+    let tree = specification()
     console.log("done")
+    if (tree)
+        console.log(tree.toString())
 }
 catch(error) {
     console.log(error.message+" at line "+lexer.line+", column "+lexer.column)
@@ -440,63 +592,86 @@ catch(error) {
 }
 
 // 1
-function specification()
+function specification(): Node | undefined
 {
-    definition()
+    return definition()
 }
 
 // 2
-function definition()
+function definition(): Node | undefined
 {
-    _interface()
+    return _interface()
 }
 
 // 4
-function _interface()
+function _interface(): Node | undefined
 {
-    interface_dcl()
+    return interface_dcl()
 }
 
 // 5
-function interface_dcl()
+function interface_dcl(): Interface | undefined
 {
-    let n0 = interface_header()
-    if (!n0)
-        return
-    let t0 = lexer.lex()
+    let t0 = interface_header()
     if (!t0)
-        throw Error("unexpected end of file")
-    if (t0.type !== Type.TKN_TEXT && t0.text != '{')
+        return undefined
+    let t1 = lexer.lex()
+    if (t1 === undefined)
+        throw Error("expected { after interface header but got end of file")
+    if (t1.type !== Type.TKN_TEXT && t1.text != '{')
         throw Error("expected { after interface header but got "+t0.toString())
-    interface_body()
-    let t2 = lexer.lex()
-    if (!t2)
+
+    let t2 = interface_body()
+    
+    let t3 = lexer.lex()
+    if (!t3)
         throw Error("unexpected end of file")
-    if (t2.type !== Type.TKN_TEXT && t2.text != '}')
-        throw Error("expected } after interface header but got "+t2.toString())
+    if (t3.type !== Type.TKN_TEXT && t3.text != '}')
+        throw Error("expected } after interface header but got "+t3.toString())
+        
+    return new Interface(t0, t2)
 }
 
 // 7
-function interface_header(): Node | undefined
+function interface_header(): InterfaceHeader | undefined
 {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === Type.TKN_INTERFACE) {
-        let t1 = identifier()
-        if (t1 !== undefined)
-            return t1
-        throw Error("expected identifier after 'interface'")
+    if (t0 === undefined)
+        return undefined
+    let t1
+    if (t0.type !== Type.TKN_ABSTRACT && t0.type !== Type.TKN_LOCAL) {
+        t1 = t0
+        t0 = undefined
+    } else {
+        t1 = lexer.lex()
     }
-    lexer.unlex(t0)
-    return t0
+    if (t1 === undefined) {
+        lexer.unlex(t0)
+        return undefined
+    }
+    if (t1.type !== Type.TKN_INTERFACE) {
+        lexer.unlex(t1)
+        lexer.unlex(t0)
+        return undefined
+    }
+    
+    let t2 = identifier()
+    if (t2 === undefined)
+        throw Error("expected identifier after 'interface'")
+        
+    // let t3 = interface_inheritance_spec()
+    return new InterfaceHeader(t0, t2, undefined)
 }
 
 // 8
-function interface_body(): Node | undefined
+function interface_body(): InterfaceBody
 {
+    let body = new InterfaceBody()
     while(true) {
         let t0 = _export()
         if (t0 === undefined)
-            return t0
+            return body
+        body.add(t0)
         console.log("interface_body got one export at line "+lexer.line)
     }
 }
@@ -511,7 +686,7 @@ function _export(): Node | undefined
 
     let t1 = lexer.lex()    
     if (t1 !== undefined && t1.type === Type.TKN_TEXT && t1.text === ';')
-        return t1
+        return t0
     if (t1 !== undefined)
         throw Error("expected ';' but got "+t1.toString())
     else
@@ -768,8 +943,8 @@ function string_type()
     return undefined
 }
 
-// 87
-function op_decl()
+// 87 (Operation Declaration)
+function op_decl(): OperationDeclaration | undefined
 {
     let t0 = op_attribute() // opt
     let t1 = op_type_spec()
@@ -778,14 +953,14 @@ function op_decl()
         return undefined
     }
     let t2 = identifier()
+    if (t2 === undefined) {
+        throw Error("expected identifier")
+    }
     let t3 = parameter_dcls()
-    
-if (t0) console.log("t0: "+t0.toString())
-if (t1) console.log("t1: "+t1.toString())
-if (t2) console.log("t2: "+t2.toString())
-if (t3) console.log("t3: "+t3.toString())
+    if (t3 === undefined)
+        throw Error("expected parameter declaration")
 
-    return t1
+    return new OperationDeclaration(t0, t1, t2, t3, undefined, undefined)
 }
 
 // 88
@@ -815,7 +990,7 @@ function op_type_spec(): Node | undefined
 }
 
 // 90
-function parameter_dcls(): Node | undefined
+function parameter_dcls(): ParameterDeclarations | undefined
 {
     let t0 = lexer.lex()
     if (!t0) {
@@ -827,28 +1002,45 @@ function parameter_dcls(): Node | undefined
         return undefined
     }
  
+    let declarations = new ParameterDeclarations()
+
     while(true) {
         let t1 = param_dcl()
+        if (t1 !== undefined)
+            declarations.add(t1)
     
         let t2 = lexer.lex()
     
         if (t2 !== undefined && t2.type === Type.TKN_TEXT && t2.text === ')') {
-            return t0 // FIXME: t1 maybe undefined because the list exists but is empty
+            break
         }
         if (t2 !== undefined && t2.type === Type.TKN_TEXT && t2.text === ",") {
             continue
         }
         throw Error("expected ')' at end for parameter declaration")
     }
+    return declarations
 }
 
 // 91
 function param_dcl(): Node | undefined
 {
-    param_attribute()
-    param_type_spec()
-    simple_declarator()
-    return undefined
+    let t0 = param_attribute()
+    if (t0 === undefined)
+        return undefined
+    let t1 = param_type_spec()
+    if (t1 === undefined) {
+        lexer.unlex(t0)
+        return undefined
+    }
+    let t2 = simple_declarator()
+    if (t2 === undefined) {
+        lexer.unlex(t1)
+        lexer.unlex(t0)
+        return undefined
+    }
+    
+    return new ParameterDeclaration(t0, t1, t2)
 }
 
 // 92
