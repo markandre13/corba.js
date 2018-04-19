@@ -277,7 +277,7 @@ function floating_pt_type(): Node | undefined
     if (t0.type === Type.TKN_LONG) {
         let t1 = lexer.lex()
         if (t1 !== undefined && t1.type === Type.TKN_DOUBLE) {
-//            return t0.add(t1) FIXME
+            t1.type = Type.SYN_LONG_DOUBLE
             return t1
         }
         lexer.unlex(t1)

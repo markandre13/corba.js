@@ -39,6 +39,9 @@ function typeIDLtoTS(type: Node | undefined): string {
         case Type.SYN_UNSIGNED_SHORT:
         case Type.SYN_UNSIGNED_LONG:
         case Type.SYN_UNSIGNED_LONGLONG:
+        case Type.TKN_FLOAT:
+        case Type.TKN_DOUBLE:
+        case Type.SYN_LONG_DOUBLE:
             return "number"
         default:
             throw Error("no mapping from IDL type to TS type for "+type.toString())

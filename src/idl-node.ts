@@ -101,7 +101,8 @@ export enum Type {
     SYN_LONGLONG,
     SYN_UNSIGNED_SHORT,
     SYN_UNSIGNED_LONG,
-    SYN_UNSIGNED_LONGLONG
+    SYN_UNSIGNED_LONGLONG,
+    SYN_LONG_DOUBLE
 }
 
 export class Node
@@ -203,6 +204,7 @@ export class Node
             case Type.SYN_UNSIGNED_SHORT:         return "unsigned short"
             case Type.SYN_UNSIGNED_LONG:          return "unsigned long"
             case Type.SYN_UNSIGNED_LONGLONG:      return "unsigned long long"
+            case Type.SYN_LONG_DOUBLE:            return "long double"
         }
         throw Error("Node.toString(): unknown type "+String(this.type))
     }
