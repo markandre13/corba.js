@@ -7,6 +7,14 @@ interface Server {
     oneway void logon(in string user, in string password);
 };
 
+interface Client {
+    oneway void logonRequest(in unsigned long lifetime, in string disclaimer);
+
+    // unsigned long hello();
+
+    // oneway void home(in User user);
+};
+
 /*
 module toad {
 
@@ -39,10 +47,6 @@ module workflow {
         string avatar;
       };
 
-    interface Client {
-       oneway void logonRequest(in number lifetime, in string disclaimer);
-        oneway void home(in User user);
-    };
 }
 
 */
