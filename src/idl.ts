@@ -228,6 +228,57 @@ class Interface extends SyntaxNode
     toString(): string {
         return "interface { { " + this.header.toString() + " }, { " + this.body.toString() + " } }"
     }
+    
+    stubTS(out: fs.WriteStream) {
+        out.write("class ")
+        out.write(this.header.identifier.text)
+        out.write(" extends Stub {\n")
+        out.write("    constructor(orb: ORB) {\n")
+        out.write("        super(orb)\n")
+        out.write("        this.orb.create(this, \"")
+        out.write(this.header.identifier.text)
+        out.write("\")\n")
+        out.write("    }\n")
+        
+        for(let node = this.body.down; node; node=node.next) {
+            if (node instanceof OperationDeclaration) {
+                let op_decl = node as OperationDeclaration
+                let identifier = op_decl.identifier.text
+                out.write("\n")
+                out.write("    ")
+                if (op_decl.op_attribute === undefined || op_decl.op_attribute.type !== Type.TKN_ONEWAY) {
+                    out.write("async ")
+                    if (op_decl.op_type_spec.type !== Type.TKN_VOID) {
+                        throw Error("oneway methods must always return void")
+                    }
+                }
+                out.write(identifier)
+                out.write("(")
+                for(let pd = op_decl.parameter_dcls.down; pd; pd=pd.next) {
+                    if (pd !== op_decl.parameter_dcls.down)
+                        out.write(", ")
+                    let px = pd as ParameterDeclaration
+                    out.write(px.simple_declarator.text+": string")
+                }
+                out.write("): void {\n")
+                out.write("        this.orb.call(this.id, "+identifier+", [")
+                for(let pd = op_decl.parameter_dcls.down; pd; pd=pd.next) {
+                    if (pd !== op_decl.parameter_dcls.down)
+                        out.write(", ")
+                    let px = pd as ParameterDeclaration
+                    out.write(px.simple_declarator.text)
+                }
+                out.write("])\n")
+                out.write("    }\n")
+            }
+        }
+        
+        out.write("}\n")
+        // use stream
+    }
+    
+    skelTS() {
+    }
 }
 
 class InterfaceHeader extends SyntaxNode
@@ -583,8 +634,15 @@ while(true) {
 try {
     let tree = specification()
     console.log("done")
-    if (tree)
+    if (tree) {
         console.log(tree.toString())
+        
+        if (tree instanceof Interface) {
+            let out = fs.createWriteStream("ServerStub.ts")
+            let iface = tree as Interface
+            iface.stubTS(out)
+        }
+    }
 }
 catch(error) {
     console.log(error.message+" at line "+lexer.line+", column "+lexer.column)
