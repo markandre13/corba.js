@@ -50,6 +50,69 @@ function typeIDLtoTS(type: Node | undefined): string {
     }
 }
 
+let generatorTSSkel = new Map<Type, Function>([
+    [ Type.SYN_SPECIFICATION, function(this: Generator) {
+        for(let definition of this.node.child) {
+            this.generate(definition!)
+        }
+    }],
+    [ Type.SYN_VALUE_DCL, function(this: Generator) {
+    }],
+    [ Type.SYN_INTERFACE, function(this: Generator) {
+        let identifier = this.node.child[0]!.child[1]!.text
+        this.out.write("abstract class "+identifier+"_skel extends Skeleton {\n")
+        this.out.write("    constructor(orb: ORB) {\n")
+        this.out.write("        super(orb)\n")
+        this.out.write("    }\n")
+        
+        for(let op_decl of this.node.child[1]!.child) {
+            let attribute = op_decl!.child[0]
+            let type = op_decl!.child[1]
+            
+            let oneway = false
+            if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
+                oneway = true
+
+            if (oneway && type!.type !== Type.TKN_VOID)
+                throw Error("glue.js currently requires every oneway function to return void")
+            if (!oneway && type!.type === Type.TKN_VOID)
+                throw Error("glue.js currently requires operations returning void to be oneway")
+            
+            let identifier = op_decl!.child[2]!.text
+            let parameter_decls = op_decl!.child[3]!.child
+            this.out.write("    abstract ")
+            if (!oneway)
+                this.out.write("async ")
+            this.out.write(identifier+"(")
+            let comma = false
+            for(let parameter_dcl of parameter_decls) {
+                let attribute = parameter_dcl!.child[0]!.type
+                let type = parameter_dcl!.child[1]
+                let identifier = parameter_dcl!.child[2]!.text
+                if (attribute !== Type.TKN_IN) {
+                    throw Error("glue.js currently only supports 'in' parameters")
+                }
+                if (!comma) {
+                    comma = true
+                } else {
+                    this.out.write(", ")
+                }
+                this.out.write(identifier)
+                this.out.write(": ")
+                this.out.write(typeIDLtoTS(type))
+            }
+            this.out.write("): ")
+            if (!oneway)
+                this.out.write("Promise<")
+            this.out.write(typeIDLtoTS(type))
+            if (!oneway)
+                this.out.write(">")
+            this.out.write("\n")
+        }
+        this.out.write("}\n")
+    }]
+])
+
 let generatorTSStub = new Map<Type, Function>([
     [ Type.SYN_SPECIFICATION, function(this: Generator) {
         for(let definition of this.node.child) {
@@ -164,7 +227,11 @@ catch(error) {
     process.exit(1)
 }
 if (tree) {
-    let out = fs.createWriteStream("ServerStub.ts")
-    let generator = new Generator(generatorTSStub, out)
+    let out, generator
+    out = fs.createWriteStream("Server_stub.ts")
+    generator = new Generator(generatorTSStub, out)
+
+    out = fs.createWriteStream("Server_skel.ts")
+    generator = new Generator(generatorTSSkel, out)
     generator.generate(tree)
 }
