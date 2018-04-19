@@ -19,6 +19,76 @@
 import * as ws from "ws"
 const WebSocket = ws
 
+let localClassesByName = new Map<string, any>()
+let localClassNameByPrototype = new Map<any, string>()
+
+export function registerLocalClass(name: string, aClass: any) {
+    localClassesByName.set(name, aClass)
+    localClassNameByPrototype.set(aClass.prototype, name)
+}
+
+function serialize(object: any): string
+{
+    if (typeof object === "object") {
+        let data = ""
+
+        if (object instanceof Array) {
+            let data = ""
+            for(let x of object) {
+                if (data.length!==0)
+                    data += ","
+                data += serialize(x)
+            }
+            return "["+data+"]"
+        }
+
+        let prototype = Object.getPrototypeOf(object)
+        let name = localClassNameByPrototype.get(prototype)
+        if (name === undefined)
+            throw Error("can not serialize object of unregistered class "+object.constructor.name)
+        for(let [attribute, value] of Object.entries(object)) {
+            if (data.length!==0)
+                data += ","
+            data += '"'+attribute+'":'+serialize(value)
+        }
+        return `{"#T":"${name}","#V":{${data}}}`
+    } else {
+        return JSON.stringify(object)
+    }
+}
+
+function deserialize(text: string): any {
+    return _deserialize(JSON.parse(text))
+}
+
+function _deserialize(data: any): any
+{
+    if (typeof data === "object" &&
+        data instanceof Array)
+    {
+        for(let i in data) {
+            data[i] = _deserialize(data[i])
+        }
+        return data
+    }
+
+    let type = data["#T"]
+    let value = data["#V"]
+    if (type !== undefined && value !== undefined) {
+        let aClass = localClassesByName.get(type)
+        if (aClass === undefined)
+            throw Error("can not deserialize object of unregistered class "+type)
+        let object = Object.create(aClass.prototype)
+        for(let [innerAttribute, innerValue] of Object.entries(value)) {
+            object[innerAttribute] = _deserialize(innerValue)
+        }
+        return object
+    }
+
+    return data
+}
+
+
 export class ORB {
     debug: number
     socket?: ws
@@ -114,7 +184,9 @@ export class ORB {
         this.send(data)
     }
 
-    async call(id: number, method: string, params: any) {
+    async call(id: number, method: string, params: Array<any>) {
+        for(let i in params)
+            params[i] = serialize(params[i])
         let msg = await this.send({
             "glue": "1.0",
             "method": method,
@@ -193,6 +265,9 @@ export class ORB {
             throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server for unknown object "+msg.id)
         if (stub[msg.method]===undefined)
             throw Error("ORB.handleMethod(): client required unknown method '"+msg.method+"' on server for known object "+msg.id)
+        for(let i in msg.params) {
+            msg.params[i] = deserialize(msg.params[i])
+        }
         let result = stub[msg.method].apply(stub, msg.params)
         if (result !== undefined) {
             let answer = {
@@ -231,6 +306,68 @@ export class Stub
     }
 }
 
+//=================================== DEMO ===================================
+
+class Origin
+{
+    x: number
+    y: number
+    
+    constructor(x?: number, y?: number) {
+        this.x = x ? x : 0
+        this.y = y ? y : 0
+    }
+    print(): void {
+        console.log("Origin.print(): x="+this.x+", y="+this.y)
+    }
+}
+
+class Size {
+    width: number
+    height: number
+    constructor(width?: number, height?: number) {
+        this.width = width ? width : 0
+        this.height = height ? height : 0
+    }
+    print(): void {
+        console.log("Size.print(): width="+this.width+", height="+this.height)
+    }
+}
+
+abstract class Figure {
+    abstract print(): void
+}
+
+class FigureModel {
+    data: Array<Figure>
+    constructor() {
+        this.data = new Array<Figure>()
+    }
+}
+
+class Rectangle extends Figure {
+    origin: Origin
+    size: Size
+    constructor(x?: number, y?: number, width?: number, height?: number) {
+        super()
+        this.origin = new Origin(x, y)
+        this.size   = new Size(width, height)
+    }
+    print(): void {
+        console.log("Rectangle.print(): ("+this.origin.x+","+this.origin.y+","+this.size.width+","+this.size.height+")")
+    }
+}
+
+registerLocalClass("Origin", Origin)
+registerLocalClass("Size", Size)
+registerLocalClass("Figure", Figure)
+registerLocalClass("Rectangle", Rectangle)
+registerLocalClass("FigureModel", FigureModel)
+
+let model = new FigureModel()
+model.data.push(new Rectangle(10, 20, 30, 40))
+model.data.push(new Rectangle(50, 60, 70, 80))
+
 abstract class Server_skel extends Skeleton
 {
     constructor(orb: ORB) {
@@ -249,6 +386,7 @@ class Server_impl extends Server_skel
         super(orb)
         this.client = new Client(orb)
         this.client.question()
+        this.client.setFigureModel(model)
     }
 
     hello(): void {
@@ -275,7 +413,6 @@ class Server extends Stub
     async answer(a: number, b: number): Promise<number> {
         return await this.orb.call(this.id, "answer", [a, b])
     }
-
 }
 
 class Client extends Stub
@@ -288,6 +425,10 @@ class Client extends Stub
     question(): void {
         this.orb.call(this.id, "question", [])
     }
+    
+    setFigureModel(figuremodel: FigureModel): void {
+        this.orb.call(this.id, "setFigureModel", [figuremodel])
+    }
 }
 
 abstract class Client_skel extends Skeleton
@@ -297,6 +438,7 @@ abstract class Client_skel extends Skeleton
     }
     
     abstract question(): void
+    abstract setFigureModel(figuremodel: FigureModel): void
 }
 
 class Client_impl extends Client_skel
@@ -308,8 +450,18 @@ class Client_impl extends Client_skel
     question(): void {
         console.log("Client_impl.question()")
     }
-}
+    
+    setFigureModel(figuremodel: FigureModel): void {
+        console.log("Client_impl.setFigureModel()")
+        console.log(figuremodel)
 
+        figuremodel.data[0].print()
+        let r = figuremodel.data[0] as Rectangle
+        r.origin.print()
+        r.size.print()
+        
+    }
+}
 
 if (process.argv.length!==3) {
     console.log("please provide one argument: --server | --client")
