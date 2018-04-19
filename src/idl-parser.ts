@@ -536,7 +536,8 @@ function param_attribute(): Node | undefined
         case Type.TKN_INOUT:
             return t0
     }
-    throw Error("expected either 'in', 'out' or 'inout'")
+    lexer.unlex(t0)
+    return undefined
 }
 
 // 95

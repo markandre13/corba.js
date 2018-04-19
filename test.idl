@@ -10,7 +10,7 @@ interface Server {
 interface Client {
     oneway void logonRequest(in unsigned long lifetime, in string disclaimer);
 
-    // unsigned long hello();
+    unsigned long hello();
 
     // oneway void home(in User user);
 };
