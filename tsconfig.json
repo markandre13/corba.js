@@ -5,6 +5,7 @@
     "moduleResolution": "node",
     "traceResolution": false,
     "lib": ["es6", "es2017.object"],
+    "outDir": "lib",
     "declaration": true,
     "strict": true,
     "allowJs": false,
