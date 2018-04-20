@@ -101,6 +101,9 @@ export enum Type {
     SYN_PARAMETER_DECLARATIONS, // 90
     SYN_PARAMETER_DECLARATION, // 91
     
+    // synthetic tokens
+    SYN_TYPENAME,
+    
     // synthetic tokens combining other tokens
     SYN_LONGLONG,
     SYN_UNSIGNED_SHORT,
@@ -206,6 +209,8 @@ export class Node
     
             case Type.SYN_PARAMETER_DECLARATIONS: return "SYN_PARAMETER_DECLARATIONS" // 90
             case Type.SYN_PARAMETER_DECLARATION:  return "SYN_PARAMETER_DECLARATION" // 91
+            
+            case Type.SYN_TYPENAME:               return "SYN_TYPENAME"
 
             case Type.SYN_LONGLONG:               return "long long"
             case Type.SYN_UNSIGNED_SHORT:         return "unsigned short"

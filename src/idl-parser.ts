@@ -50,6 +50,13 @@ export function specification(aLexer: Lexer): Node | undefined
             break
         node.add(t0)
     }
+    
+    for(let typename of typenames) {
+        let t0 = new Node(Type.SYN_TYPENAME)
+        t0.text = typename
+        node.add(t0)
+    }
+    
     return node
 }
 

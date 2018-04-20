@@ -1,0 +1,32 @@
+/*
+ * IDL for test001
+ */
+
+valuetype Origin {
+    public double x, y;
+};
+
+valuetype Size {
+    public double width, height;
+};
+
+valuetype Figure {
+};
+
+valuetype Rectangle {
+    public Origin origin;
+    public Size size;
+};
+
+valuetype FigureModel {
+};
+
+interface Server {
+    oneway void hello();
+    double answer(in double a, in double b);
+};
+
+interface Client {
+    oneway void question();
+    oneway void setFigureModel(in FigureModel figuremodel);
+};
