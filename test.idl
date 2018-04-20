@@ -2,20 +2,20 @@
  * Workflow IDL
  */
 
-custom valuetype Origin {
-    double x, y;
+valuetype Origin {
+    public double x, y;
 };
 
-custom valuetype Size {
-    double width, height;
+valuetype Size {
+    public double width, height;
 };
 
-custom valuetype Figure {
+valuetype Figure {
 };
 
-custom valuetype Rectangle {
-    Origin origin;
-    Size size;
+valuetype Rectangle {
+    public Origin origin;
+    public Size size;
 };
 
 interface Server {

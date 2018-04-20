@@ -22,12 +22,19 @@ import { Lexer } from "./idl-lexer"
 let lexer: Lexer
 let typenames: Set<string>
 
-function expect(text: string): void {
+function expect(text: string, customMessage?: string): void {
     let t0 = lexer.lex()
+    let errorMessage
+    if (customMessage === undefined)
+        errorMessage = "expected '"+text+"'"
+    else
+        errorMessage = customMessage
+    
     if (t0 === undefined)
-        throw Error("expected '"+text+"' but found end of file")
-    if (t0.type !== Type.TKN_TEXT || t0.text !== text)
-        throw Error("expected '"+text+"' but found "+t0.toString())
+        throw Error(errorMessage+" but found end of file")
+    if (t0.type !== Type.TKN_TEXT || t0.text !== text) {
+        throw Error(errorMessage) // "expected '"+text+"' but found "+t0.toString())
+    }
 }
 
 // 1
@@ -223,7 +230,7 @@ function value_dcl(): Node | undefined
         node.add(t1)
     }
 
-    expect('}')
+    expect('}', "valuetype attributes must be prefixed with either 'public' or 'private'")
 
     return node
 }
@@ -235,7 +242,8 @@ function value_header(): Node | undefined
     if (t0 !== undefined) {
         let t1
         if (t0.type === Type.TKN_CUSTOM) {
-            t1 = lexer.lex()
+            throw Error("glue.js currently does not support custom valuetypes")
+            // t1 = lexer.lex()
         } else {
             t1 = t0
             t0 = undefined
@@ -293,7 +301,7 @@ function state_member(): Node | undefined
         return undefined
     if (t0.type !== Type.TKN_PUBLIC && t0.type !== Type.TKN_PRIVATE) {
         lexer.unlex(t0)
-        t0 = undefined
+        return undefined
     }
 
     let t1 = type_spec()
