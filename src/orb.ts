@@ -207,7 +207,7 @@ export class ORB {
     register(name: string, aClass: any) {
         this.classes.set(name, aClass)
     }
-
+    
     async listen(host: string, port: number): Promise<void> {
         return new Promise<void>( (resolve, reject) => {
             const wss = new WebSocket.Server({host: host,port: port}, function() {

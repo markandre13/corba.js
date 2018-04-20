@@ -90,8 +90,6 @@ let generatorTSSkel = new Map<Type, Function>([
             let identifier = op_decl!.child[2]!.text
             let parameter_decls = op_decl!.child[3]!.child
             this.out.write("    abstract ")
-            if (!oneway)
-                this.out.write("async ")
             this.out.write(identifier+"(")
             let comma = false
             for(let parameter_dcl of parameter_decls) {
@@ -111,11 +109,7 @@ let generatorTSSkel = new Map<Type, Function>([
                 this.out.write(typeIDLtoTS(type))
             }
             this.out.write("): ")
-            if (!oneway)
-                this.out.write("Promise<")
             this.out.write(typeIDLtoTS(type))
-            if (!oneway)
-                this.out.write(">")
             this.out.write("\n")
         }
         this.out.write("}\n\n")

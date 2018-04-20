@@ -1,5 +1,5 @@
 /*
- * IDL for test001
+ * IDL for basics.spec.ts
  */
 
 valuetype Origin {
