@@ -348,10 +348,8 @@ function simple_type_spec(): Node | undefined
 {
     let t0
     t0 = base_type_spec()
-/*
     if (t0 === undefined)
         t0 = template_type_spec()
-*/
     if (t0 === undefined)
         t0 = scoped_name()
     return t0
@@ -382,6 +380,27 @@ function base_type_spec(): Node | undefined
     t0 = any_type()
     if (t0 !== undefined)
         return t0
+    return undefined
+}
+
+// 47
+function template_type_spec(): Node | undefined
+{
+    let t0
+    t0 = sequence_type()
+    if (t0 !== undefined)
+        return t0
+    t0 = string_type()
+    if (t0 !== undefined)
+        return t0
+    t0 = wide_string_type()
+    if (t0 !== undefined)
+        return t0
+/*
+    t0 = fixed_pt_type()
+    if (t0 !== undefined)
+        return t0
+*/
     return undefined
 }
 
@@ -632,12 +651,43 @@ function any_type(): Node | undefined
     return undefined
 }
 
+// 80
+function sequence_type(): Node | undefined
+{
+    let t0 = lexer.lex()
+    if (t0 !== undefined && t0.type === Type.TKN_SEQUENCE) {
+        // "sequence" "<" simple_type_spec "," positive_int_const ">"
+        expect("<")
+        let t1 = simple_type_spec()
+        if (t1 === undefined)
+            throw Error("expected type after 'sequence <'")
+        expect(">")
+        t0.add(t1)
+        t0.add(undefined)
+        return t0
+    }
+    lexer.unlex(t0)
+    return undefined
+}
+
 // 81
 function string_type(): Node | undefined
 {
     let t0 = lexer.lex()
     if (t0 !== undefined && t0.type === Type.TKN_STRING) {
         // 'string' '<' <positive_int_const> '>'
+        return t0
+    }
+    lexer.unlex(t0)
+    return undefined
+}
+
+// 81
+function wide_string_type(): Node | undefined
+{
+    let t0 = lexer.lex()
+    if (t0 !== undefined && t0.type === Type.TKN_WSTRING) {
+        // 'wstring' '<' <positive_int_const> '>'
         return t0
     }
     lexer.unlex(t0)
