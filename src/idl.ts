@@ -229,7 +229,7 @@ class Generator {
 
 function usage() {
     console.log("corba.js IDL compiler")
-    console.log("Usage: corba.idl [--ts-stub|--ts-skel] file")
+    console.log("Usage: corba-idl [--ts-stub|--ts-skel] file")
 }
 
 let lexer: Lexer | undefined
