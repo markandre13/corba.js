@@ -19,78 +19,11 @@
 import * as ws from "ws"
 const WebSocket = ws
 
-let localClassesByName = new Map<string, any>()
-let localClassNameByPrototype = new Map<any, string>()
-
-export function registerLocalClass(name: string, aClass: any) {
-    localClassesByName.set(name, aClass)
-    localClassNameByPrototype.set(aClass.prototype, name)
-}
-
-function serialize(object: any): string
-{
-    if (typeof object !== "object") {
-        return JSON.stringify(object)
-    }
-
-    if (object instanceof Array) {
-        let data = ""
-        for(let x of object) {
-            if (data.length!==0)
-                data += ","
-            data += serialize(x)
-        }
-        return "["+data+"]"
-    }
-
-    let data = ""
-    let prototype = Object.getPrototypeOf(object)
-    let name = localClassNameByPrototype.get(prototype)
-    if (name === undefined)
-        throw Error("ORB: can not serialize object of unregistered class "+object.constructor.name)
-    for(let [attribute, value] of Object.entries(object)) {
-        if (data.length!==0)
-            data += ","
-        data += '"'+attribute+'":'+serialize(value)
-    }
-    return `{"#T":"${name}","#V":{${data}}}`
-}
-
-function deserialize(text: string): any {
-    return _deserialize(JSON.parse(text))
-}
-
-function _deserialize(data: any): any
-{
-    if (typeof data !== "object")
-        return data
-        
-    if (data instanceof Array) {
-        for(let i in data) {
-            data[i] = _deserialize(data[i])
-        }
-        return data
-    }
-
-    let type = data["#T"]
-    let value = data["#V"]
-    if (type === undefined || value === undefined) {
-        throw Error("ORB: no type/value information in serialized data")
-    }
-    let aClass = localClassesByName.get(type)
-    if (aClass === undefined)
-        throw Error("ORB: can not deserialize object of unregistered class "+type)
-    let object = Object.create(aClass.prototype)
-    for(let [innerAttribute, innerValue] of Object.entries(value)) {
-        object[innerAttribute] = _deserialize(innerValue)
-    }
-    return object
-}
-
 
 export class ORB {
-    debug: number
-    socket?: ws
+    debug: number		// values > 0 enable debug output
+
+    socket?: ws			// socket with the client/server
 
     id: number			// counter to assign id's to locally created objects
     obj: Map<number, Stub>	// maps ids to objects
@@ -99,17 +32,91 @@ export class ORB {
 
     reqid: number		// counter to assign request id's to send messages
     
+    valueTypeByName: Map<string, any>
+    valueTypeByPrototype: Map<any, string>
+
     constructor(orb?: ORB) {
         if (orb === undefined) {
             this.debug = 0
             this.classes = new Map<string, any>()
+            this.valueTypeByName = new Map<string, any>()
+            this.valueTypeByPrototype = new Map<any, string>()
         } else {
             this.debug = orb.debug
             this.classes = orb.classes
+            this.valueTypeByName = orb.valueTypeByName
+            this.valueTypeByPrototype = orb.valueTypeByPrototype
         }
         this.id = 0
         this.reqid = 0
         this.obj = new Map<number, Stub>()
+    }
+
+    //
+    // valuetype
+    //
+
+    registerValueType(name: string, valuetype: any): void {
+        this.valueTypeByName.set(name, valuetype)
+        this.valueTypeByPrototype.set(valuetype.prototype, name)
+    }
+
+    serialize(object: any): string {
+        if (typeof object !== "object") {
+            return JSON.stringify(object)
+        }
+
+        if (object instanceof Array) {
+            let data = ""
+            for(let x of object) {
+                if (data.length!==0)
+                    data += ","
+                data += this.serialize(x)
+            }
+            return "["+data+"]"
+        }
+
+        let data = ""
+        let prototype = Object.getPrototypeOf(object)
+        let name = this.valueTypeByPrototype.get(prototype)
+        if (name === undefined)
+            throw Error("ORB: can not serialize object of unregistered class "+object.constructor.name)
+        for(let [attribute, value] of Object.entries(object)) {
+            if (data.length!==0)
+                data += ","
+            data += '"'+attribute+'":'+this.serialize(value)
+        }
+        return `{"#T":"${name}","#V":{${data}}}`
+    }
+
+    deserialize(text: string): any {
+        return this._deserialize(JSON.parse(text))
+    }
+
+    _deserialize(data: any): any {
+        if (typeof data !== "object")
+            return data
+        
+        if (data instanceof Array) {
+            for(let i in data) {
+                data[i] = this._deserialize(data[i])
+            }
+            return data
+        }
+        
+        let type = data["#T"]
+        let value = data["#V"]
+        if (type === undefined || value === undefined) {
+            throw Error("ORB: no type/value information in serialized data")
+        }
+        let aClass = this.valueTypeByName.get(type)
+        if (aClass === undefined)
+            throw Error("ORB: can not deserialize object of unregistered class "+type)
+        let object = Object.create(aClass.prototype)
+        for(let [innerAttribute, innerValue] of Object.entries(value)) {
+            object[innerAttribute] = this._deserialize(innerValue)
+        }
+        return object
     }
     
     //
@@ -185,14 +192,14 @@ export class ORB {
 
     async call(id: number, method: string, params: Array<any>) {
         for(let i in params)
-            params[i] = serialize(params[i])
+            params[i] = this.serialize(params[i])
         let msg = await this.send({
             "glue": "1.0",
             "method": method,
             "params": params,
             "id": id
         })
-        return deserialize(msg.result)
+        return this.deserialize(msg.result)
     }
 
     ///
@@ -265,13 +272,13 @@ export class ORB {
         if (stub[msg.method]===undefined)
             throw Error("ORB.handleMethod(): client required unknown method '"+msg.method+"' on server for known object "+msg.id)
         for(let i in msg.params) {
-            msg.params[i] = deserialize(msg.params[i])
+            msg.params[i] = this.deserialize(msg.params[i])
         }
         let result = stub[msg.method].apply(stub, msg.params)
         if (result !== undefined) {
             let answer = {
                 "glue": "1.0",
-                "result": serialize(result),
+                "result": this.serialize(result),
                 "reqid": msg.reqid
             }
             let text = JSON.stringify(answer)
@@ -357,11 +364,12 @@ class Rectangle extends Figure {
     }
 }
 
-registerLocalClass("Origin", Origin)
-registerLocalClass("Size", Size)
-registerLocalClass("Figure", Figure)
-registerLocalClass("Rectangle", Rectangle)
-registerLocalClass("FigureModel", FigureModel)
+let orb = new ORB()
+orb.registerValueType("Origin", Origin)
+orb.registerValueType("Size", Size)
+orb.registerValueType("Figure", Figure)
+orb.registerValueType("Rectangle", Rectangle)
+orb.registerValueType("FigureModel", FigureModel)
 
 let model = new FigureModel()
 model.data.push(new Rectangle(10, 20, 30, 40))
@@ -468,14 +476,12 @@ if (process.argv.length!==3) {
 }
 
 async function server() {
-    let orb = new ORB()
     orb.register("Server", Server_impl)
     await orb.listen("0.0.0.0", 8000)
     console.log("orb is listening")
 }
 
 async function client() {
-    let orb = new ORB()
     orb.register("Client", Client_impl)
     await orb.connect("127.0.0.1", 8000)
     console.log("orb is connected")
