@@ -1,5 +1,5 @@
 /*
- *  glue.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
+ *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
  *  Copyright (C) 2018 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -249,7 +249,7 @@ function value_header(): Node | undefined
     if (t0 !== undefined) {
         let t1
         if (t0.type === Type.TKN_CUSTOM) {
-            throw Error("glue.js currently does not support custom valuetypes")
+            throw Error("corba.js currently does not support custom valuetypes")
             // t1 = lexer.lex()
         } else {
             t1 = t0

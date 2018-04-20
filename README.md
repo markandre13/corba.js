@@ -1,5 +1,11 @@
-# glue.js
-Welcome to the glue.js, an Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
+# corba.js
+
+Welcome to corba.js, an Object Request Broker (ORB) and Interface Definition
+Language (IDL) compiler in TypeScript/JavaScript based on the CORBA v3.0
+specification.
+
+CORBA is a registered trademark by the Object Management Group.
+http://www.corba.org/
 
 ## Why?
 
@@ -23,7 +29,7 @@ implements only what is needed for my Workflow app (plus some things
 which didn't require thinking like the full list of keywords and no
 changes to the grammar).
 
-In glue.js 'custom valuetype' is used to describe objects which will be
+In corba.js 'custom valuetype' is used to describe objects which will be
 passed by value.  For now the contents of the valuetypes are ignored as the
 current JavaScript ORB can serialize/deserialize objects on it's own for
 now.

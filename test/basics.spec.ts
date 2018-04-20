@@ -1,6 +1,6 @@
 import { expect } from "chai"
 
-import { ORB } from "glue.js"
+import { ORB } from "corba.js"
 import { Server_skel, Client_skel } from "./basics_skel"
 import { Server, Client } from "./basics_stub"
 
@@ -95,7 +95,7 @@ class Client_impl extends Client_skel {
     }
 }
 
-describe("glue.js", function() {
+describe("corba.js", function() {
     it("a basic test", async function() {
 
         let serverORB = new ORB()

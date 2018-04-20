@@ -1,13 +1,13 @@
 {
-  "name": "glue.js",
-  "version": "0.0.1",
-  "description": "glue.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
+  "name": "corba.js",
+  "version": "0.0.2",
+  "description": "Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
   "author": "Mark-André Hopf <mhopf@mark13.org>",
   "license": "GPL-3.0",
   "main": "lib/orb.js",
   "types": "lib/orb.d.ts",
   "bin": {
-    "glue-idl": "./bin/glue-idl"
+    "corba-idl": "./bin/corba-idl"
   },
   "repository": {
     "type": "git",
@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "bin/glue-idl --ts-skel test/basics.idl && bin/glue-idl --ts-stub test/basics.idl && karma start"
+    "test": "bin/corba-idl --ts-skel test/basics.idl && bin/corba-idl --ts-stub test/basics.idl && karma start"
   },
   "devDependencies": {
     "@types/chai": "^4.1.3",

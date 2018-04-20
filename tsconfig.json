@@ -7,7 +7,7 @@
     "lib": ["es5", "es6", "es2017.object", "dom"],
     "baseUrl": ".",
     "paths": {
-      "glue.js": [ "src/orb.js" ]
+      "corba.js": [ "src/orb.js" ]
     },
     "outDir": "lib",
     "declaration": true,

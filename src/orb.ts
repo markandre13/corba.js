@@ -1,5 +1,5 @@
 /*
- *  glue.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
+ *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
  *  Copyright (C) 2018 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -151,8 +151,8 @@ export class ORB {
                     console.log("ORB.send(...) received "+message.data)
                 }
                 let msg = JSON.parse(String(message.data))
-                if (msg.glue !== "1.0")
-                    throw Error("expected glue version 1.0 but got "+msg.glue)
+                if (msg.corba !== "1.0")
+                    throw Error("expected corba version 1.0 but got "+msg.corba)
                 if (msg.new !== undefined) {
                     this.handleNew(msg)
                 } else
@@ -178,7 +178,7 @@ export class ORB {
         let id = ++this.id
         
         let data = {
-            "glue": "1.0",
+            "corba": "1.0",
             "new": name,
             "id": id
         }
@@ -192,7 +192,7 @@ export class ORB {
         for(let i in params)
             params[i] = this.serialize(params[i])
         let msg = await this.send({
-            "glue": "1.0",
+            "corba": "1.0",
             "method": method,
             "params": params,
             "id": id
@@ -236,8 +236,8 @@ export class ORB {
                 console.log("ORB.accept(): got message ", message.data)
             }
             let msg = JSON.parse(String(message.data))
-            if (msg.glue !== "1.0") {
-                throw Error("expected glue version 1.0 but got "+msg.glue)
+            if (msg.corba !== "1.0") {
+                throw Error("expected corba version 1.0 but got "+msg.corba)
             }
             if (msg.new !== undefined) {
                 this.handleNew(msg)
@@ -275,7 +275,7 @@ export class ORB {
         let result = stub[msg.method].apply(stub, msg.params)
         if (result !== undefined) {
             let answer = {
-                "glue": "1.0",
+                "corba": "1.0",
                 "result": this.serialize(result),
                 "reqid": msg.reqid
             }
