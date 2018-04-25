@@ -36,6 +36,15 @@ export class Lexer {
                )
     }
 
+    static isDigit(c: string): boolean {
+        let n = c.charCodeAt(0)
+        return (0x30 <= n && n <= 0x39)
+    }
+    
+    static isAlphaNumeric(c: string): boolean {
+        return Lexer.isAlpha(c) || Lexer.isDigit(c)
+    }
+
     constructor(data: string) {
         this.data = data
         this.line = 1
@@ -125,7 +134,7 @@ export class Lexer {
                     }
                     break
                 case 2: // <identifier>
-                    if (!Lexer.isAlpha(c)) { // FIXME: also numeric and _
+                    if (!Lexer.isAlphaNumeric(c) && c!=="_") {
                         this.ungetc()
                         this.state = 0
                         switch(this.text) {
