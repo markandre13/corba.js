@@ -16,12 +16,10 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import * as WebSocket from "ws"
-
 export class ORB {
     debug: number		// values > 0 enable debug output
 
-    socket?: WebSocket		// socket with the client/server
+    socket?: any		// socket with the client/server
 
     id: number			// counter to assign id's to locally created objects
     obj: Map<number, Stub>	// maps ids to objects
@@ -50,6 +48,10 @@ export class ORB {
         this.obj = new Map<number, Stub>()
     }
 
+    register(name: string, aClass: any) {
+        this.classes.set(name, aClass)
+    }
+    
     //
     // valuetype
     //
@@ -130,7 +132,7 @@ export class ORB {
             orb.socket.onopen = function() {
                 resolve()
             }
-            orb.socket.onerror = function(err) {
+            orb.socket.onerror = function(err: any) {
                 reject(err)
             }
         })
@@ -146,13 +148,13 @@ export class ORB {
         return new Promise<any>( (resolve, reject) => {
             if (!this.socket)
                 throw Error("fuck")
-            this.socket.onmessage = (message) => {
+            this.socket.onmessage = (message: any) => {
                 if (this.debug>0) {
                     console.log("ORB.send(...) received "+message.data)
                 }
                 let msg = JSON.parse(String(message.data))
                 if (msg.corba !== "1.0")
-                    throw Error("expected corba version 1.0 but got "+msg.corba)
+                    reject(Error("expected corba version 1.0 but got "+msg.corba))
                 if (msg.new !== undefined) {
                     this.handleNew(msg)
                 } else
@@ -163,7 +165,7 @@ export class ORB {
                     resolve(msg)
                 }
             }
-            this.socket.onerror = function(err) {
+            this.socket.onerror = function(err: any) {
                 reject(err)
             }
             this.socket.send(JSON.stringify(data))
@@ -200,54 +202,6 @@ export class ORB {
         return this.deserialize(msg.result)
     }
 
-    ///
-    /// Server
-    ///
-
-    register(name: string, aClass: any) {
-        this.classes.set(name, aClass)
-    }
-    
-    async listen(host: string, port: number): Promise<void> {
-        return new Promise<void>( (resolve, reject) => {
-            const wss = new WebSocket.Server({host: host,port: port}, function() {
-                resolve()
-            })
-            wss.on("error", (error: any) => {
-                switch(error.code) {
-                    case "EADDRINUSE":
-                        reject(new Error("another server is already running at "+error.address+":"+error.port))
-                        break
-                    default:
-                        reject(error)
-                }
-            })
-            wss.on("connection", (socket) => {
-                let orb = new ORB(this)
-                orb.accept(socket)
-            })
-        })
-    }
-    
-    accept(socket: WebSocket) {
-        this.socket = socket
-        this.socket.onmessage = (message) => {
-            if (this.debug>0) {
-                console.log("ORB.accept(): got message ", message.data)
-            }
-            let msg = JSON.parse(String(message.data))
-            if (msg.corba !== "1.0") {
-                throw Error("expected corba version 1.0 but got "+msg.corba)
-            }
-            if (msg.new !== undefined) {
-                this.handleNew(msg)
-            } else
-            if (msg.method !== undefined) {
-                this.handleMethod(msg)
-            }
-        }
-    }
-    
     handleNew(msg: any) {
         let template = this.classes.get(msg.new)
         if (template===undefined)
