@@ -28,6 +28,13 @@ function typeIDLtoTS(type: Node | undefined): string {
         throw Error("internal error: parser delivered no type information")
     switch(type!.type) {
         case Type.TKN_IDENTIFIER:
+            if ( type.child.length>0 &&
+                 type.child[0]!.type === Type.TKN_NATIVE &&
+                 type.text!.length > 4 &&
+                 type.text!.substring(type.text!.length-4)==="_ptr" )
+            {
+                return type.text!.substring(0, type.text!.length-4) + " | undefined"
+            }
             return type.text!
         case Type.TKN_VOID:
             return "void"
@@ -314,7 +321,7 @@ let generatorTSValueType = new Map<Type, Function>([
                 continue
             let op_decl = node
             let attribute = op_decl!.child[0]
-            let type = op_decl!.child[1]
+            let type = op_decl!.child[1]!
             let op_identifier = op_decl!.child[2]!.text
             let parameter_decls = op_decl!.child[3]!.child
             this.out.write("\n")
@@ -339,8 +346,6 @@ let generatorTSValueType = new Map<Type, Function>([
             }
             this.out.write("): ")
             this.out.write(typeIDLtoTS(type))
-            if (type!.type === Type.TKN_IDENTIFIER)
-                this.out.write(" | undefined")
             this.out.write(" {\n")
             this.out.write("        throw Error('pure virtual method "+if_identifier+"."+op_identifier+"() called')\n")
             this.out.write("    }\n")

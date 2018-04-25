@@ -177,8 +177,13 @@ function scoped_name(): Node | undefined
 {
     let t0
     t0 = identifier()
-    if (t0 !== undefined && !typenames.has(t0.text!))
-        throw Error("encountered undefined type '"+t0.text+"'")
+    
+    if (t0 !== undefined) {
+        let type = typenames.get(t0.text!)
+        if (type === undefined)
+            throw Error("encountered undefined type '"+t0.text+"'")
+        t0.add(type)
+    }
     // "::" stuff is missing
     return t0
 }
