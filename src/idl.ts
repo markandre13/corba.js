@@ -339,6 +339,8 @@ let generatorTSValueType = new Map<Type, Function>([
             }
             this.out.write("): ")
             this.out.write(typeIDLtoTS(type))
+            if (type!.type === Type.TKN_IDENTIFIER)
+                this.out.write(" | undefined")
             this.out.write(" {\n")
             this.out.write("        throw Error('pure virtual method "+if_identifier+"."+op_identifier+"() called')\n")
             this.out.write("    }\n")
