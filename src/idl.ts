@@ -245,7 +245,14 @@ let generatorTSValueType = new Map<Type, Function>([
     [ Type.SYN_VALUE_DCL, function(this: Generator) {
         let header = this.node.child[0]!
         let identifier = header.child[1]!.text
-        this.out.write("export class "+identifier+" {\n")
+        let inheritance_spec = header.child[2]
+        this.out.write("export class "+identifier)
+        if (inheritance_spec) {
+            if (inheritance_spec.child.length > 2)
+                throw Error("multiple inheritance is not supported for typescript")
+            this.out.write(" extends "+inheritance_spec.child[1]!.text)
+        }
+        this.out.write(" {\n")
         for(let i=1; i< this.node.child.length; ++i) {
             let state_member = this.node.child[i]!
             let attribute    = state_member.child[0]!
@@ -271,6 +278,9 @@ let generatorTSValueType = new Map<Type, Function>([
             }
         }
         this.out.write(") {\n")
+        if (inheritance_spec) {
+            this.out.write("        super()\n") // FIXME: provide arguments for super class constructor
+        }
         for(let i=1; i< this.node.child.length; ++i) {
             let state_member = this.node.child[i]!
             let attribute    = state_member.child[0]!

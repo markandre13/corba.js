@@ -279,13 +279,47 @@ function value_header(): Node | undefined
 // 19
 function value_inheritance_spec(): Node | undefined
 {
-    return undefined
+    let t0 = lexer.lex()
+    if (t0 === undefined || t0.type !== Type.TKN_TEXT || t0.text !== ":") {
+        lexer.unlex(t0)
+        return undefined
+    }
+    
+    let t1 = lexer.lex()
+    if (t1 !== undefined && t1.type !== Type.TKN_TRUNCATABLE) {
+        lexer.unlex(t1)
+        t1 = undefined
+    }
+    if (t1 !== undefined)
+        throw Error("'truncatable' is not supported")
+
+    let node = new Node(Type.SYN_VALUE_INHERITANCE_SPEC)
+    node.add(t1)
+        
+    while(true) {
+        let t2 = value_name()
+        if (t2 === undefined) {
+            throw Error("expected a value name after '"+t0.text+"'")
+        }
+        node.add(t2)
+        let t3 = lexer.lex()
+        if (t3 === undefined)
+            throw Error("unexpected end of file")
+        if (t3.type !== Type.TKN_TEXT || t3.text !== ",") {
+            lexer.unlex(t3)
+            break
+        }
+        t0 = value_name()
+        if (t0 === undefined)
+            throw Error("expected a value name after ':'")
+    }
+    return node
 }
 
 // 20
 function value_name(): Node | undefined
 {
-    return undefined
+    return scoped_name()
 }
 
 // 21
