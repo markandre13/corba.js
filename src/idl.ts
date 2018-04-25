@@ -98,6 +98,13 @@ let generatorTSSkel = new Map<Type, Function>([
         for(let definition of this.node.child) {
             if (definition!.type === Type.SYN_INTERFACE)
                 this.generate(definition!)
+            if (definition!.type === Type.TKN_MODULE) {
+                this.out.write("namespace "+definition!.text+" {\n\n")
+                for(let moduleDefinition of definition!.child) {
+                    this.generate(moduleDefinition!)
+                }
+                this.out.write("} // namespace "+definition!.text+"\n\n")
+            }
         }
     }],
     [ Type.SYN_VALUE_DCL, function(this: Generator) {
@@ -163,6 +170,13 @@ let generatorTSStub = new Map<Type, Function>([
         for(let definition of this.node.child) {
             if (definition!.type === Type.SYN_INTERFACE)
                 this.generate(definition!)
+            if (definition!.type === Type.TKN_MODULE) {
+                this.out.write("namespace "+definition!.text+" {\n\n")
+                for(let moduleDefinition of definition!.child) {
+                    this.generate(moduleDefinition!)
+                }
+                this.out.write("} // namespace "+definition!.text+"\n\n")
+            }
         }
     }],
     [ Type.SYN_VALUE_DCL, function(this: Generator) {
@@ -242,6 +256,7 @@ let generatorTSStub = new Map<Type, Function>([
 
 let generatorTSValueType = new Map<Type, Function>([
     [ Type.SYN_SPECIFICATION, function(this: Generator) {
+
         this.out.write("declare global {\n")
         for(let definition of this.node.child) {
             if (definition!.type !== Type.TKN_NATIVE)
@@ -249,9 +264,17 @@ let generatorTSValueType = new Map<Type, Function>([
             this.out.write("    interface "+definition!.text+" {}\n")
         }
         this.out.write("}\n\n")
+
         for(let definition of this.node.child) {
             if (definition!.type === Type.SYN_VALUE_DCL)
                 this.generate(definition!)
+            if (definition!.type === Type.TKN_MODULE) {
+                this.out.write("export namespace "+definition!.text+" {\n\n")
+                for(let moduleDefinition of definition!.child) {
+                    this.generate(moduleDefinition!)
+                }
+                this.out.write("} // namespace "+definition!.text+"\n\n")
+            }
         }
     }],
     [ Type.SYN_VALUE_DCL, function(this: Generator) {

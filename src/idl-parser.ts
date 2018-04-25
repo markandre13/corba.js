@@ -48,12 +48,12 @@ export function specification(aLexer: Lexer): Node | undefined
         let t0 = definition()
         if (t0 === undefined)
             break
-        if (t0.type === Type.TKN_NATIVE)
-            continue
         node.add(t0)
     }
     
     for(let [typename, typenode] of typenames) {
+        if (typenode.type === Type.TKN_NATIVE)
+            continue
         node.add(typenode)
     }
     
@@ -68,12 +68,37 @@ function definition(): Node | undefined
     if (t0 === undefined)
         t0 = _interface()
     if (t0 === undefined)
+        t0 = _module()
+    if (t0 === undefined)
         t0 = value()
     
     if (t0 !== undefined) {
         expect(';')
     }
     return t0
+}
+
+// 3
+function _module(): Node | undefined
+{
+    let t0 = lexer.lex()
+    if (t0 !== undefined && t0.type === Type.TKN_MODULE) {
+        let t1 = identifier()
+        if (t1 === undefined)
+            throw Error("exepted identifer after 'module'")
+        t0.text = t1.text
+        expect("{")
+        while(true) {
+            let t2 = definition()
+            if (t2 === undefined)
+                break
+            t0.add(t2)
+        }
+        expect("}")
+        return t0
+    }
+    lexer.unlex(t0)
+    return undefined
 }
 
 // 4
