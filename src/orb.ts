@@ -112,7 +112,7 @@ export class ORB {
         let aClass = this.valueTypeByName.get(type)
         if (aClass === undefined)
             throw Error("ORB: can not deserialize object of unregistered class "+type)
-        let object = Object.create(aClass.prototype)
+        let object = new aClass()
         for(let [innerAttribute, innerValue] of Object.entries(value)) {
             object[innerAttribute] = this._deserialize(innerValue)
         }
