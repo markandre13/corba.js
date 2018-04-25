@@ -123,12 +123,12 @@ export class ORB {
     // Client
     //
 
-    async connect(host: string, port: number): Promise<void> {
+    async connect(url: string): Promise<void> {
         if (this.debug>0)
-            console.log("ORB.connect('"+host+"', "+port+")")
+            console.log("ORB.connect('"+url+")")
         let orb = this
         return new Promise<void>( (resolve, reject) => {
-            orb.socket = new WebSocket("ws://"+host+":"+port)
+            orb.socket = new WebSocket(url)
             orb.socket.onopen = function() {
                 resolve()
             }
