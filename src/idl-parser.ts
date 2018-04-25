@@ -230,6 +230,7 @@ function value_dcl(): Node | undefined
     expect('{')
 
     let node = new Node(Type.SYN_VALUE_DCL)
+    node.add(t0)
     while(true) {
         let t1 = value_element()
         if (t1 === undefined)
