@@ -83,15 +83,14 @@ let generatorTSSkel = new Map<Type, Function>([
     [ Type.SYN_SPECIFICATION, function(this: Generator) {
         this.out.write("declare global {\n")
         for(let definition of this.node.child) {
-            if (definition!.type !== Type.SYN_TYPENAME)
+            if (definition!.type !== Type.TKN_VALUETYPE)
                 continue
             this.out.write("    interface "+definition!.text+" {}\n")
         }
         this.out.write("}\n\n")
         for(let definition of this.node.child) {
-            if (definition!.type === Type.SYN_TYPENAME)
-                continue
-            this.generate(definition!)
+            if (definition!.type === Type.SYN_INTERFACE)
+                this.generate(definition!)
         }
     }],
     [ Type.SYN_VALUE_DCL, function(this: Generator) {
@@ -149,15 +148,14 @@ let generatorTSStub = new Map<Type, Function>([
     [ Type.SYN_SPECIFICATION, function(this: Generator) {
         this.out.write("declare global {\n")
         for(let definition of this.node.child) {
-            if (definition!.type !== Type.SYN_TYPENAME)
+            if (definition!.type !== Type.TKN_VALUETYPE)
                 continue
             this.out.write("    interface "+definition!.text+" {}\n")
         }
         this.out.write("}\n\n")
         for(let definition of this.node.child) {
-            if (definition!.type === Type.SYN_TYPENAME)
-                continue
-            this.generate(definition!)
+            if (definition!.type === Type.SYN_INTERFACE)
+                this.generate(definition!)
         }
     }],
     [ Type.SYN_VALUE_DCL, function(this: Generator) {
@@ -237,6 +235,13 @@ let generatorTSStub = new Map<Type, Function>([
 
 let generatorTSValueType = new Map<Type, Function>([
     [ Type.SYN_SPECIFICATION, function(this: Generator) {
+        this.out.write("declare global {\n")
+        for(let definition of this.node.child) {
+            if (definition!.type !== Type.TKN_NATIVE)
+                continue
+            this.out.write("    interface "+definition!.text+" {}\n")
+        }
+        this.out.write("}\n\n")
         for(let definition of this.node.child) {
             if (definition!.type === Type.SYN_VALUE_DCL)
                 this.generate(definition!)
@@ -244,17 +249,21 @@ let generatorTSValueType = new Map<Type, Function>([
     }],
     [ Type.SYN_VALUE_DCL, function(this: Generator) {
         let header = this.node.child[0]!
-        let identifier = header.child[1]!.text
+        let if_identifier = header.child[1]!.text
         let inheritance_spec = header.child[2]
-        this.out.write("export class "+identifier)
+        this.out.write("export class "+if_identifier)
         if (inheritance_spec) {
             if (inheritance_spec.child.length > 2)
                 throw Error("multiple inheritance is not supported for typescript")
             this.out.write(" extends "+inheritance_spec.child[1]!.text)
         }
         this.out.write(" {\n")
+
         for(let i=1; i< this.node.child.length; ++i) {
-            let state_member = this.node.child[i]!
+            let node = this.node.child[i]!
+            if (node.type !== Type.SYN_STATE_MEMBER)
+                continue
+            let state_member = node
             let attribute    = state_member.child[0]!
             let type         = state_member.child[1]!
             let declarators  = state_member.child[2]!
@@ -262,10 +271,14 @@ let generatorTSValueType = new Map<Type, Function>([
                 this.out.write("    "+declarator!.text+": "+typeIDLtoTS(type)+"\n")
             }
         }
+
         this.out.write("    constructor(")
         let comma = false
         for(let i=1; i< this.node.child.length; ++i) {
-            let state_member = this.node.child[i]!
+            let node = this.node.child[i]!
+            if (node.type !== Type.SYN_STATE_MEMBER)
+                continue
+            let state_member = node
             let attribute    = state_member.child[0]!
             let type         = state_member.child[1]!
             let declarators  = state_member.child[2]!
@@ -287,13 +300,50 @@ let generatorTSValueType = new Map<Type, Function>([
             let type         = state_member.child[1]!
             let declarators  = state_member.child[2]!
             for(let declarator of declarators.child) {
-                let identifier = declarator!.text
-                this.out.write("        this."+identifier+" = ("+identifier+" === undefined) ? ")
+                let decl_identifier = declarator!.text
+                this.out.write("        this."+decl_identifier+" = ("+decl_identifier+" === undefined) ? ")
                 this.out.write(defaultValueIDLtoTS(type))
-                this.out.write(" : "+identifier+"\n")
+                this.out.write(" : "+decl_identifier+"\n")
             }
         }
         this.out.write("    }\n")
+
+        for(let i=1; i< this.node.child.length; ++i) {
+            let node = this.node.child[i]!
+            if (node.type !== Type.SYN_OPERATION_DECLARATION)
+                continue
+            let op_decl = node
+            let attribute = op_decl!.child[0]
+            let type = op_decl!.child[1]
+            let op_identifier = op_decl!.child[2]!.text
+            let parameter_decls = op_decl!.child[3]!.child
+            this.out.write("\n")
+            this.out.write("    ")
+            this.out.write(op_identifier+"(")
+            let comma = false
+            for(let parameter_dcl of parameter_decls) {
+                let attribute = parameter_dcl!.child[0]!.type
+                let type = parameter_dcl!.child[1]
+                let param_identifier = parameter_dcl!.child[2]!.text
+                if (attribute !== Type.TKN_IN) {
+                    throw Error("corba.js currently only supports 'in' parameters")
+                }
+                if (!comma) {
+                    comma = true
+                } else {
+                    this.out.write(", ")
+                }
+                this.out.write(param_identifier)
+                this.out.write(": ")
+                this.out.write(typeIDLtoTS(type))
+            }
+            this.out.write("): ")
+            this.out.write(typeIDLtoTS(type))
+            this.out.write(" {\n")
+            this.out.write("        throw Error('pure virtual method "+if_identifier+"."+op_identifier+"() called')\n")
+            this.out.write("    }\n")
+        }
+
         this.out.write("}\n\n")
     }]
 ])

@@ -30,6 +30,17 @@ export class ORB extends Browser.ORB {
     /// Server
     ///
 
+/*  FIXME: add wss:// support
+    const https = require('https');
+    const fs = require('fs');
+    const WebSocket = require('ws');
+    const server = https.createServer({
+        cert: fs.readFileSync('../test/fixtures/certificate.pem'),
+        key: fs.readFileSync('../test/fixtures/key.pem')
+    });
+    const wss = new WebSocket.Server({ server });
+*/
+
     async listen(host: string, port: number): Promise<void> {
         return new Promise<void>( (resolve, reject) => {
             const wss = new WebSocket.Server({host: host,port: port}, function() {

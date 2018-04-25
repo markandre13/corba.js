@@ -20,7 +20,7 @@ import { Type, Node } from "./idl-node"
 import { Lexer } from "./idl-lexer"
 
 let lexer: Lexer
-let typenames: Set<string>
+let typenames: Map<string, Node>
 
 function expect(text: string, customMessage?: string): void {
     let t0 = lexer.lex()
@@ -41,20 +41,20 @@ function expect(text: string, customMessage?: string): void {
 export function specification(aLexer: Lexer): Node | undefined
 {
     lexer = aLexer
-    typenames = new Set<string>()
+    typenames = new Map<string, Node>()
     
     let node = new Node(Type.SYN_SPECIFICATION)
     while(true) {
         let t0 = definition()
         if (t0 === undefined)
             break
+        if (t0.type === Type.TKN_NATIVE)
+            continue
         node.add(t0)
     }
     
-    for(let typename of typenames) {
-        let t0 = new Node(Type.SYN_TYPENAME)
-        t0.text = typename
-        node.add(t0)
+    for(let [typename, typenode] of typenames) {
+        node.add(typenode)
     }
     
     return node
@@ -64,7 +64,9 @@ export function specification(aLexer: Lexer): Node | undefined
 function definition(): Node | undefined
 {
     let t0
-    t0 = _interface()
+    t0 = type_dcl()
+    if (t0 === undefined)
+        t0 = _interface()
     if (t0 === undefined)
         t0 = value()
     
@@ -262,7 +264,8 @@ function value_header(): Node | undefined
                 throw Error("expected an identifier after valuetype")
             let t3 = value_inheritance_spec()
             
-            typenames.add(t2.text!)
+            t1.text = t2.text
+            typenames.set(t2.text!, t1)
             
             let node = new Node(Type.SYN_VALUE_HEADER)
             node.add(t0)
@@ -364,6 +367,24 @@ function state_member(): Node | undefined
     node.add(t1)
     node.add(t2)
     return node
+}
+
+// 42
+function type_dcl(): Node | undefined
+{
+    let t0 = lexer.lex()
+    if (t0 !== undefined && t0.type === Type.TKN_NATIVE) {
+        let t1 = simple_declarator()
+        if (t1 === undefined) {
+            throw Error("expected simple declarator after 'native'")
+        }
+        t0.add(t1)
+        t0.text = t1.text
+        typenames.set(t1.text!, t0)
+        return t0
+    }
+    lexer.unlex(t0)
+    return undefined
 }
 
 // 44
