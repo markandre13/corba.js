@@ -131,7 +131,7 @@ let generatorTSSkel = new Map<Type, Function>([
             
             let identifier = op_decl!.child[2]!.text
             let parameter_decls = op_decl!.child[3]!.child
-            this.out.write("    abstract ")
+            this.out.write("    abstract async ")
             this.out.write(identifier+"(")
             let comma = false
             for(let parameter_dcl of parameter_decls) {
@@ -150,9 +150,9 @@ let generatorTSSkel = new Map<Type, Function>([
                 this.out.write(": ")
                 this.out.write(typeIDLtoTS(type))
             }
-            this.out.write("): ")
+            this.out.write("): Promise<")
             this.out.write(typeIDLtoTS(type))
-            this.out.write("\n")
+            this.out.write(">\n")
         }
         this.out.write("}\n\n")
     }]

@@ -226,8 +226,10 @@ export class ORB {
         for(let i in msg.params) {
             msg.params[i] = this.deserialize(msg.params[i])
         }
-        let result = stub[msg.method].apply(stub, msg.params)
-        if (result !== undefined) {
+        let result = stub[msg.method].apply(stub, msg.params) as any
+        result.then( (result: any) => {
+            if (result === undefined)
+                return
             let answer = {
                 "corba": "1.0",
                 "result": this.serialize(result),
@@ -238,7 +240,7 @@ export class ORB {
                 console.log("ORB.handleMethod(): sending call reply "+text)
             }
             this.socket!.send(text)
-        }
+        })
     }
 }
 
