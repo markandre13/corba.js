@@ -1,2 +1,2 @@
 #!/usr/bin/env node
-require('../lib/idl.js')
+require('../lib/idl/idl.js')

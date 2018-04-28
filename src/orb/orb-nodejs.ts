@@ -22,7 +22,7 @@ import * as Browser from "./orb"
 export { Skeleton, Stub, Object_ref } from "./orb"
 
 export class ORB extends Browser.ORB {
-    constructor(orb?: ORB) {
+    constructor(orb?: Browser.ORB) {
         super(orb)
     }
 
@@ -57,13 +57,13 @@ export class ORB extends Browser.ORB {
             })
             wss.on("connection", (socket) => {
                 let orb = new ORB(this)
-                orb.accept(socket)
+                orb.socket = socket
+                orb.accept()
             })
         })
     }
     
-    accept(socket: WebSocket) {
-        this.socket = socket
+    accept() {
         this.socket.onmessage = (message: any) => {
             if (this.debug>0) {
                 console.log("ORB.accept(): got message ", message.data)

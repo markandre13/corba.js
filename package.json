@@ -4,8 +4,8 @@
   "description": "Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
   "author": "Mark-André Hopf <mhopf@mark13.org>",
   "license": "GPL-3.0",
-  "main": "lib/orb.js",
-  "types": "lib/orb.d.ts",
+  "main": "lib/orb/orb.js",
+  "types": "lib/orb/orb.d.ts",
   "bin": {
     "corba-idl": "./bin/corba-idl"
   },

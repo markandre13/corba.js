@@ -265,6 +265,14 @@ export class ORB {
             this.socket!.send(text)
         })
     }
+
+    async listen(host: string, port: number): Promise<void> {
+        throw Error("pure virtual function ORB.listen() being called in browser ORB")
+    }
+    
+    accept() {
+        throw Error("pure virtual function ORB.accept() being called in browser ORB")
+    }
 }
 
 export class Object_ref {
