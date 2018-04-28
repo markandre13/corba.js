@@ -25,6 +25,7 @@ export class ORB {
     obj: Map<number, Stub>	// maps ids to objects
 
     classes: Map<string, any>	// maps class names to constructor functions from which objects can be created
+    stubsByName: Map<string, any> // FIXME: name not final
 
     reqid: number		// counter to assign request id's to send messages
     
@@ -35,11 +36,13 @@ export class ORB {
         if (orb === undefined) {
             this.debug = 0
             this.classes = new Map<string, any>()
+            this.stubsByName = new Map<string, any>()
             this.valueTypeByName = new Map<string, any>()
             this.valueTypeByPrototype = new Map<any, string>()
         } else {
             this.debug = orb.debug
             this.classes = orb.classes
+            this.stubsByName = orb.stubsByName
             this.valueTypeByName = orb.valueTypeByName
             this.valueTypeByPrototype = orb.valueTypeByPrototype
         }
@@ -50,6 +53,10 @@ export class ORB {
 
     register(name: string, aClass: any) {
         this.classes.set(name, aClass)
+    }
+    
+    registerStub(name: string, aStubClass: any) { // FIXME: method name not final
+        this.stubsByName.set(name, aStubClass)
     }
     
     //
@@ -64,6 +71,10 @@ export class ORB {
     serialize(object: any): string {
         if (typeof object !== "object") {
             return JSON.stringify(object)
+        }
+        
+        if (object instanceof Object_ref) {
+            return `{"#R":"${object.name}","#V":${object.id}}`
         }
 
         if (object instanceof Array) {
@@ -105,13 +116,23 @@ export class ORB {
         }
         
         let type = data["#T"]
+        let reference = data["#R"]
         let value = data["#V"]
+        if (reference !== undefined && value !== undefined) {
+            let aStubClass = this.stubsByName.get(reference)
+            if (aStubClass === undefined) {
+                throw Error("ORB: can not deserialize object of unregistered stub "+type)
+            }
+            let object = new aStubClass(this)
+            return object
+        }
+
         if (type === undefined || value === undefined) {
             throw Error("ORB: no type/value information in serialized data")
         }
         let aClass = this.valueTypeByName.get(type)
         if (aClass === undefined)
-            throw Error("ORB: can not deserialize object of unregistered class "+type)
+            throw Error("ORB: can not deserialize object of unregistered valuetype "+type)
         let object = new aClass()
         for(let [innerAttribute, innerValue] of Object.entries(value)) {
             object[innerAttribute] = this._deserialize(innerValue)
@@ -191,8 +212,10 @@ export class ORB {
     }
 
     async call(id: number, method: string, params: Array<any>) {
-        for(let i in params)
+        for(let i in params) {
             params[i] = this.serialize(params[i])
+        }
+
         let msg = await this.send({
             "corba": "1.0",
             "method": method,
@@ -244,8 +267,16 @@ export class ORB {
     }
 }
 
-export class Skeleton
-{
+export class Object_ref {
+    name: string
+    id: number
+    constructor(name: string, id: number) {
+        this.name = name
+        this.id = id
+    }
+}
+
+export class Skeleton {
     orb: ORB
     id: number
 
@@ -253,10 +284,14 @@ export class Skeleton
         this.orb = orb
         this.id = 0
     }
+    
+    // what we need to transmit to the client to create a stub
+    _this(): Object_ref {
+        throw Error("pure virtual method Skeleton._this() called")
+    }
 }
 
-export class Stub
-{
+export class Stub {
     orb: ORB
     id: number
     

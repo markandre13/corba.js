@@ -22,6 +22,15 @@ import { Lexer } from "./idl-lexer"
 let lexer: Lexer
 let typenames: Map<string, Node>
 
+function addTypename(name: string, type: Node): void {
+/*
+    this does not work with modules
+    if (typenames.has(name))
+        throw Error("duplicate typename '"+name+"'")
+*/
+    typenames.set(name, type)
+}
+
 function expect(text: string, customMessage?: string): void {
     let t0 = lexer.lex()
     let errorMessage
@@ -53,6 +62,8 @@ export function specification(aLexer: Lexer): Node | undefined
     
     for(let [typename, typenode] of typenames) {
         if (typenode.type === Type.TKN_NATIVE)
+            continue
+        if (typenode.type === Type.SYN_INTERFACE)
             continue
         node.add(typenode)
     }
@@ -137,6 +148,7 @@ function interface_dcl(): Node | undefined
     let node = new Node(Type.SYN_INTERFACE)
     node.add(t0)
     node.add(t2)
+    addTypename(t0.child[1]!.text!, node)
     return node
 }
 
@@ -295,7 +307,7 @@ function value_header(): Node | undefined
             let t3 = value_inheritance_spec()
             
             t1.text = t2.text
-            typenames.set(t2.text!, t1)
+            addTypename(t2.text!, t1)
             
             let node = new Node(Type.SYN_VALUE_HEADER)
             node.add(t0)
@@ -410,7 +422,7 @@ function type_dcl(): Node | undefined
         }
         t0.add(t1)
         t0.text = t1.text
-        typenames.set(t1.text!, t0)
+        addTypename(t1.text!, t0)
         return t0
     }
     lexer.unlex(t0)
