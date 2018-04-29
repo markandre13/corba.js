@@ -221,9 +221,8 @@ let generatorTSStub = new Map<Type, Function>([
     [ Type.SYN_INTERFACE, function(this: Generator) {
         let identifier = this.node.child[0]!.child[1]!.text
         this.out.write("export class "+identifier+" extends Stub {\n")
-        this.out.write("    constructor(orb: ORB) {\n")
-        this.out.write("        super(orb)\n")
-        this.out.write("        this.orb.create(this, \""+identifier+"\")\n")
+        this.out.write("    constructor(orb: ORB, id?: number) {\n")
+        this.out.write("        super(orb, \""+identifier+"\", id)\n")
         this.out.write("    }\n")
         
         for(let op_decl of this.node.child[1]!.child) {

@@ -123,7 +123,7 @@ export class ORB {
             if (aStubClass === undefined) {
                 throw Error("ORB: can not deserialize object of unregistered stub "+type)
             }
-            let object = new aStubClass(this)
+            let object = new aStubClass(this, value)
             return object
         }
 
@@ -303,8 +303,13 @@ export class Stub {
     orb: ORB
     id: number
     
-    constructor(orb: ORB) {
+    constructor(orb: ORB, name: string, id?: number) {
         this.orb = orb
-        this.id = 0
+        if (id===undefined) {
+            this.id = 0
+            this.orb.create(this, name)
+        } else {
+            this.id = id
+        }
     }
 }

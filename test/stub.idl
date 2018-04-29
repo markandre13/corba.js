@@ -1,0 +1,8 @@
+interface Data {
+    oneway void hello();
+};
+
+interface Server {
+    Data getData();
+};
+
