@@ -4,7 +4,7 @@ module.exports = (config) => {
     frameworks: ["mocha", "chai", "karma-typescript", "source-map-support"],
     files: [ 
       { pattern: "test/**/*.ts" },
-      { pattern: "src/orb.ts" }
+      { pattern: "src/orb/*.ts" }
     ],
     preprocessors: { "**/*.ts": ["karma-typescript"] },
     reporters: ["mocha", "karma-typescript"],

@@ -1,6 +1,6 @@
 import { expect } from "chai"
 
-import { ORB } from "corba.js"
+import { ORB } from "../src/orb/orb-nodejs"
 import { Server_skel, Client_skel } from "./basics_skel"
 import { Server, Client } from "./basics_stub"
 
@@ -66,12 +66,12 @@ class Server_impl extends Server_skel {
         Server_impl.instance = this
     }
 
-    hello(): void {
+    async hello() {
         Server_impl.helloWasCalled = true
         this.client.question()
     }
     
-    answer(a: number, b: number): number {
+    async answer(a: number, b: number) {
         return a*b
     }
 }
@@ -86,11 +86,11 @@ class Client_impl extends Client_skel {
         Client_impl.instance = this
     }
     
-    question(): void {
+    async question() {
         Client_impl.questionWasCalled = true
     }
     
-    setFigureModel(figuremodel: FigureModel): void {
+    async setFigureModel(figuremodel: FigureModel) {
         Client_impl.figureModelReceivedFromServer = figuremodel
     }
 }
@@ -114,11 +114,12 @@ describe("corba.js", function() {
         }
 
         // mock network connection between server and client ORB
-        serverORB.accept({
+        serverORB.socket = {
             send: function(data: any) {
                 clientORB.socket!.onmessage({data:data} as any)
             }
-        } as any)
+        } as any
+        serverORB.accept()
 
         clientORB.socket = {
             send: function(data: any) {
