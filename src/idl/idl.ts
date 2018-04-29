@@ -88,13 +88,23 @@ function defaultValueIDLtoTS(type: Node | undefined): string {
 
 let generatorTSSkel = new Map<Type, Function>([
     [ Type.SYN_SPECIFICATION, function(this: Generator) {
-        this.out.write("declare global {\n")
+        let haveValueTypes = false
         for(let definition of this.node.child) {
-            if (definition!.type !== Type.TKN_VALUETYPE)
-                continue
-            this.out.write("    interface "+definition!.text+" {}\n")
+            if (definition!.type === Type.TKN_VALUETYPE) {
+                haveValueTypes = true
+                break
+            }
         }
-        this.out.write("}\n\n")
+        if (haveValueTypes) {
+            this.out.write("declare global {\n")
+            for(let definition of this.node.child) {
+                if (definition!.type !== Type.TKN_VALUETYPE)
+                    continue
+                this.out.write("    interface "+definition!.text+" {}\n")
+            }
+            this.out.write("}\n\n")
+        }
+        
         for(let definition of this.node.child) {
             if (definition!.type === Type.SYN_INTERFACE)
                 this.generate(definition!)
@@ -177,13 +187,23 @@ let generatorTSSkel = new Map<Type, Function>([
 
 let generatorTSStub = new Map<Type, Function>([
     [ Type.SYN_SPECIFICATION, function(this: Generator) {
-        this.out.write("declare global {\n")
+        let haveValueTypes = false
         for(let definition of this.node.child) {
-            if (definition!.type !== Type.TKN_VALUETYPE)
-                continue
-            this.out.write("    interface "+definition!.text+" {}\n")
+            if (definition!.type === Type.TKN_VALUETYPE) {
+                haveValueTypes = true
+                break
+            }
         }
-        this.out.write("}\n\n")
+        if (haveValueTypes) {
+            this.out.write("declare global {\n")
+            for(let definition of this.node.child) {
+                if (definition!.type !== Type.TKN_VALUETYPE)
+                    continue
+                this.out.write("    interface "+definition!.text+" {}\n")
+            }
+            this.out.write("}\n\n")
+        }
+
         for(let definition of this.node.child) {
             if (definition!.type === Type.SYN_INTERFACE)
                 this.generate(definition!)
@@ -273,14 +293,22 @@ let generatorTSStub = new Map<Type, Function>([
 
 let generatorTSValueType = new Map<Type, Function>([
     [ Type.SYN_SPECIFICATION, function(this: Generator) {
-
-        this.out.write("declare global {\n")
+        let haveValueTypes = false
         for(let definition of this.node.child) {
-            if (definition!.type !== Type.TKN_NATIVE)
-                continue
-            this.out.write("    interface "+definition!.text+" {}\n")
+            if (definition!.type === Type.TKN_VALUETYPE) {
+                haveValueTypes = true
+                break
+            }
         }
-        this.out.write("}\n\n")
+        if (haveValueTypes) {
+            this.out.write("declare global {\n")
+            for(let definition of this.node.child) {
+                if (definition!.type !== Type.TKN_NATIVE)
+                    continue
+                this.out.write("    interface "+definition!.text+" {}\n")
+            }
+            this.out.write("}\n\n")
+        }
 
         for(let definition of this.node.child) {
             if (definition!.type === Type.SYN_VALUE_DCL)
