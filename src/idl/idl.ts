@@ -240,6 +240,12 @@ let generatorTSStub = new Map<Type, Function>([
         this.out.write("export class "+identifier+" extends Stub {\n")
         this.out.write("    constructor(orb: ORB, id?: number) {\n")
         this.out.write("        super(orb, \""+identifier+"\", id)\n")
+        this.out.write("    }\n\n")
+
+        this.out.write("    static narrow(object: any): "+identifier+" {\n")
+        this.out.write("        if (object instanceof "+identifier+")\n")
+        this.out.write("            return object as "+identifier+"\n")
+        this.out.write("        throw Error(\""+identifier+".narrow() failed\")\n")
         this.out.write("    }\n")
         
         for(let declaration of this.node.child[1]!.child) {
