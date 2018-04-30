@@ -202,8 +202,10 @@ function interface_body(): Node
 // 9
 function _export(): Node | undefined
 {
-    let t0 = op_decl()
-    if (t0===undefined)
+    let t0 = attr_dcl()
+    if (t0 === undefined)
+        t0 = op_dcl()
+    if (t0 === undefined)
         return undefined
     expect(';')
     return t0
@@ -780,7 +782,7 @@ function string_type(): Node | undefined
     return undefined
 }
 
-// 81
+// 82
 function wide_string_type(): Node | undefined
 {
     let t0 = lexer.lex()
@@ -792,8 +794,18 @@ function wide_string_type(): Node | undefined
     return undefined
 }
 
+// 85
+function attr_dcl(): Node | undefined
+{
+    let t0
+    t0 = readonly_attr_spec()
+    if (t0 === undefined)
+        t0 = attr_spec()
+    return t0
+}
+
 // 87 (Operation Declaration)
-function op_decl(): Node | undefined
+function op_dcl(): Node | undefined
 {
     let t0 = op_attribute() // opt
     let t1 = op_type_spec()
@@ -949,6 +961,90 @@ function param_type_spec(): Node | undefined
     if (t0)
         return t0
     return undefined
+}
+
+// 104
+function readonly_attr_spec(): Node | undefined
+{
+    let t0 = lexer.lex()
+    if (t0 !== undefined && t0.type === Type.TKN_READONLY) {
+        let t1 = lexer.lex()
+        if (t1 !== undefined && t1.type === Type.TKN_ATTRIBUTE) {
+            let t2 = param_type_spec()
+            if (t2 === undefined)
+                throw Error("expected type specifier after 'readonly attribute'")
+            let t3 = readonly_attr_declarator()
+            if (t3 === undefined)
+                throw Error("expected declarator for 'readonly attribute'")
+            t1.add(t0)
+            t1.add(t2)
+            t1.add(t3)
+            return t1
+        }
+        lexer.unlex(t1)
+    }
+    lexer.unlex(t0)
+    return undefined
+}
+
+// 105
+function readonly_attr_declarator(): Node | undefined
+{
+    let t0 = simple_declarator()
+    if (t0 === undefined)
+        return undefined
+    let node = new Node(Type.SYN_DECLARATORS)
+    while(true) {
+        node.add(t0)
+        let t1 = lexer.lex()
+        if (t1 === undefined || t1.type !== Type.TKN_TEXT || t1.text! !== ",") {
+            lexer.unlex(t1)
+            return node
+        }
+        t0 = simple_declarator()
+        if (t0 === undefined)
+            throw Error("expected another declarator after ','")
+    }
+}
+
+// 106
+function attr_spec(): Node | undefined
+{
+    let t0 = lexer.lex()
+    if (t0 !== undefined && t0.type === Type.TKN_ATTRIBUTE) {
+        let t1 = param_type_spec()
+        if (t1 === undefined)
+            throw Error("expected type specifier after 'attribute'")
+        let t2 = attr_declarator()
+        if (t2 === undefined)
+            throw Error("expected declarator for 'attribute'")
+        t0.add(undefined)
+        t0.add(t1)
+        t0.add(t2)
+        return t0
+    }
+    lexer.unlex(t0)
+    return undefined
+}
+
+// 107
+function attr_declarator(): Node | undefined
+{
+    let t0 = simple_declarator()
+    if (t0 === undefined)
+        return undefined
+    let node = new Node(Type.SYN_DECLARATORS)
+    while(true) {
+        node.add(t0)
+        let t1 = lexer.lex()
+        if (t1 === undefined || t1.type !== Type.TKN_TEXT || t1.text! !== ",") {
+            lexer.unlex(t1)
+            return node
+        }
+        t0 = simple_declarator()
+        if (t0 === undefined)
+            throw Error("expected another declarator after ','")
+    }
 }
 
 function identifier(): Node | undefined

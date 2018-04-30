@@ -136,50 +136,67 @@ let generatorTSSkel = new Map<Type, Function>([
         this.out.write("       return new "+identifier+"_ref(this.id)\n")
         this.out.write("    }\n\n")
         
-        for(let op_decl of this.node.child[1]!.child) {
-            let attribute = op_decl!.child[0]
-            let type = op_decl!.child[1]!
+        for(let declaration of this.node.child[1]!.child) {
+            if (declaration!.type === Type.TKN_ATTRIBUTE) {
+                console.log(declaration)
+                let attr_dcl = declaration!
+                let attribute   = attr_dcl.child[0]
+                let type        = attr_dcl.child[1]!
+                let declarators = attr_dcl.child[2]!
+                for(let declarator of declarators.child) {
+                    let identifier = declarator!.text
+                    this.out.write("    abstract get "+identifier+"(): "+typeIDLtoTS(type)+"\n")
+                    this.out.write("    abstract set "+identifier+"(value: "+typeIDLtoTS(type)+")\n")
+                }
+            } else
+            if (declaration!.type === Type.SYN_OPERATION_DECLARATION) {
+                let op_decl = declaration!
+                let attribute = op_decl.child[0]
+                let type = op_decl.child[1]!
             
-            let oneway = false
-            if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
-                oneway = true
+                let oneway = false
+                if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
+                    oneway = true
 
-            if (oneway && type.type !== Type.TKN_VOID)
-                throw Error("corba.js currently requires every oneway function to return void")
-            if (!oneway && type.type === Type.TKN_VOID)
-                throw Error("corba.js currently requires operations returning void to be oneway")
+                if (oneway && type.type !== Type.TKN_VOID)
+                    throw Error("corba.js currently requires every oneway function to return void")
+                if (!oneway && type.type === Type.TKN_VOID)
+                    throw Error("corba.js currently requires operations returning void to be oneway")
             
-            let identifier = op_decl!.child[2]!.text
-            let parameter_decls = op_decl!.child[3]!.child
-            this.out.write("    abstract async ")
-            this.out.write(identifier+"(")
-            let comma = false
-            for(let parameter_dcl of parameter_decls) {
-                let attribute = parameter_dcl!.child[0]!.type
-                let type = parameter_dcl!.child[1]
-                let identifier = parameter_dcl!.child[2]!.text
-                if (attribute !== Type.TKN_IN) {
-                    throw Error("corba.js currently only supports 'in' parameters")
+                let identifier = op_decl.child[2]!.text
+                let parameter_decls = op_decl.child[3]!.child
+                this.out.write("    abstract async ")
+                this.out.write(identifier+"(")
+                let comma = false
+                for(let parameter_dcl of parameter_decls) {
+                    let attribute = parameter_dcl!.child[0]!.type
+                    let type = parameter_dcl!.child[1]
+                    let identifier = parameter_dcl!.child[2]!.text
+                    if (attribute !== Type.TKN_IN) {
+                        throw Error("corba.js currently only supports 'in' parameters")
+                    }
+                    if (!comma) {
+                        comma = true
+                    } else {
+                        this.out.write(", ")
+                    }
+                    this.out.write(identifier)
+                    this.out.write(": ")
+                    this.out.write(typeIDLtoTS(type))
                 }
-                if (!comma) {
-                    comma = true
+                this.out.write("): Promise<")
+                if (type.type === Type.TKN_IDENTIFIER &&
+                    type.child.length > 0 &&
+                    type.child[0]!.type === Type.SYN_INTERFACE)
+                {
+                    this.out.write(type.text!+"_ref")
                 } else {
-                    this.out.write(", ")
+                    this.out.write(typeIDLtoTS(type))
                 }
-                this.out.write(identifier)
-                this.out.write(": ")
-                this.out.write(typeIDLtoTS(type))
-            }
-            this.out.write("): Promise<")
-            if (type.type === Type.TKN_IDENTIFIER &&
-                type.child.length > 0 &&
-                type.child[0]!.type === Type.SYN_INTERFACE)
-            {
-                this.out.write(type.text!+"_ref")
+                this.out.write(">\n")
             } else {
-                this.out.write(typeIDLtoTS(type))
+                throw Error("skeleton generator encountered yet unhandled token "+declaration!.toString())
             }
-            this.out.write(">\n")
         }
         this.out.write("}\n\n")
     }]
@@ -225,66 +242,73 @@ let generatorTSStub = new Map<Type, Function>([
         this.out.write("        super(orb, \""+identifier+"\", id)\n")
         this.out.write("    }\n")
         
-        for(let op_decl of this.node.child[1]!.child) {
-            let attribute = op_decl!.child[0]
-            let type = op_decl!.child[1]
+        for(let declaration of this.node.child[1]!.child) {
+            if (declaration!.type === Type.TKN_ATTRIBUTE) {
+            } else
+            if (declaration!.type === Type.SYN_OPERATION_DECLARATION) {
+                let op_decl = declaration!
+                let attribute = op_decl.child[0]
+                let type = op_decl.child[1]
             
-            let oneway = false
-            if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
-                oneway = true
+                let oneway = false
+                if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
+                    oneway = true
 
-            if (oneway && type!.type !== Type.TKN_VOID)
-                throw Error("corba.js currently requires every oneway function to return void")
-            if (!oneway && type!.type === Type.TKN_VOID)
-                throw Error("corba.js currently requires operations returning void to be oneway")
+                if (oneway && type!.type !== Type.TKN_VOID)
+                    throw Error("corba.js currently requires every oneway function to return void")
+                if (!oneway && type!.type === Type.TKN_VOID)
+                    throw Error("corba.js currently requires operations returning void to be oneway")
             
-            let identifier = op_decl!.child[2]!.text
-            let parameter_decls = op_decl!.child[3]!.child
-            this.out.write("\n")
-            this.out.write("    ")
-            if (!oneway)
-                this.out.write("async ")
-            this.out.write(identifier+"(")
-            let comma = false
-            for(let parameter_dcl of parameter_decls) {
-                let attribute = parameter_dcl!.child[0]!.type
-                let type = parameter_dcl!.child[1]
-                let identifier = parameter_dcl!.child[2]!.text
-                if (attribute !== Type.TKN_IN) {
-                    throw Error("corba.js currently only supports 'in' parameters")
+                let identifier = op_decl.child[2]!.text
+                let parameter_decls = op_decl.child[3]!.child
+                this.out.write("\n")
+                this.out.write("    ")
+                if (!oneway)
+                    this.out.write("async ")
+                this.out.write(identifier+"(")
+                let comma = false
+                for(let parameter_dcl of parameter_decls) {
+                    let attribute = parameter_dcl!.child[0]!.type
+                    let type = parameter_dcl!.child[1]
+                    let identifier = parameter_dcl!.child[2]!.text
+                    if (attribute !== Type.TKN_IN) {
+                        throw Error("corba.js currently only supports 'in' parameters")
+                    }
+                    if (!comma) {
+                        comma = true
+                    } else {
+                        this.out.write(", ")
+                    }
+                    this.out.write(identifier)
+                    this.out.write(": ")
+                    this.out.write(typeIDLtoTS(type))
                 }
-                if (!comma) {
-                    comma = true
-                } else {
-                    this.out.write(", ")
-                }
-                this.out.write(identifier)
-                this.out.write(": ")
+                this.out.write("): ")
+                if (!oneway)
+                    this.out.write("Promise<")
                 this.out.write(typeIDLtoTS(type))
-            }
-            this.out.write("): ")
-            if (!oneway)
-                this.out.write("Promise<")
-            this.out.write(typeIDLtoTS(type))
-            if (!oneway)
-                this.out.write(">")
-            this.out.write(" {\n")
-            this.out.write("        ")
-            if (!oneway)
-                this.out.write("return await ")
-            this.out.write("this.orb.call(this.id, \""+identifier+"\", [")
-            comma = false
-            for(let parameter_dcl of parameter_decls) {
-                let identifier = parameter_dcl!.child[2]!.text
-                if (!comma) {
-                    comma = true
-                } else {
-                    this.out.write(", ")
+                if (!oneway)
+                    this.out.write(">")
+                this.out.write(" {\n")
+                this.out.write("        ")
+                if (!oneway)
+                    this.out.write("return await ")
+                this.out.write("this.orb.call(this, \""+identifier+"\", [")
+                comma = false
+                for(let parameter_dcl of parameter_decls) {
+                    let identifier = parameter_dcl!.child[2]!.text
+                    if (!comma) {
+                        comma = true
+                    } else {
+                        this.out.write(", ")
+                    }
+                    this.out.write(identifier)
                 }
-                this.out.write(identifier)
+                this.out.write("])\n")
+                this.out.write("    }\n")
+            } else {
+                throw Error("stub generator encountered yet unhandled token "+declaration!.toString())
             }
-            this.out.write("])\n")
-            this.out.write("    }\n")
         }
         this.out.write("}\n\n")
     }]
@@ -455,10 +479,12 @@ PARTICULAR PURPOSE.
 
 Usage: corba-idl [options] file...
 Options:
-  --ts-stub
-  --ts-skeleton
-  --ts-valuetype
-  --debug`)
+  --ts-stub       create TypeScript stub file
+  --ts-skeleton   create TypeScript skeleton file
+  --ts-valuetype  create TypeScript valuetype file
+  --debug|-d      increase debug level
+  --help|-h       this page
+`)
 }
 
 let debug = 0, tsStub = false, tsSkeleton = false, tsValueType = false
@@ -479,7 +505,12 @@ for(i=2; i<process.argv.length; ++i) {
         case "--ts-valuetype":
             tsValueType = true
             break
+        case "--debug":
+        case "-d":
+            ++debug
+            break
         case "--help":
+        case "-h":
             printHelp()
             process.exit(0)
         default:
