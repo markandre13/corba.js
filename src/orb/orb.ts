@@ -16,57 +16,121 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+const ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID = 0
+
 export class ORB {
     debug: number		// values > 0 enable debug output
 
     socket?: any		// socket with the client/server
 
-    id: number			// counter to assign id's to locally created objects
-    obj: Map<number, Stub>	// maps ids to objects
+    implementationByName: Map<string, any>
+    stubsByName: Map<string, any>
 
-    classes: Map<string, any>	// maps class names to constructor functions from which objects can be created
-    stubsByName: Map<string, any> // FIXME: name not final
-
-    reqid: number		// counter to assign request id's to send messages
+    servantsById: Map<number, Skeleton>
+    servantsIdCounter: number
+    noNewServants: boolean
     
     valueTypeByName: Map<string, any>
     valueTypeByPrototype: Map<any, string>
 
+    initialReferences: Map<string, any>
+
+    reqid: number		// counter to assign request id's to send messages // FIXME: handle overflow
+
     constructor(orb?: ORB) {
         if (orb === undefined) {
             this.debug = 0
-            this.classes = new Map<string, any>()
+            this.implementationByName = new Map<string, any>()
             this.stubsByName = new Map<string, any>()
             this.valueTypeByName = new Map<string, any>()
             this.valueTypeByPrototype = new Map<any, string>()
+            this.servantsIdCounter = 0
+            this.servantsById = new Map<number, Skeleton>()
+            this.initialReferences = new Map<string, any>()
         } else {
             this.debug = orb.debug
-            this.classes = orb.classes
+            this.implementationByName = orb.implementationByName
             this.stubsByName = orb.stubsByName
             this.valueTypeByName = orb.valueTypeByName
             this.valueTypeByPrototype = orb.valueTypeByPrototype
+            this.servantsIdCounter = orb.servantsIdCounter
+            this.servantsById = orb.servantsById
+            this.initialReferences = orb.initialReferences
+            orb.noNewServants = true
         }
-        this.id = 0
+        this.noNewServants = false
         this.reqid = 0
-        this.obj = new Map<number, Stub>()
     }
 
     register(name: string, aClass: any) {
-        this.classes.set(name, aClass)
+        this.implementationByName.set(name, aClass)
     }
     
-    registerStub(name: string, aStubClass: any) { // FIXME: method name not final
+    registerServant(servant: Skeleton): number {
+        if (this.noNewServants) // this restriction could be removed by using a class wide servantsIdCounter
+            throw Error("ORB: registerServant() can not register new servants (because the ORB has copies)")
+        let id = ++this.servantsIdCounter
+        this.servantsById.set(id, servant)
+        return id
+    }
+    
+    registerStub(name: string, aStubClass: any) {
         this.stubsByName.set(name, aStubClass)
     }
-    
-    //
-    // valuetype
-    //
 
     registerValueType(name: string, valuetype: any): void {
         this.valueTypeByName.set(name, valuetype)
         this.valueTypeByPrototype.set(valuetype.prototype, name)
     }
+
+    //
+    // initial references
+    //
+    register_initial_reference(id: string, obj: any) {
+        if (this.initialReferences.has(id)) {
+            throw Error("ORB.register_initial_reference(): an initial reference with the id '"+id+"' has already been registered.")
+        }
+        this.initialReferences.set(id, obj)
+    }
+    
+    async list_initial_references(): Promise<Array<string>> {
+        let result = new Array<string>()
+
+        for(let [id, obj] of this.initialReferences) {
+            result.push(id)
+        }
+        
+        if (this.socket === undefined)
+            return result
+
+        let data = {
+            "corba": "1.0",
+            "list_initial_references": null
+        }
+        let remoteInitialReferences = await this.send(data)
+        for(let id of remoteInitialReferences.result) {
+            result.push(id)
+        }
+        
+        return result
+    }
+
+    async resolve_initial_references(id: string): Promise<Stub> {
+        let data = {
+            "corba": "1.0",
+            "resolve_initial_references": id
+        }
+        let remoteInitialReference = await this.send(data)
+        if (remoteInitialReference.result === undefined) {
+            throw Error("ORB.resolve_initial_references('"+id+"'): failed to resolve reference")
+        }
+        let object = this.deserialize(remoteInitialReference.result)
+        return object
+    }
+    
+    //
+    // valuetype
+    //
 
     serialize(object: any): string {
         if (typeof object !== "object") {
@@ -121,7 +185,7 @@ export class ORB {
         if (reference !== undefined && value !== undefined) {
             let aStubClass = this.stubsByName.get(reference)
             if (aStubClass === undefined) {
-                throw Error("ORB: can not deserialize object of unregistered stub "+type)
+                throw Error("ORB: can not deserialize object of unregistered stub '"+reference+"'")
             }
             let object = new aStubClass(this, value)
             return object
@@ -167,8 +231,8 @@ export class ORB {
         }
 
         return new Promise<any>( (resolve, reject) => {
-            if (!this.socket)
-                throw Error("fuck")
+            if (this.socket === undefined)
+                throw Error("ORB.send(): no socket")
             this.socket.onmessage = (message: any) => {
                 if (this.debug>0) {
                     console.log("ORB.send(...) received "+message.data)
@@ -176,11 +240,17 @@ export class ORB {
                 let msg = JSON.parse(String(message.data))
                 if (msg.corba !== "1.0")
                     reject(Error("expected corba version 1.0 but got "+msg.corba))
-                if (msg.new !== undefined) {
-                    this.handleNew(msg)
+                if (msg.create !== undefined) {
+                    this.handleCreate(msg)
                 } else
                 if (msg.method !== undefined) {
                     this.handleMethod(msg)
+                } else
+                if (msg.list_initial_references !== undefined) {
+                    this.handleListInitialReferences(msg)
+                } else
+                if (msg.resolve_initial_references !== undefined) {
+                    this.handleResolveInitialReferences(msg)
                 } else
                 if (reqid == msg.reqid) {
                     resolve(msg)
@@ -193,63 +263,63 @@ export class ORB {
         })
     }
 
-    create(stub: Stub, name: string) {
-        if (this.debug>0) {
-            console.log("ORB.create(<stub>, '"+name+"')")
-        }
-        
-        let id = ++this.id
-        
-        let data = {
-            "corba": "1.0",
-            "new": name,
-            "id": id
-        }
-
-        stub.id = id
-        this.obj.set(id, stub)
-        this.send(data)
-    }
-
-    async call(id: number, method: string, params: Array<any>) {
+    async call(stub: Stub, method: string, params: Array<any>) {
         for(let i in params) {
             params[i] = this.serialize(params[i])
         }
-
-        let msg = await this.send({
+        if (stub.id === ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID) {
+            let data = {
+                "corba": "1.0",
+                "create": stub._CORBAClass!
+            }
+            let result = await this.send(data)
+            stub.id = result.result
+        }
+        let msg = await this.send({ // FIXME: we should'n wait here for oneway function but this looks like we do...
             "corba": "1.0",
             "method": method,
             "params": params,
-            "id": id
+            "id": stub.id
         })
         return this.deserialize(msg.result)
     }
 
-    handleNew(msg: any) {
-        let template = this.classes.get(msg.new)
+    handleCreate(msg: any) {
+        let template = this.implementationByName.get(msg.create)
         if (template===undefined)
-            throw Error("peer requested instantiation of unknown class '"+msg.new+"'")
+            throw Error("peer requested instantiation of unknown class '"+msg.create+"'")
 
         let obj = new template(this)
 
-        obj.id = msg.id
-        this.obj.set(msg.id, obj)
+        let answer = {
+            "corba": "1.0",
+            "result": obj.id,
+            "reqid": msg.reqid
+        }
+        let text = JSON.stringify(answer)
+        if (this.debug>0) {
+            console.log("ORB.handleMethod(): sending call reply "+text)
+        }
+        this.socket!.send(text)
 
         if (this.debug>0) {
-            console.log("ORB.handleNew(): created new object of class '"+msg.new+"' with id "+msg.id)
+            console.log("ORB.handleCreate(): created new object of class '"+msg.create+"' with id "+obj.id)
         }
     }
     
     handleMethod(msg: any) {
-        let stub = this.obj.get(msg.id) as any
-        if (stub===undefined)
-            throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server for unknown object "+msg.id)
-        if (stub[msg.method]===undefined)
+        if (this.debug>0)
+            console.log("ORB.handleMethod(", msg, ")")
+        let servant = this.servantsById.get(msg.id) as any
+        if (servant === undefined) {
+            throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server for unknown servant id "+msg.id)
+        }
+        if (servant[msg.method]===undefined)
             throw Error("ORB.handleMethod(): client required unknown method '"+msg.method+"' on server for known object "+msg.id)
         for(let i in msg.params) {
             msg.params[i] = this.deserialize(msg.params[i])
         }
-        let result = stub[msg.method].apply(stub, msg.params) as any
+        let result = servant[msg.method].apply(servant, msg.params) as any
         result.then( (result: any) => {
             if (result === undefined)
                 return
@@ -265,6 +335,46 @@ export class ORB {
             this.socket!.send(text)
         })
     }
+    
+    handleListInitialReferences(msg: any) {
+        let result = new Array<string>()
+        for(let [id, obj] of this.initialReferences) {
+            result.push(id)
+        }
+        
+        let answer = {
+           "corba": "1.0",
+           "result": result,
+           "reqid": msg.reqid
+        }
+        let text = JSON.stringify(answer)
+        if (this.debug>0) {
+            console.log("ORB.handleListInitialReferences(): sending call reply "+text)
+        }
+
+        this.socket!.send(text)
+    }
+    
+    handleResolveInitialReferences(msg: any) {
+        let initialReference = this.initialReferences.get(msg.resolve_initial_references)
+        
+        let result = undefined
+        if (initialReference !== undefined)
+            result = initialReference._this()
+    
+        let answer = {
+            "corba": "1.0",
+            "result": this.serialize(result),
+            "reqid": msg.reqid
+        }
+
+        let text = JSON.stringify(answer)
+        if (this.debug>0) {
+            console.log("ORB.handleResolveInitialReferences(): sending call reply "+text)
+        }
+
+        this.socket!.send(text)
+    }
 
     async listen(host: string, port: number): Promise<void> {
         throw Error("pure virtual function ORB.listen() being called in browser ORB")
@@ -273,6 +383,7 @@ export class ORB {
     accept() {
         throw Error("pure virtual function ORB.accept() being called in browser ORB")
     }
+    
 }
 
 export class Object_ref {
@@ -290,10 +401,9 @@ export class Skeleton {
 
     constructor(orb: ORB) {
         this.orb = orb
-        this.id = 0
+        this.id = orb.registerServant(this)
     }
     
-    // what we need to transmit to the client to create a stub
     _this(): Object_ref {
         throw Error("pure virtual method Skeleton._this() called")
     }
@@ -302,12 +412,13 @@ export class Skeleton {
 export class Stub {
     orb: ORB
     id: number
+    _CORBAClass: string
     
     constructor(orb: ORB, name: string, id?: number) {
         this.orb = orb
-        if (id===undefined) {
-            this.id = 0
-            this.orb.create(this, name)
+        this._CORBAClass = name
+        if (id === undefined) {
+            this.id = ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID
         } else {
             this.id = id
         }

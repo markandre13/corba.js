@@ -64,7 +64,7 @@ export class ORB extends Browser.ORB {
     }
     
     accept() {
-        this.socket.onmessage = (message: any) => {
+        this.socket.onmessage = (message: any) => {	// FIXME: we have almost the same code in send()
             if (this.debug>0) {
                 console.log("ORB.accept(): got message ", message.data)
             }
@@ -72,12 +72,24 @@ export class ORB extends Browser.ORB {
             if (msg.corba !== "1.0") {
                 throw Error("expected corba version 1.0 but got "+msg.corba)
             }
-            if (msg.new !== undefined) {
-                this.handleNew(msg)
+            if (msg.create !== undefined) {
+                this.handleCreate(msg)
             } else
             if (msg.method !== undefined) {
                 this.handleMethod(msg)
+            } else
+            if (msg.list_initial_references !== undefined) {
+                this.handleListInitialReferences(msg)
+            } else
+            if (msg.resolve_initial_references !== undefined) {
+                this.handleResolveInitialReferences(msg)
             }
+        }
+        this.socket.onerror = (error: any) => {
+            console.log("error", error)
+        }
+        this.socket.onclose = () => {
+            console.log("lost connection to client")
         }
     }
     

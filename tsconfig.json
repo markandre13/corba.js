@@ -7,13 +7,14 @@
     "lib": ["es5", "es6", "es2017.object", "dom"],
     "baseUrl": ".",
     "paths": {
-      "corba.js": [ "src/orb/orb.js" ]
+      "corba.js": [ "src/orb/orb.ts" ]
     },
     "outDir": "lib",
     "declaration": true,
     "strict": true,
     "allowJs": false,
     "noImplicitAny": true,
+    "inlineSourceMap": false,
     "sourceMap": true
   },
   "include": [

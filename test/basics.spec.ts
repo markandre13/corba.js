@@ -3,6 +3,7 @@ import { expect } from "chai"
 import { ORB } from "../src/orb/orb-nodejs"
 import { Server_skel, Client_skel } from "./basics_skel"
 import { Server, Client } from "./basics_stub"
+import { mockConnection } from "./util"
 
 class Origin
 {
@@ -62,16 +63,19 @@ class Server_impl extends Server_skel {
 
     constructor(orb: ORB) {
         super(orb)
+//console.log("Server_impl.constructor()")
         this.client = new Client(orb)
         Server_impl.instance = this
     }
 
     async hello() {
+//console.log("Server_impl.hello()")
         Server_impl.helloWasCalled = true
-        this.client.question()
+        await this.client.question()
     }
     
     async answer(a: number, b: number) {
+//console.log("Server_impl.answer()")
         return a*b
     }
 }
@@ -83,14 +87,17 @@ class Client_impl extends Client_skel {
 
     constructor(orb: ORB) {
         super(orb)
+//console.log("Client_impl.constructor()")
         Client_impl.instance = this
     }
     
     async question() {
+//console.log("Client_impl.question()")
         Client_impl.questionWasCalled = true
     }
     
     async setFigureModel(figuremodel: FigureModel) {
+//console.log("Client_impl.setFigureModel()")
         Client_impl.figureModelReceivedFromServer = figuremodel
     }
 }
@@ -99,9 +106,9 @@ describe("corba.js", function() {
     it("a basic test", async function() {
 
         let serverORB = new ORB()
-        //serverORB.debug = 1
+//serverORB.debug = 1
         let clientORB = new ORB()
-        //clientORB.debug = 1
+//clientORB.debug = 1
 
         serverORB.register("Server", Server_impl)
         clientORB.register("Client", Client_impl)
@@ -113,35 +120,24 @@ describe("corba.js", function() {
             orb.registerValueType("FigureModel", FigureModel)
         }
 
-        // mock network connection between server and client ORB
-        serverORB.socket = {
-            send: function(data: any) {
-                clientORB.socket!.onmessage({data:data} as any)
-            }
-        } as any
-        serverORB.accept()
-
-        clientORB.socket = {
-            send: function(data: any) {
-                serverORB.socket!.onmessage({data:data} as any)
-            }
-        } as any
+        mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
         expect(Server_impl.instance).to.be.undefined
         let server = new Server(clientORB)
-        expect(Server_impl.instance).to.not.be.undefined
-        expect(Server_impl.instance!.client).to.not.be.undefined
 
         // client calls hello() on server, which calls question() on client
         expect(Server_impl.helloWasCalled).to.equal(false)
         expect(Client_impl.questionWasCalled).to.equal(false)
-        server.hello()
+        await server.hello()
         expect(Server_impl.helloWasCalled).to.equal(true)
-        expect(Client_impl.questionWasCalled).to.equal(true)
+
+        expect(Server_impl.instance).not.to.be.undefined		// FIXME: delayed
+        expect(Server_impl.instance!.client).to.not.be.undefined	// FIXME: delayed
 
         // client calls answer() on server
         let answer = await server.answer(6, 7)
+        expect(Client_impl.questionWasCalled).to.equal(true)		// FIXME_ delayed
         expect(answer).to.equal(42)
 
         // server sends FigureModel to client

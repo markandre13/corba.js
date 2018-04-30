@@ -9,20 +9,25 @@ class Data_impl extends Data_skel {
 
     constructor(orb: ORB) {
         super(orb)
+//console.log("Data_impl.constructor(): id="+this.id)
         ++Data_impl.numberOfInstances
     }
     
     async hello() {
+//console.log("Data_impl.hello()")
     }
 }
 
 class Server_impl extends Server_skel {
     constructor(orb: ORB) {
         super(orb)
+//console.log("Server_impl.constructor(): id="+this.id)
     }
 
     async getData() {
+//console.log("Server_impl.getData()")
         let data = new Data_impl(this.orb)
+//console.log("Server_impl.getData(): created Data_impl() with id "+data.id)
         return data._this()
     }
 }
@@ -31,9 +36,9 @@ describe("corba.js", function() {
     it("the client won't create another object on the server when receiving an object reference", async function() {
 
         let serverORB = new ORB()
-        // serverORB.debug = 1
+//serverORB.debug = 1
         let clientORB = new ORB()
-        // clientORB.debug = 1
+//clientORB.debug = 1
 
         serverORB.register("Server", Server_impl)
         serverORB.register("Data", Data_impl)
