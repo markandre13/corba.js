@@ -6,7 +6,10 @@ module.exports = (config) => {
       { pattern: "test/**/*.ts" },
       { pattern: "src/orb/*.ts" }
     ],
-    preprocessors: { "**/*.ts": ["karma-typescript"] },
+    preprocessors: { 
+      "**/*.ts": ["karma-typescript"],
+      "": ['coverage'] // get's accidentily executed when installed
+    },
     reporters: ["mocha", "karma-typescript"],
     karmaTypescriptConfig: {
       tsconfig: "tsconfig.json",
