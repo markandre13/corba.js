@@ -29,6 +29,8 @@ export class ORB {
     servants: Array<Skeleton|undefined>
     unusedServantIds: Array<number>
     
+    accesibleServants: Set<Skeleton>
+    
     valueTypeByName: Map<string, any>
     valueTypeByPrototype: Map<any, string>
 
@@ -56,6 +58,7 @@ export class ORB {
             this.valueTypeByPrototype = orb.valueTypeByPrototype
             this.initialReferences = orb.initialReferences
         }
+        this.accesibleServants = new Set<Skeleton>()
         this.reqid = 0
     }
 
@@ -264,6 +267,10 @@ export class ORB {
             this.socket.onerror = function(err: any) {
                 reject(err)
             }
+            this.socket.onclose = () => {
+                console.log("lost connection to server")
+                this.release()
+            }
             this.socket.send(JSON.stringify(data))
         })
     }
@@ -288,6 +295,21 @@ export class ORB {
         })
         return this.deserialize(msg.result)
     }
+    
+    release() {
+        this.aclDeleteAll()
+    }
+    
+    aclAdd(servant: Skeleton) {
+        servant.acl.add(this)
+        this.accesibleServants.add(servant)
+    }
+    
+    aclDeleteAll() {
+        for(let servant of this.accesibleServants)
+            servant.acl.delete(this)
+        this.accesibleServants.clear()
+    }
 
     handleCreate(msg: any) {
         let template = this.implementationByName.get(msg.create)
@@ -295,7 +317,7 @@ export class ORB {
             throw Error("peer requested instantiation of unknown class '"+msg.create+"'")
 
         let obj = new template(this)
-
+        this.aclAdd(obj)
         let answer = {
             "corba": "1.0",
             "result": obj.id,
@@ -322,15 +344,26 @@ export class ORB {
         if (servant === undefined) {
             throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server for unknown servant id "+msg.id)
         }
+        if (!servant.acl.has(this)) {
+            throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server but has no rights to access servant with id "+msg.id)
+        }
         if (servant[msg.method]===undefined)
-            throw Error("ORB.handleMethod(): client required unknown method '"+msg.method+"' on server for known object "+msg.id)
+            throw Error("ORB.handleMethod(): client required unknown method '"+msg.method+"' on server for servant with id "+msg.id)
         for(let i in msg.params) {
             msg.params[i] = this.deserialize(msg.params[i])
         }
+
         let result = servant[msg.method].apply(servant, msg.params) as any
+        
         result.then( (result: any) => {
             if (result === undefined)
                 return
+
+            if (result instanceof Object_ref) {
+                let obj = this.servants[result.id]!
+                this.aclAdd(obj)
+            }
+
             let answer = {
                 "corba": "1.0",
                 "result": this.serialize(result),
@@ -369,6 +402,8 @@ export class ORB {
         let result = undefined
         if (initialReference !== undefined)
             result = initialReference._this()
+            
+        this.aclAdd(initialReference)
     
         let answer = {
             "corba": "1.0",
@@ -406,8 +441,10 @@ export class Object_ref {
 export class Skeleton {
     orb: ORB
     id: number
+    acl: Set<ORB>
 
     constructor(orb: ORB) {
+        this.acl = new Set<ORB>()
         this.orb = orb
         this.id = orb.registerServant(this)
     }
