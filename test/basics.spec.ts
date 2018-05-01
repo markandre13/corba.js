@@ -146,7 +146,7 @@ describe("corba.js", function() {
         let model = new FigureModel()
         model.data.push(new Rectangle(10, 20, 30, 40))
         model.data.push(new Rectangle(50, 60, 70, 80))
-        Server_impl.instance!.client.setFigureModel(model)
+        await Server_impl.instance!.client.setFigureModel(model)
 
         expect(Client_impl.figureModelReceivedFromServer!.data[0].toString()).to.equal("Rectangle: (10,20,30,40)")
         let rectangle = Client_impl.figureModelReceivedFromServer!.data[0] as Rectangle

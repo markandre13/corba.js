@@ -26,9 +26,8 @@ export class ORB {
     implementationByName: Map<string, any>
     stubsByName: Map<string, any>
 
-    servantsById: Map<number, Skeleton>
-    servantsIdCounter: number
-    noNewServants: boolean
+    servants: Array<Skeleton|undefined>
+    unusedServantIds: Array<number>
     
     valueTypeByName: Map<string, any>
     valueTypeByPrototype: Map<any, string>
@@ -41,37 +40,46 @@ export class ORB {
         if (orb === undefined) {
             this.debug = 0
             this.implementationByName = new Map<string, any>()
+            this.servants = new Array<Skeleton|undefined>()
+            this.unusedServantIds = new Array<number>()
             this.stubsByName = new Map<string, any>()
             this.valueTypeByName = new Map<string, any>()
             this.valueTypeByPrototype = new Map<any, string>()
-            this.servantsIdCounter = 0
-            this.servantsById = new Map<number, Skeleton>()
             this.initialReferences = new Map<string, any>()
         } else {
             this.debug = orb.debug
             this.implementationByName = orb.implementationByName
+            this.servants = orb.servants
+            this.unusedServantIds = orb.unusedServantIds
             this.stubsByName = orb.stubsByName
             this.valueTypeByName = orb.valueTypeByName
             this.valueTypeByPrototype = orb.valueTypeByPrototype
-            this.servantsIdCounter = orb.servantsIdCounter
-            this.servantsById = orb.servantsById
             this.initialReferences = orb.initialReferences
-            orb.noNewServants = true
         }
-        this.noNewServants = false
         this.reqid = 0
     }
 
+    // implementations registered here can be instantiated by the client
     register(name: string, aClass: any) {
         this.implementationByName.set(name, aClass)
     }
     
+    // called by the Skeleton
     registerServant(servant: Skeleton): number {
-        if (this.noNewServants) // this restriction could be removed by using a class wide servantsIdCounter
-            throw Error("ORB: registerServant() can not register new servants (because the ORB has copies)")
-        let id = ++this.servantsIdCounter
-        this.servantsById.set(id, servant)
+        let id = this.unusedServantIds.pop()
+        if (id !== undefined) {
+            this.servants[id] = servant
+        } else {
+            id = this.servants.length
+            this.servants.push(servant)
+        }
         return id
+    }
+    
+    unregisterServant(servant: Skeleton) {
+        this.servants[servant.id] = undefined
+        this.unusedServantIds.push(servant.id)
+        servant.id = -1
     }
     
     registerStub(name: string, aStubClass: any) {
@@ -87,9 +95,6 @@ export class ORB {
     // initial references
     //
     register_initial_reference(id: string, obj: any) {
-        if (this.initialReferences.has(id)) {
-            throw Error("ORB.register_initial_reference(): an initial reference with the id '"+id+"' has already been registered.")
-        }
         this.initialReferences.set(id, obj)
     }
     
@@ -310,7 +315,10 @@ export class ORB {
     handleMethod(msg: any) {
         if (this.debug>0)
             console.log("ORB.handleMethod(", msg, ")")
-        let servant = this.servantsById.get(msg.id) as any
+        if (msg.id >= this.servants.length) {
+            throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server for unknown servant id "+msg.id)
+        }
+        let servant = this.servants[msg.id] as any
         if (servant === undefined) {
             throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server for unknown servant id "+msg.id)
         }
