@@ -138,7 +138,6 @@ let generatorTSSkel = new Map<Type, Function>([
         
         for(let declaration of this.node.child[1]!.child) {
             if (declaration!.type === Type.TKN_ATTRIBUTE) {
-                console.log(declaration)
                 let attr_dcl = declaration!
                 let attribute   = attr_dcl.child[0]
                 let type        = attr_dcl.child[1]!
