@@ -949,10 +949,13 @@ function param_type_spec(): Node | undefined
     t0 = base_type_spec()
     if (t0 !== undefined)
         return t0
-    t0 = string_type()
+    t0 = template_type_spec()	// not in the CORBA specs but MICO does this, usually an typedef would be required for this
     if (t0 !== undefined)
         return t0
 /*
+    t0 = string_type()
+    if (t0 !== undefined)
+        return t0
     t0 = wide_string_type()
     if (t0 !== undefined)
         return t0
