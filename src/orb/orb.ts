@@ -43,6 +43,7 @@ export class ORB {
             this.debug = 0
             this.implementationByName = new Map<string, any>()
             this.servants = new Array<Skeleton|undefined>()
+            this.servants.push(undefined) // reserve id 0
             this.unusedServantIds = new Array<number>()
             this.stubsByName = new Map<string, any>()
             this.valueTypeByName = new Map<string, any>()
@@ -144,10 +145,13 @@ export class ORB {
         if (typeof object !== "object") {
             return JSON.stringify(object)
         }
-        
-        if (object instanceof Object_ref) {
-            return `{"#R":"${object.name}","#V":${object.id}}`
+ 
+        if (object instanceof Stub) {
+            throw Error("ORB.serialize(): Stub")
         }
+        if (object instanceof Skeleton) {
+            return `{"#R":"${object._idlClassName()}","#V":${object.id}}`
+        }       
 
         if (object instanceof Array) {
             let data = ""
@@ -277,15 +281,13 @@ export class ORB {
 
     async call(stub: Stub, method: string, params: Array<any>) {
         for(let i in params) {
-            params[i] = this.serialize(params[i])
-        }
-        if (stub.id === ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID) {
-            let data = {
-                "corba": "1.0",
-                "create": stub._CORBAClass!
+            if (params[i] instanceof Skeleton) {
+                this.aclAdd(params[i])
             }
-            let result = await this.send(data)
-            stub.id = result.result
+            if (params[i] instanceof Stub) {
+                throw Error("ORB.call(): methods '"+method+"' received stub as argument")
+            }
+            params[i] = this.serialize(params[i])
         }
         let msg = await this.send({ // FIXME: we should'n wait here for oneway function but this looks like we do...
             "corba": "1.0",
@@ -335,6 +337,7 @@ export class ORB {
     }
     
     handleMethod(msg: any) {
+// FIXME: errors thrown here don't appear on the console
         if (this.debug>0)
             console.log("ORB.handleMethod(", msg, ")")
         if (msg.id >= this.servants.length) {
@@ -347,34 +350,41 @@ export class ORB {
         if (!servant.acl.has(this)) {
             throw Error("ORB.handleMethod(): client required method '"+msg.method+"' on server but has no rights to access servant with id "+msg.id)
         }
-        if (servant[msg.method]===undefined)
+        if (servant[msg.method]===undefined) {
             throw Error("ORB.handleMethod(): client required unknown method '"+msg.method+"' on server for servant with id "+msg.id)
+        }
         for(let i in msg.params) {
             msg.params[i] = this.deserialize(msg.params[i])
         }
 
         let result = servant[msg.method].apply(servant, msg.params) as any
-        
-        result.then( (result: any) => {
-            if (result === undefined)
-                return
-
-            if (result instanceof Object_ref) {
-                let obj = this.servants[result.id]!
-                this.aclAdd(obj)
-            }
-
-            let answer = {
-                "corba": "1.0",
-                "result": this.serialize(result),
-                "reqid": msg.reqid
-            }
-            let text = JSON.stringify(answer)
-            if (this.debug>0) {
-                console.log("ORB.handleMethod(): sending call reply "+text)
-            }
-            this.socket!.send(text)
-        })
+                
+        result
+            .then( (result: any) => {
+                if (result === undefined)
+                    return
+                    
+                if (result instanceof Skeleton) {
+                    this.aclAdd(result)
+                }
+                if (result instanceof Stub) {
+                    throw Error("ORB.handleMethod(): method '"+msg.method+"' returned stub")
+                }
+                
+                let answer = {
+                    "corba": "1.0",
+                    "result": this.serialize(result),
+                    "reqid": msg.reqid
+                }
+                let text = JSON.stringify(answer)
+                if (this.debug>0) {
+                    console.log("ORB.handleMethod(): sending call reply "+text)
+                }
+                this.socket!.send(text)
+            })
+            .catch( (error: any) => {
+                console.log("ORB.handleMethod(): method '"+msg.method+"' threw error: ", error)
+            })
     }
     
     handleListInitialReferences(msg: any) {
@@ -397,17 +407,12 @@ export class ORB {
     }
     
     handleResolveInitialReferences(msg: any) {
-        let initialReference = this.initialReferences.get(msg.resolve_initial_references)
-        
-        let result = undefined
-        if (initialReference !== undefined)
-            result = initialReference._this()
-            
-        this.aclAdd(initialReference)
-    
+        let object = this.initialReferences.get(msg.resolve_initial_references)
+        this.aclAdd(object)
+
         let answer = {
             "corba": "1.0",
-            "result": this.serialize(result),
+            "result": this.serialize(object),
             "reqid": msg.reqid
         }
 
@@ -429,43 +434,32 @@ export class ORB {
     
 }
 
-export class Object_ref {
-    name: string
-    id: number
-    constructor(name: string, id: number) {
-        this.name = name
-        this.id = id
-    }
-}
-
-export class Skeleton {
+export abstract class Skeleton {
     orb: ORB
     id: number
     acl: Set<ORB>
 
     constructor(orb: ORB) {
-        this.acl = new Set<ORB>()
         this.orb = orb
         this.id = orb.registerServant(this)
+        this.acl = new Set<ORB>()
     }
     
-    _this(): Object_ref {
-        throw Error("pure virtual method Skeleton._this() called")
-    }
+    abstract _idlClassName(): string
 }
 
-export class Stub {
+export abstract class Stub {
     orb: ORB
     id: number
-    _CORBAClass: string
     
-    constructor(orb: ORB, name: string, id?: number) {
+    constructor(orb: ORB, remoteID?: number) {
         this.orb = orb
-        this._CORBAClass = name
-        if (id === undefined) {
+        if (remoteID === undefined) {
             this.id = ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID
         } else {
-            this.id = id
+            this.id = remoteID
         }
     }
+
+    abstract _idlClassName(): string    
 }

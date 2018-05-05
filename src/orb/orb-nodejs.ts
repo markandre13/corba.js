@@ -19,7 +19,7 @@
 import * as WebSocket from "ws"
 
 import * as Browser from "./orb"
-export { Skeleton, Stub, Object_ref } from "./orb"
+export { Skeleton, Stub } from "./orb"
 
 export class ORB extends Browser.ORB {
     constructor(orb?: Browser.ORB) {

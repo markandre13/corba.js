@@ -1,8 +1,8 @@
 import { expect } from "chai"
 
 import { ORB } from "../src/orb/orb-nodejs"
-import { Server_skel, Client_skel } from "./basics_skel"
-import { Server, Client } from "./basics_stub"
+import * as skel from "./basics_skel"
+import * as stub from "./basics_stub"
 import { mockConnection } from "./util"
 
 class Origin
@@ -55,16 +55,16 @@ class Rectangle extends Figure {
     }
 }
 
-class Server_impl extends Server_skel {
+class Server_impl extends skel.Server {
     static instance?: Server_impl
     static helloWasCalled = false
 
-    client: Client
+    client: stub.Client
 
     constructor(orb: ORB) {
         super(orb)
 //console.log("Server_impl.constructor()")
-        this.client = new Client(orb)
+        this.client = new stub.Client(orb)
         Server_impl.instance = this
     }
 
@@ -80,7 +80,7 @@ class Server_impl extends Server_skel {
     }
 }
 
-class Client_impl extends Client_skel {
+class Client_impl extends skel.Client {
     static instance?: Client_impl
     static questionWasCalled = false
     static figureModelReceivedFromServer?: FigureModel
@@ -124,7 +124,7 @@ describe("corba.js", function() {
 
         // client creates server stub which lets server create it's client stub
         expect(Server_impl.instance).to.be.undefined
-        let server = new Server(clientORB)
+        let server = new stub.Server(clientORB)
 
         // client calls hello() on server, which calls question() on client
         expect(Server_impl.helloWasCalled).to.equal(false)

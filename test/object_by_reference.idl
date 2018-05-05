@@ -1,0 +1,11 @@
+interface Listener {
+    oneway void callback();
+};
+
+interface Session {
+    oneway void addListener(in Listener listener);
+};
+
+interface Server {
+    Session getSession();
+};

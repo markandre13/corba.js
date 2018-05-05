@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "bin/corba-idl --ts-stub --ts-skeleton --ts-valuetype test/*.idl && karma start"
+    "test": "bin/corba-idl --ts-all test/*.idl && karma start"
   },
   "devDependencies": {
     "@types/chai": "^4.1.3",

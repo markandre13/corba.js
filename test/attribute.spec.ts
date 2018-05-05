@@ -1,5 +1,6 @@
 import { expect } from "chai"
 
+/*
 import * as server from "../src/orb/orb-nodejs"
 import * as client from "../src/orb/orb"
 import { Stub, Skeleton } from "../src/orb/orb"
@@ -7,7 +8,6 @@ import { Servant_skel } from "./attribute_skel"
 import { Servant } from "./attribute_stub"
 import { mockConnection } from "./util"
 
-/*
 class Servant_impl extends Servant_skel {
     constructor(orb: server.ORB) {
         super(orb)

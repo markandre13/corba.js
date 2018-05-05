@@ -1,10 +1,10 @@
 import { expect } from "chai"
 
 import { ORB } from "../src/orb/orb-nodejs"
-import { Server_skel, Data_skel } from "./stub_skel"
-import { Server, Data } from "./stub_stub"
+import * as skel from "./stub_skel"
+import * as stub from "./stub_stub"
 
-class Data_impl extends Data_skel {
+class Data_impl extends skel.Data {
     static numberOfInstances = 0
 
     constructor(orb: ORB) {
@@ -18,7 +18,7 @@ class Data_impl extends Data_skel {
     }
 }
 
-class Server_impl extends Server_skel {
+class Server_impl extends skel.Server {
     constructor(orb: ORB) {
         super(orb)
 //console.log("Server_impl.constructor(): id="+this.id)
@@ -28,7 +28,7 @@ class Server_impl extends Server_skel {
 //console.log("Server_impl.getData()")
         let data = new Data_impl(this.orb)
 //console.log("Server_impl.getData(): created Data_impl() with id "+data.id)
-        return data._this()
+        return data
     }
 }
 
@@ -42,7 +42,7 @@ describe("corba.js", function() {
 
         serverORB.register("Server", Server_impl)
         serverORB.register("Data", Data_impl)
-        clientORB.registerStub("Data", Data)
+        clientORB.registerStub("Data", stub.Data)
 
         // mock network connection between server and client ORB
         serverORB.socket = {
@@ -59,7 +59,7 @@ describe("corba.js", function() {
         } as any
 
         // client creates server stub which lets server create it's client stub
-        let server = new Server(clientORB)
+        let server = new stub.Server(clientORB)
         let data = await server.getData()
         data.hello()
         expect(Data_impl.numberOfInstances).to.equal(1)
