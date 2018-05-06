@@ -61,9 +61,9 @@ export function specification(aLexer: Lexer): Node | undefined
     }
     
     for(let [typename, typenode] of typenames) {
-        if (typenode.type === Type.TKN_NATIVE)
-            continue
-        if (typenode.type === Type.SYN_INTERFACE)
+        if (typenode.type === Type.TKN_NATIVE ||
+            typenode.type === Type.SYN_INTERFACE ||
+            typenode.type === Type.TKN_VALUETYPE)
             continue
         node.add(typenode)
     }
@@ -267,16 +267,21 @@ function value_abs_dcl(): Node | undefined
 // 17
 function value_dcl(): Node | undefined
 {
-    let t0 = value_header()
-    if (t0 === undefined) {
-        lexer.unlex(t0)
+    let header = value_header()
+    if (header === undefined) {
         return undefined
     }
 
     expect('{')
 
-    let node = new Node(Type.SYN_VALUE_DCL)
-    node.add(t0)
+    let node = new Node(Type.TKN_VALUETYPE)
+    node.add(header)
+    
+    let identifier = header.child[1]!.text!
+
+    node.text = identifier
+    addTypename(identifier, node)
+    
     while(true) {
         let t1 = value_element()
         if (t1 === undefined)
@@ -307,9 +312,6 @@ function value_header(): Node | undefined
             if (t2 === undefined)
                 throw Error("expected an identifier after valuetype")
             let t3 = value_inheritance_spec()
-            
-            t1.text = t2.text
-            addTypename(t2.text!, t1)
             
             let node = new Node(Type.SYN_VALUE_HEADER)
             node.add(t0)

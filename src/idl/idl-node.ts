@@ -93,7 +93,6 @@ export enum Type {
     SYN_INTERFACE, // 5
     SYN_INTERFACE_HEADER, // 7
     SYN_INTERFACE_BODY, // 8
-    SYN_VALUE_DCL, // 17
     SYN_VALUE_HEADER, // 18
     SYN_VALUE_INHERITANCE_SPEC, // 19
     SYN_STATE_MEMBER, // 22
@@ -202,7 +201,6 @@ export class Node
             case Type.SYN_INTERFACE:              return "SYN_INTERFACE" // 5
             case Type.SYN_INTERFACE_HEADER:       return "SYN_INTERFACE_HEADER" // 7
             case Type.SYN_INTERFACE_BODY:         return "SYN_INTERFACE_BODY" // 8
-            case Type.SYN_VALUE_DCL:              return "SYN_VALUE_DCL" // 17
             case Type.SYN_VALUE_HEADER:           return "SYN_VALUE_HEADER" // 18
             case Type.SYN_VALUE_INHERITANCE_SPEC: return "SYN_VALUE_INHERITANCE_SPEC" // 19
             case Type.SYN_STATE_MEMBER:           return "SYN_STATE_MEMBER" // 22

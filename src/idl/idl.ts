@@ -57,13 +57,13 @@ function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
         case Type.SYN_LONG_DOUBLE:
             return "number"
         case Type.TKN_SEQUENCE:
-            return "Array<"+typeIDLtoTS(type!.child[0])+">"
+            return "Array<"+typeIDLtoTS(type!.child[0], filetype)+">"
         default:
             throw Error("no mapping from IDL type to TS type for "+type.toString())
     }
 }
 
-function defaultValueIDLtoTS(type: Node | undefined): string {
+function defaultValueIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
     switch(type!.type) {
@@ -84,7 +84,7 @@ function defaultValueIDLtoTS(type: Node | undefined): string {
         case Type.SYN_LONG_DOUBLE:
             return "0"
         case Type.TKN_SEQUENCE:
-            return "new Array<"+typeIDLtoTS(type!.child[0])+">()"
+            return "new Array<"+typeIDLtoTS(type!.child[0], filetype)+">()"
         default:
             throw Error("no default value for IDL type in TS for type "+type.toString())
     }
@@ -99,159 +99,29 @@ function hasValueType(specification: Node): boolean {
     return false
 }
 
-let generatorTSValueType = new Map<Type, Function>([
-    [ Type.SYN_SPECIFICATION, function(this: Generator) {
-        let haveValueTypes = false
-        for(let definition of this.node.child) {
-            if (definition!.type === Type.TKN_VALUETYPE) {
-                haveValueTypes = true
-                break
+function hasNative(specification: Node): boolean {
+    for(let definition of specification.child) {
+        if (definition!.type === Type.TKN_NATIVE) {
+            let native = definition!
+            let nativeName = native.text!
+            if ( nativeName.length <= 4 ||
+                 nativeName.substring(nativeName.length-4) !== "_ptr" )
+            {
+                return true
             }
         }
-        if (haveValueTypes) {
-            this.out.write("declare global {\n")
-            for(let definition of this.node.child) {
-                if (definition!.type !== Type.TKN_NATIVE)
-                    continue
-                this.out.write("    interface "+definition!.text+" {}\n")
-            }
-            this.out.write("}\n\n")
-        }
-
-        for(let definition of this.node.child) {
-            if (definition!.type === Type.SYN_VALUE_DCL)
-                this.generate(definition!)
-            if (definition!.type === Type.TKN_MODULE) {
-                this.out.write("export namespace "+definition!.text+" {\n\n")
-                for(let moduleDefinition of definition!.child) {
-                    this.generate(moduleDefinition!)
-                }
-                this.out.write("} // namespace "+definition!.text+"\n\n")
-            }
-        }
-    }],
-    [ Type.SYN_VALUE_DCL, function(this: Generator) {
-        let header = this.node.child[0]!
-        let if_identifier = header.child[1]!.text
-        let inheritance_spec = header.child[2]
-        this.out.write("export class "+if_identifier)
-        if (inheritance_spec) {
-            if (inheritance_spec.child.length > 2)
-                throw Error("multiple inheritance is not supported for typescript")
-            this.out.write(" extends "+inheritance_spec.child[1]!.text)
-        }
-        this.out.write(" {\n")
-
-        for(let i=1; i< this.node.child.length; ++i) {
-            let node = this.node.child[i]!
-            if (node.type !== Type.SYN_STATE_MEMBER)
-                continue
-            let state_member = node
-            let attribute    = state_member.child[0]!
-            let type         = state_member.child[1]!
-            let declarators  = state_member.child[2]!
-            for(let declarator of declarators.child) {
-                this.out.write("    "+declarator!.text+": "+typeIDLtoTS(type, Type.TKN_VALUETYPE)+"\n")
-            }
-        }
-
-        this.out.write("    constructor(")
-        let comma = false
-        for(let i=1; i< this.node.child.length; ++i) {
-            let node = this.node.child[i]!
-            if (node.type !== Type.SYN_STATE_MEMBER)
-                continue
-            let state_member = node
-            let attribute    = state_member.child[0]!
-            let type         = state_member.child[1]!
-            let declarators  = state_member.child[2]!
-            for(let declarator of declarators.child) {
-                if (comma)
-                    this.out.write(", ")
-                else
-                    comma = true
-                this.out.write(declarator!.text+"?: "+typeIDLtoTS(type, Type.TKN_VALUETYPE))
-            }
-        }
-        this.out.write(") {\n")
-        if (inheritance_spec) {
-            this.out.write("        super()\n") // FIXME: provide arguments for super class constructor
-        }
-        for(let i=1; i< this.node.child.length; ++i) {
-            let state_member = this.node.child[i]!
-            let attribute    = state_member.child[0]!
-            let type         = state_member.child[1]!
-            let declarators  = state_member.child[2]!
-            for(let declarator of declarators.child) {
-                let decl_identifier = declarator!.text
-                this.out.write("        this."+decl_identifier+" = ("+decl_identifier+" === undefined) ? ")
-                this.out.write(defaultValueIDLtoTS(type))
-                this.out.write(" : "+decl_identifier+"\n")
-            }
-        }
-        this.out.write("    }\n")
-
-        for(let i=1; i< this.node.child.length; ++i) {
-            let node = this.node.child[i]!
-            if (node.type !== Type.SYN_OPERATION_DECLARATION)
-                continue
-            let op_decl = node
-            let attribute = op_decl!.child[0]
-            let type = op_decl!.child[1]!
-            let op_identifier = op_decl!.child[2]!.text
-            let parameter_decls = op_decl!.child[3]!.child
-            this.out.write("\n")
-            this.out.write("    ")
-            this.out.write(op_identifier+"(")
-            let comma = false
-            for(let parameter_dcl of parameter_decls) {
-                let attribute = parameter_dcl!.child[0]!.type
-                let type = parameter_dcl!.child[1]
-                let param_identifier = parameter_dcl!.child[2]!.text
-                if (attribute !== Type.TKN_IN) {
-                    throw Error("corba.js currently only supports 'in' parameters")
-                }
-                if (!comma) {
-                    comma = true
-                } else {
-                    this.out.write(", ")
-                }
-                this.out.write(param_identifier)
-                this.out.write(": ")
-                this.out.write(typeIDLtoTS(type, Type.TKN_VALUETYPE))
-            }
-            this.out.write("): ")
-            this.out.write(typeIDLtoTS(type))
-            this.out.write(" {\n")
-            this.out.write("        throw Error('pure virtual method "+if_identifier+"."+op_identifier+"() called')\n")
-            this.out.write("    }\n")
-        }
-
-        this.out.write("}\n\n")
-    }]
-])
-
-class Generator {
-    description: Map<Type, Function>
-    out: fs.WriteStream
-    node: Node
-
-    constructor(description: Map<Type, Function>, out: fs.WriteStream) {
-        this.description = description
-        this.out = out
-        this.node = new Node(Type.NONE) // dummy for typescript
     }
-    
-    generate(node: Node): void {
-        let f = this.description.get(node.type)
-        if (f === undefined) {
-            throw Error("Generator: no way to handle node "+node.toString())
+    return false
+}
+
+function hasOperationDeclarations(value_dcl: Node): boolean {
+    for(let i=1; i<value_dcl.child.length; ++i) {
+        let value_element = value_dcl.child[i]!
+        if (value_element.type === Type.SYN_OPERATION_DECLARATION) {
+            return true
         }
-        let previousNode = this.node
-        this.node = node
-        f.call(this)
-        this.node = previousNode
     }
+    return false
 }
 
 function writeTSInterface(specification: Node): void
@@ -408,7 +278,7 @@ function writeTSStub(specification: Node): void
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
                 let interface_body = interface_dcl.child[1]!
-                
+
                 out.write("export class " + identifier + " extends Stub implements _interface." + identifier + " {\n")
                 
                 out.write("    _idlClassName(): string {\n")
@@ -480,6 +350,165 @@ function writeTSStub(specification: Node): void
                             throw Error("fuck")
                     }
                 }
+                out.write("}\n\n")
+            } break
+        }
+    }
+}
+
+function writeTSValueType(specification: Node): void
+{
+    let out = fs.createWriteStream(filenamePrefix+"_valuetype.ts")
+    out.write("// This file is generated by the corba.js IDL compiler from '"+filename+"'.\n\n")
+    out.write("import { ORB, Stub } from \"corba.js\"\n")
+    if (!hasValueType(specification)) {
+        out.write("// no valuetype's defined in IDL")
+        return
+    }
+    out.write("import * as _interface from \"./" + filenameLocal + "\"\n\n")
+    
+    if (hasNative(specification)) {
+        out.write("declare global {\n")
+        for(let definition of specification.child) {
+            if (definition!.type === Type.TKN_NATIVE) {
+                let native = definition!
+                let nativeName = native.text!
+                if ( nativeName.length <= 4 ||
+                     nativeName.substring(nativeName.length-4) !== "_ptr" )
+                {
+                    out.write("    interface " + nativeName + " {}\n")
+                }
+            }
+        }
+        out.write("}\n\n")
+    }
+    
+    writeTSValueTypeDefinitions(out, specification)
+}
+
+function writeIndent(out: fs.WriteStream, indent: number) {
+    for(let i=0; i<indent; ++i)
+        out.write("    ")
+}
+
+function writeTSValueTypeDefinitions(out: fs.WriteStream, specification: Node, indent=0)
+{
+    for(let definition of specification.child) {
+        switch(definition!.type) {
+            case Type.TKN_MODULE: {
+                out.write("export namespace "+definition!.text+" {\n\n")
+                writeTSValueTypeDefinitions(out, definition!, indent+1)
+                out.write("} // namespace "+definition!.text+"\n\n")
+            } break
+            case Type.TKN_NATIVE: {
+            } break
+            case Type.TKN_VALUETYPE: {
+                let value_dcl = definition!
+                let value_header = value_dcl.child[0]!
+                let custom = value_header.child[0]
+                let identifier = value_header.child[1]!.text
+                let inheritance_spec = value_header.child[2]
+
+                writeIndent(out, indent)
+                out.write("export ")
+                if (hasOperationDeclarations(value_dcl))
+                    out.write("abstract ")
+                else
+                if (inheritance_spec !== undefined) { // FIXME: this works only over one inheritance level, make it recursive
+                    if (inheritance_spec.child[1]!.child[0]!.type == Type.TKN_VALUETYPE) {
+                        let value_dcl = inheritance_spec.child[1]!.child[0]!
+                        if (hasOperationDeclarations(value_dcl))
+                            out.write("abstract ")
+                    }
+                }
+                out.write("class "+identifier)
+                if (inheritance_spec !== undefined) {
+                    if (inheritance_spec.child.length > 2)
+                        throw Error("multiple inheritance is not supported for TypeScript")
+                    out.write(" extends "+inheritance_spec.child[1]!.text)
+                }
+                out.write(" {\n")
+
+                for(let i=1; i<value_dcl.child.length; ++i) {
+                    let value_element = value_dcl.child[i]!
+                    if (value_element.type === Type.SYN_STATE_MEMBER) {
+                        let state_member = value_element
+                        let attribute    = state_member.child[0]!
+                        let type         = state_member.child[1]!
+                        let declarators  = state_member.child[2]!
+                        for(let declarator of declarators.child) {
+                            writeIndent(out, indent+1)
+                            out.write(declarator!.text+": "+typeIDLtoTS(type, Type.TKN_VALUETYPE)+"\n")
+                        }
+                    }
+                }
+
+                writeIndent(out, indent+1)
+                out.write("constructor(init?: any) {\n")
+                if (inheritance_spec) {
+                    writeIndent(out, indent+2)
+                    out.write("super(init)\n")
+                }
+                for(let i=1; i<value_dcl.child.length; ++i) {
+                    let value_element = value_dcl.child[i]!
+                    if (value_element.type === Type.SYN_STATE_MEMBER) {
+                        let state_member = value_element
+                        let attribute    = state_member.child[0]!
+                        let type         = state_member.child[1]!
+                        let declarators  = state_member.child[2]!
+                        for(let declarator of declarators.child) {
+                            let decl_identifier = declarator!.text
+                            writeIndent(out, indent+2)
+                            out.write("this."+decl_identifier+" = (init === undefined")
+                            if (type.type === Type.TKN_IDENTIFIER) {
+                                // FIXME: doesn't work for Array<Layer>()
+                                // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?
+                                out.write(") ? new "+type.text+"() : new "+type.text+"(init."+decl_identifier+")\n")
+                            } else {
+                                out.write(" || init."+decl_identifier+" === undefined) ? ")
+                                out.write(defaultValueIDLtoTS(type, Type.TKN_VALUETYPE))
+                                out.write(" : init."+decl_identifier+"\n")
+                            }
+                        }
+                    }
+                }
+                writeIndent(out, indent+1)
+                out.write("}\n")
+
+                for(let i=1; i<value_dcl.child.length; ++i) {
+                    let value_element = value_dcl.child[i]!
+                    if (value_element.type === Type.SYN_OPERATION_DECLARATION) {
+                        let op_decl = value_element
+                        let attribute = op_decl!.child[0]
+                        let type = op_decl!.child[1]!
+                        let op_identifier = op_decl!.child[2]!.text
+                        let parameter_decls = op_decl!.child[3]!.child
+                         writeIndent(out, indent+1)
+                        out.write("abstract ")
+                        out.write(op_identifier+"(")
+                        let comma = false
+                        for(let parameter_dcl of parameter_decls) {
+                            let attribute = parameter_dcl!.child[0]!.type
+                            let type = parameter_dcl!.child[1]
+                            let param_identifier = parameter_dcl!.child[2]!.text
+                            if (attribute !== Type.TKN_IN) {
+                                throw Error("corba.js currently only supports 'in' parameters")
+                            }
+                            if (comma) {
+                                out.write(", ")
+                            } else {
+                                comma = true
+                            }
+                            out.write(param_identifier)
+                            out.write(": ")
+                            out.write(typeIDLtoTS(type, Type.TKN_VALUETYPE))
+                        }
+                        out.write("): ")
+                        out.write(typeIDLtoTS(type, Type.TKN_VALUETYPE))
+                        out.write("\n")
+                    }
+                }
+                writeIndent(out, indent)
                 out.write("}\n\n")
             } break
         }
@@ -596,12 +625,8 @@ for(; i<process.argv.length; ++i) {
             writeTSSkeleton(syntaxTree!)
         if (tsStub)
             writeTSStub(syntaxTree!)
-        if (tsValueType) {
-            let out = fs.createWriteStream(filenamePrefix+"_valuetype.ts")
-            out.write("// This file is generated by the corba.js IDL compiler from '"+filename+"'.\n\n")
-            let generator = new Generator(generatorTSValueType, out)
-            generator.generate(syntaxTree!)
-        }
+        if (tsValueType)
+            writeTSValueType(syntaxTree!)
     }
     catch(error) {
         console.log("corba-idl: error: "+error.message+" in file '"+filename+"'")

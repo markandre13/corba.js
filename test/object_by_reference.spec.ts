@@ -33,17 +33,17 @@ describe("object by reference", function() {
     it("return value and argument", async function() {
         let serverORB = new server.ORB()
 //serverORB.debug = 1
-        serverORB.register_initial_reference("Server", new Server_impl(serverORB))
+        serverORB.register_initial_reference("Server", new Server_impl(serverORB)) // FIXME: orb.bind() instead?
         serverORB.registerStub("Listener", stub.Listener)
             
         let clientORB = new client.ORB()
 //clientORB.debug = 1
-        clientORB.registerStub("Server", stub.Server)
+        clientORB.registerStub("Server", stub.Server) // FIXME: do we still want the name when stubs have a _idlClassName() method?
         clientORB.registerStub("Session", stub.Session)
             
         mockConnection(serverORB, clientORB)
            
-        let object = await clientORB.resolve_initial_references("Server")
+        let object = await clientORB.resolve_initial_references("Server") // FIXME: just resolve?
         let serverObject = stub.Server.narrow(object)
         
         let session = await serverObject.getSession()
