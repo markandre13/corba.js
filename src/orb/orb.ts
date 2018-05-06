@@ -280,6 +280,15 @@ export class ORB {
     }
 
     async call(stub: Stub, method: string, params: Array<any>) {
+        if (stub.id === ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID) {
+            let data = {
+                "corba": "1.0",
+                "create": stub._idlClassName()
+            }
+            let result = await this.send(data)
+            stub.id = result.result
+        }
+        
         for(let i in params) {
             if (params[i] instanceof Skeleton) {
                 this.aclAdd(params[i])
