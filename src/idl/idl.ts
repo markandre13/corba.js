@@ -121,6 +121,18 @@ function hasOperationDeclarations(value_dcl: Node): boolean {
             return true
         }
     }
+    
+    let value_header = value_dcl.child[0]!
+    let inheritance_spec = value_header.child[2]
+    if (inheritance_spec !== undefined) {
+        if (inheritance_spec.child[1]!.child[0]!.type === Type.TKN_VALUETYPE) {
+            let value_dcl = inheritance_spec.child[1]!.child[0]!
+            if (hasOperationDeclarations(value_dcl)) {
+                return true
+            }
+        }
+    }
+    
     return false
 }
 
@@ -465,7 +477,7 @@ function writeTSValueTypeDefinitions(out: fs.WriteStream, specification: Node, i
                     out.write("abstract ")
                 else
                 if (inheritance_spec !== undefined) { // FIXME: this works only over one inheritance level, make it recursive
-                    if (inheritance_spec.child[1]!.child[0]!.type == Type.TKN_VALUETYPE) {
+                    if (inheritance_spec.child[1]!.child[0]!.type === Type.TKN_VALUETYPE) {
                         let value_dcl = inheritance_spec.child[1]!.child[0]!
                         if (hasOperationDeclarations(value_dcl))
                             out.write("abstract ")
