@@ -186,6 +186,56 @@ function writeTSInterface(specification: Node): void
                 }
                 out.write("}\n\n")
             } break
+            case Type.TKN_VALUETYPE: {
+                let value_dcl = definition!
+                let value_header = value_dcl.child[0]!
+                let custom = value_header.child[0]
+                let identifier = value_header.child[1]!.text
+                let inheritance_spec = value_header.child[2]
+                let indent = 0
+                writeIndent(out, indent)
+                out.write("export interface ")
+                out.write(identifier)
+                out.write("Struct")
+                if (inheritance_spec !== undefined) {
+                    if (inheritance_spec.child.length > 2)
+                        throw Error("multiple inheritance is not supported for TypeScript")
+                    out.write(" extends "+inheritance_spec.child[1]!.text+"Struct")
+                }
+                out.write(" {\n")
+
+                for(let i=1; i<value_dcl.child.length; ++i) {
+                    let value_element = value_dcl.child[i]!
+                    if (value_element.type === Type.SYN_STATE_MEMBER) {
+                        let state_member = value_element
+                        let attribute    = state_member.child[0]!
+                        let type         = state_member.child[1]!
+                        let declarators  = state_member.child[2]!
+                        for(let declarator of declarators.child) {
+                            writeIndent(out, indent+1)
+                            out.write(declarator!.text+": ")
+                            if (type.type === Type.TKN_IDENTIFIER &&
+                                type.child.length>0 &&
+                                type.child[0]!.type === Type.TKN_VALUETYPE)
+                            {
+                                out.write(typeIDLtoTS(type, Type.TKN_VALUETYPE)+"Struct\n")
+                            } else
+                            if (type.type === Type.TKN_SEQUENCE &&
+                                type!.child[0]!.type === Type.TKN_IDENTIFIER &&
+                                type!.child[0]!.child.length>0 &&
+                                type!.child[0]!.child[0]!.type === Type.TKN_VALUETYPE)
+                            {
+                                out.write("Array<"+typeIDLtoTS(type!.child[0], Type.TKN_VALUETYPE)+"Struct>\n")
+                            } else {
+                                out.write(typeIDLtoTS(type, Type.TKN_VALUETYPE)+"\n")
+                            }
+                        }
+                    }
+                }
+
+                writeIndent(out, indent)
+                out.write("}\n\n")
+            } break
         }
     }
 }
