@@ -31,8 +31,8 @@ export class ORB {
     
     accesibleServants: Set<Skeleton>
     
-    valueTypeByName: Map<string, any>
-    valueTypeByPrototype: Map<any, string>
+    static valueTypeByName = new Map<string, any>()
+    static valueTypeByPrototype = new Map<any, string>()
 
     initialReferences: Map<string, any>
 
@@ -46,8 +46,6 @@ export class ORB {
             this.servants.push(undefined) // reserve id 0
             this.unusedServantIds = new Array<number>()
             this.stubsByName = new Map<string, any>()
-            this.valueTypeByName = new Map<string, any>()
-            this.valueTypeByPrototype = new Map<any, string>()
             this.initialReferences = new Map<string, any>()
         } else {
             this.debug = orb.debug
@@ -55,8 +53,6 @@ export class ORB {
             this.servants = orb.servants
             this.unusedServantIds = orb.unusedServantIds
             this.stubsByName = orb.stubsByName
-            this.valueTypeByName = orb.valueTypeByName
-            this.valueTypeByPrototype = orb.valueTypeByPrototype
             this.initialReferences = orb.initialReferences
         }
         this.accesibleServants = new Set<Skeleton>()
@@ -90,9 +86,13 @@ export class ORB {
         this.stubsByName.set(name, aStubClass)
     }
 
-    registerValueType(name: string, valuetype: any): void {
-        this.valueTypeByName.set(name, valuetype)
-        this.valueTypeByPrototype.set(valuetype.prototype, name)
+    static registerValueType(name: string, valuetype: any): void {
+        ORB.valueTypeByName.set(name, valuetype)
+        ORB.valueTypeByPrototype.set(valuetype.prototype, name)
+    }
+    
+    static lookupValueType(name: string): any {
+        return ORB.valueTypeByName.get(name)
     }
 
     //
@@ -165,7 +165,7 @@ export class ORB {
 
         let data = ""
         let prototype = Object.getPrototypeOf(object)
-        let name = this.valueTypeByPrototype.get(prototype)
+        let name = ORB.valueTypeByPrototype.get(prototype)
         if (name === undefined)
             throw Error("ORB: can not serialize object of unregistered class "+object.constructor.name)
         for(let [attribute, value] of Object.entries(object)) {
@@ -206,7 +206,7 @@ export class ORB {
         if (type === undefined || value === undefined) {
             throw Error("ORB: no type/value information in serialized data")
         }
-        let aClass = this.valueTypeByName.get(type)
+        let aClass = ORB.valueTypeByName.get(type)
         if (aClass === undefined)
             throw Error("ORB: can not deserialize object of unregistered valuetype "+type)
         let object = new aClass()
