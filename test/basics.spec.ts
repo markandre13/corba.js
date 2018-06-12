@@ -113,11 +113,11 @@ describe("corba.js", function() {
         serverORB.register("Server", Server_impl)
         clientORB.register("Client", Client_impl)
         for(let orb of [ serverORB, clientORB ]) {
-            orb.registerValueType("Origin", Origin)
-            orb.registerValueType("Size", Size)
-            orb.registerValueType("Figure", Figure)
-            orb.registerValueType("Rectangle", Rectangle)
-            orb.registerValueType("FigureModel", FigureModel)
+            ORB.registerValueType("Origin", Origin)
+            ORB.registerValueType("Size", Size)
+            ORB.registerValueType("Figure", Figure)
+            ORB.registerValueType("Rectangle", Rectangle)
+            ORB.registerValueType("FigureModel", FigureModel)
         }
 
         mockConnection(serverORB, clientORB)
