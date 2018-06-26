@@ -1,7 +1,7 @@
 import * as server from "../src/orb/orb-nodejs"
 import * as client from "../src/orb/orb"
 
-export function mockConnection(serverORB: server.ORB, clientORB: client.ORB) {
+export function mockConnection(serverORB: server.ORB, clientORB: client.ORB): server.ORB {
     let acceptedORB = new server.ORB(serverORB)
 
     acceptedORB.socket = {
@@ -15,5 +15,6 @@ export function mockConnection(serverORB: server.ORB, clientORB: client.ORB) {
             acceptedORB.socket!.onmessage({data:data} as any)
         }
     } as any
+    return acceptedORB
 }
 

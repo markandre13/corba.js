@@ -18,7 +18,7 @@
 
 const ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID = 0
 
-export class ORB {
+export class ORB implements EventTarget {
     debug: number		// values > 0 enable debug output
 
     socket?: any		// socket with the client/server
@@ -37,6 +37,8 @@ export class ORB {
     initialReferences: Map<string, any>
 
     reqid: number		// counter to assign request id's to send messages // FIXME: handle overflow
+
+    listeners: Map<string, Set<EventListenerOrEventListenerObject>>
 
     constructor(orb?: ORB) {
         if (orb === undefined) {
@@ -57,8 +59,59 @@ export class ORB {
         }
         this.accesibleServants = new Set<Skeleton>()
         this.reqid = 0
+        this.listeners = new Map<string, Set<EventListenerOrEventListenerObject>>()
+    }
+    
+    // EventTarget methods
+    
+    addEventListener(type: string,
+                     listener: EventListenerOrEventListenerObject | null,
+                     options?: boolean | AddEventListenerOptions): void
+    {
+        if (type !== "close")
+            throw Error("ORB.addEventListener: type must be 'close'")
+        if (listener === null)
+            return
+        let set = this.listeners.get(type)
+        if (set === undefined) {
+            set = new Set<EventListenerOrEventListenerObject>()
+            this.listeners.set(type, set)
+        }
+        set.add(listener)
     }
 
+    removeEventListener(type: string,
+                        listener?: EventListenerOrEventListenerObject | null,
+                        options?: EventListenerOptions | boolean): void
+    {
+        if (type !== "close")
+            throw Error("ORB.removeEventListener: type must be 'close'")
+        if (listener === null || listener === undefined)
+            return
+        let set = this.listeners.get(type)
+        if (set === undefined)
+            return
+        set.delete(listener)
+    }
+
+    dispatchEvent(event: Event): boolean {
+        let set = this.listeners.get(event.type)
+        if (set === undefined)
+            return true
+        for(let handler of set) {
+            if (typeof handler === "function")
+                handler(event)
+            else
+                handler.handleEvent(event)
+        }
+        return true
+    }
+    
+    set onclose(listener: EventListenerOrEventListenerObject | null) {
+        this.listeners.delete("close")
+        this.addEventListener("close", listener)
+    }
+    
     // implementations registered here can be instantiated by the client
     register(name: string, aClass: any) {
         this.implementationByName.set(name, aClass)
@@ -232,6 +285,10 @@ export class ORB {
             orb.socket.onerror = function(err: any) {
                 reject(err)
             }
+            orb.socket.onclose = (event: Event) => {
+                this.dispatchEvent(event)
+                this.release()
+            }
         })
     }
     
@@ -270,10 +327,6 @@ export class ORB {
             }
             this.socket.onerror = function(err: any) {
                 reject(err)
-            }
-            this.socket.onclose = () => {
-                console.log("lost connection to server")
-                this.release()
             }
             this.socket.send(JSON.stringify(data))
         })
@@ -375,6 +428,8 @@ export class ORB {
                     
                 if (result instanceof Skeleton) {
                     this.aclAdd(result)
+                    
+                    result.orb = this // replace listener orb with client connection orb
                 }
                 if (result instanceof Stub) {
                     throw Error("ORB.handleMethod(): method '"+msg.method+"' returned stub")

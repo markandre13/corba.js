@@ -88,9 +88,9 @@ export class ORB extends Browser.ORB {
         this.socket.onerror = (error: any) => {
             console.log("error", error)
         }
-        this.socket.onclose = () => {
+        this.socket.onclose = (event: Event) => {
+            this.dispatchEvent(event)
             this.release()
-            console.log("lost connection to client")
         }
     }
     
