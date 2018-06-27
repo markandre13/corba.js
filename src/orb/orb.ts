@@ -151,11 +151,11 @@ export class ORB implements EventTarget {
     //
     // initial references
     //
-    register_initial_reference(id: string, obj: any) {
+    bind(id: string, obj: any) {
         this.initialReferences.set(id, obj)
     }
     
-    async list_initial_references(): Promise<Array<string>> {
+    async list(): Promise<Array<string>> {
         let result = new Array<string>()
 
         for(let [id, obj] of this.initialReferences) {
@@ -167,7 +167,7 @@ export class ORB implements EventTarget {
 
         let data = {
             "corba": "1.0",
-            "list_initial_references": null
+            "list": null
         }
         let remoteInitialReferences = await this.send(data)
         for(let id of remoteInitialReferences.result) {
@@ -177,14 +177,14 @@ export class ORB implements EventTarget {
         return result
     }
 
-    async resolve_initial_references(id: string): Promise<Stub> {
+    async resolve(id: string): Promise<Stub> {
         let data = {
             "corba": "1.0",
-            "resolve_initial_references": id
+            "resolve": id
         }
         let remoteInitialReference = await this.send(data)
         if (remoteInitialReference.result === undefined) {
-            throw Error("ORB.resolve_initial_references('"+id+"'): failed to resolve reference")
+            throw Error("ORB.resolve('"+id+"'): failed to resolve reference")
         }
         let object = this.deserialize(remoteInitialReference.result)
         return object
@@ -315,10 +315,10 @@ export class ORB implements EventTarget {
                 if (msg.method !== undefined) {
                     this.handleMethod(msg)
                 } else
-                if (msg.list_initial_references !== undefined) {
+                if (msg.list !== undefined) {
                     this.handleListInitialReferences(msg)
                 } else
-                if (msg.resolve_initial_references !== undefined) {
+                if (msg.resolve !== undefined) {
                     this.handleResolveInitialReferences(msg)
                 } else
                 if (reqid == msg.reqid) {
@@ -471,7 +471,7 @@ export class ORB implements EventTarget {
     }
     
     handleResolveInitialReferences(msg: any) {
-        let object = this.initialReferences.get(msg.resolve_initial_references)
+        let object = this.initialReferences.get(msg.resolve)
         this.aclAdd(object)
 
         let answer = {

@@ -73,7 +73,7 @@ describe("disconnect", function() {
         // setup server
         let serverORB = new server.ORB()
 //serverORB.debug = 1
-        serverORB.register_initial_reference("Server", new Server_impl(serverORB)) // FIXME: orb.bind() instead?
+        serverORB.bind("Server", new Server_impl(serverORB))
         serverORB.registerStub("Listener", stub.Listener)
         
         // setup client A
@@ -83,7 +83,7 @@ describe("disconnect", function() {
         clientA.registerStub("Session", stub.Session)
         let connectionA = mockConnection(serverORB, clientA)
         
-        let objectA = await clientA.resolve_initial_references("Server")
+        let objectA = await clientA.resolve("Server")
         let serverObjectA = stub.Server.narrow(objectA)
         
         let sessionA = await serverObjectA.getSession()
@@ -103,7 +103,7 @@ describe("disconnect", function() {
         clientB.registerStub("Session", stub.Session)
         let connectionB = mockConnection(serverORB, clientB)
         
-        let objectB = await clientB.resolve_initial_references("Server")
+        let objectB = await clientB.resolve("Server")
         let serverObjectB = stub.Server.narrow(objectB)
         
         let sessionB = await serverObjectB.getSession()

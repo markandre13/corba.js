@@ -78,10 +78,10 @@ export class ORB extends Browser.ORB {
             if (msg.method !== undefined) {
                 this.handleMethod(msg)
             } else
-            if (msg.list_initial_references !== undefined) {
+            if (msg.list !== undefined) {
                 this.handleListInitialReferences(msg)
             } else
-            if (msg.resolve_initial_references !== undefined) {
+            if (msg.resolve !== undefined) {
                 this.handleResolveInitialReferences(msg)
             }
         }

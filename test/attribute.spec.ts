@@ -18,14 +18,14 @@ xdescribe("attribute", function() {
     it("get value", function() {
 /*
         let serverORB = new server.ORB()
-        serverORB.register_initial_reference("Servant", new Servant_impl(serverORB))
+        serverORB.bind("Servant", new Servant_impl(serverORB))
             
         let clientORB = new client.ORB()
         clientORB.registerStub("Servant", Servant)
             
         mockConnection(serverORB, clientORB)
            
-        let object = await clientORB.resolve_initial_references("Servant")
+        let object = await clientORB.resolve("Servant")
         let servant = Servant.narrow(object)
         expect(result).to.be.an.instanceof(Servant)
 */

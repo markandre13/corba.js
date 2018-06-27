@@ -33,7 +33,7 @@ describe("object by reference", function() {
     it("return value and argument", async function() {
         let serverORB = new server.ORB()
 //serverORB.debug = 1
-        serverORB.register_initial_reference("Server", new Server_impl(serverORB)) // FIXME: orb.bind() instead?
+        serverORB.bind("Server", new Server_impl(serverORB))
         serverORB.registerStub("Listener", stub.Listener)
             
         let clientORB = new client.ORB()
@@ -43,7 +43,7 @@ describe("object by reference", function() {
             
         mockConnection(serverORB, clientORB)
            
-        let object = await clientORB.resolve_initial_references("Server") // FIXME: just resolve?
+        let object = await clientORB.resolve("Server")
         let serverObject = stub.Server.narrow(object)
         
         let session = await serverObject.getSession()
