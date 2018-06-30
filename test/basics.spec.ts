@@ -57,21 +57,33 @@ class Rectangle extends Figure {
 
 class Server_impl extends skel.Server {
     static instance?: Server_impl
-    static helloWasCalled = false
+    static methodAWasCalled = false
+    static methodBWasCalled = false
 
-    client: stub.Client
+    client?: stub.Client
 
     constructor(orb: ORB) {
         super(orb)
 //console.log("Server_impl.constructor()")
-        this.client = new stub.Client(orb)
         Server_impl.instance = this
     }
+    
+    async setClient(client: stub.Client) {
+        this.client = client
+    }
 
-    async hello() {
-//console.log("Server_impl.hello()")
-        Server_impl.helloWasCalled = true
-        await this.client.question()
+    async methodA() {
+//console.log("Server_impl.methodA()")
+        expect(this.orb.name).to.equal("acceptedORB")
+        Server_impl.methodAWasCalled = true
+    }
+    
+    async methodB() {
+//console.log("Server_impl.methodB()")
+        expect(this.orb.name).to.equal("acceptedORB")
+        Server_impl.methodBWasCalled = true
+        await this.client!.methodC()
+        return 0
     }
     
     async answer(a: number, b: number) {
@@ -82,7 +94,7 @@ class Server_impl extends skel.Server {
 
 class Client_impl extends skel.Client {
     static instance?: Client_impl
-    static questionWasCalled = false
+    static methodCWasCalled = false
     static figureModelReceivedFromServer?: FigureModel
 
     constructor(orb: ORB) {
@@ -91,9 +103,10 @@ class Client_impl extends skel.Client {
         Client_impl.instance = this
     }
     
-    async question() {
-//console.log("Client_impl.question()")
-        Client_impl.questionWasCalled = true
+    async methodC() {
+//console.log("Client_impl.methodC()")
+        Client_impl.methodCWasCalled = true
+        return 0
     }
     
     async setFigureModel(figuremodel: FigureModel) {
@@ -106,12 +119,17 @@ describe("corba.js", function() {
     it("a basic test", async function() {
 
         let serverORB = new ORB()
+        serverORB.name = "serverORB"
 //serverORB.debug = 1
         let clientORB = new ORB()
+        clientORB.name = "clientORB"
 //clientORB.debug = 1
 
-        serverORB.register("Server", Server_impl)
-        clientORB.register("Client", Client_impl)
+        serverORB.bind("Server", new Server_impl(serverORB))
+        
+        serverORB.registerStub("Client", stub.Client)
+        clientORB.registerStub("Server", stub.Server)
+        
         for(let orb of [ serverORB, clientORB ]) {
             ORB.registerValueType("Origin", Origin)
             ORB.registerValueType("Size", Size)
@@ -120,24 +138,26 @@ describe("corba.js", function() {
             ORB.registerValueType("FigureModel", FigureModel)
         }
 
-        mockConnection(serverORB, clientORB)
+        mockConnection(serverORB, clientORB).name = "acceptedORB"
 
-        // client creates server stub which lets server create it's client stub
-        expect(Server_impl.instance).to.be.undefined
-        let server = new stub.Server(clientORB)
+        let server = stub.Server.narrow(await clientORB.resolve("Server"))
+        await server.setClient(new Client_impl(clientORB))
 
-        // client calls hello() on server, which calls question() on client
-        expect(Server_impl.helloWasCalled).to.equal(false)
-        expect(Client_impl.questionWasCalled).to.equal(false)
-        await server.hello()
-        expect(Server_impl.helloWasCalled).to.equal(true)
+        // method call
+        expect(Server_impl.methodAWasCalled).to.equal(false)
+        await server.methodA()
+        expect(Server_impl.methodAWasCalled).to.equal(true)
 
-        expect(Server_impl.instance).not.to.be.undefined		// FIXME: delayed
-        expect(Server_impl.instance!.client).to.not.be.undefined	// FIXME: delayed
+        // method call which calls us back
+        expect(Server_impl.methodBWasCalled).to.equal(false)
+        expect(Client_impl.methodCWasCalled).to.equal(false)
+        await server.methodB()
+
+        expect(Server_impl.methodBWasCalled).to.equal(true)
+        expect(Client_impl.methodCWasCalled).to.equal(true)
 
         // client calls answer() on server
         let answer = await server.answer(6, 7)
-        expect(Client_impl.questionWasCalled).to.equal(true)		// FIXME_ delayed
         expect(answer).to.equal(42)
 
         // server sends FigureModel to client
@@ -146,7 +166,7 @@ describe("corba.js", function() {
         let model = new FigureModel()
         model.data.push(new Rectangle(10, 20, 30, 40))
         model.data.push(new Rectangle(50, 60, 70, 80))
-        await Server_impl.instance!.client.setFigureModel(model)
+        await Server_impl.instance!.client!.setFigureModel(model)
 
         expect(Client_impl.figureModelReceivedFromServer!.data[0].toString()).to.equal("Rectangle: (10,20,30,40)")
         let rectangle = Client_impl.figureModelReceivedFromServer!.data[0] as Rectangle

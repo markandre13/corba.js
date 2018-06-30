@@ -40,8 +40,9 @@ describe("corba.js", function() {
         let clientORB = new ORB()
 //clientORB.debug = 1
 
-        serverORB.register("Server", Server_impl)
-        serverORB.register("Data", Data_impl)
+        serverORB.bind("Server", new Server_impl(serverORB))
+        //serverORB.register("Server", Server_impl)
+        //serverORB.register("Data", Data_impl)
         clientORB.registerStub("Data", stub.Data)
 
         // mock network connection between server and client ORB
@@ -59,7 +60,7 @@ describe("corba.js", function() {
         } as any
 
         // client creates server stub which lets server create it's client stub
-        let server = new stub.Server(clientORB)
+        let server = stub.Server.narrow(await clientORB.resolve("Server"))
         let data = await server.getData()
         data.hello()
         expect(Data_impl.numberOfInstances).to.equal(1)

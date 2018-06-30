@@ -21,12 +21,15 @@ valuetype Rectangle {
 valuetype FigureModel {
 };
 
+interface Client {
+    short methodC(); // return type is to be able to drop 'oneway'
+    oneway void setFigureModel(in FigureModel figuremodel);
+};
+
 interface Server {
-    oneway void hello();
+    oneway void setClient(in Client client);
+    oneway void methodA();
+    short methodB(); // return type is to be able to drop 'oneway'
     double answer(in double a, in double b);
 };
 
-interface Client {
-    oneway void question();
-    oneway void setFigureModel(in FigureModel figuremodel);
-};

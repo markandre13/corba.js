@@ -72,9 +72,6 @@ export class ORB extends Browser.ORB {
             if (msg.corba !== "1.0") {
                 throw Error("expected corba version 1.0 but got "+msg.corba)
             }
-            if (msg.create !== undefined) {
-                this.handleCreate(msg)
-            } else
             if (msg.method !== undefined) {
                 this.handleMethod(msg)
             } else

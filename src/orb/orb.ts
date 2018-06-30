@@ -16,14 +16,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-const ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID = 0
-
 export class ORB implements EventTarget {
     debug: number		// values > 0 enable debug output
+    name: string
 
     socket?: any		// socket with the client/server
 
-    implementationByName: Map<string, any>
     stubsByName: Map<string, any>
 
     servants: Array<Skeleton|undefined>
@@ -43,19 +41,19 @@ export class ORB implements EventTarget {
     constructor(orb?: ORB) {
         if (orb === undefined) {
             this.debug = 0
-            this.implementationByName = new Map<string, any>()
             this.servants = new Array<Skeleton|undefined>()
             this.servants.push(undefined) // reserve id 0
             this.unusedServantIds = new Array<number>()
             this.stubsByName = new Map<string, any>()
             this.initialReferences = new Map<string, any>()
+            this.name = ""
         } else {
             this.debug = orb.debug
-            this.implementationByName = orb.implementationByName
             this.servants = orb.servants
             this.unusedServantIds = orb.unusedServantIds
             this.stubsByName = orb.stubsByName
             this.initialReferences = orb.initialReferences
+            this.name = "spawned from '"+orb.name+"'"
         }
         this.accesibleServants = new Set<Skeleton>()
         this.reqid = 0
@@ -110,11 +108,6 @@ export class ORB implements EventTarget {
     set onclose(listener: EventListenerOrEventListenerObject | null) {
         this.listeners.delete("close")
         this.addEventListener("close", listener)
-    }
-    
-    // implementations registered here can be instantiated by the client
-    register(name: string, aClass: any) {
-        this.implementationByName.set(name, aClass)
     }
     
     // called by the Skeleton
@@ -309,9 +302,6 @@ export class ORB implements EventTarget {
                 let msg = JSON.parse(String(message.data))
                 if (msg.corba !== "1.0")
                     reject(Error("expected corba version 1.0 but got "+msg.corba))
-                if (msg.create !== undefined) {
-                    this.handleCreate(msg)
-                } else
                 if (msg.method !== undefined) {
                     this.handleMethod(msg)
                 } else
@@ -333,15 +323,6 @@ export class ORB implements EventTarget {
     }
 
     async call(stub: Stub, method: string, params: Array<any>) {
-        if (stub.id === ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID) {
-            let data = {
-                "corba": "1.0",
-                "create": stub._idlClassName()
-            }
-            let result = await this.send(data)
-            stub.id = result.result
-        }
-        
         for(let i in params) {
             if (params[i] instanceof Skeleton) {
                 this.aclAdd(params[i])
@@ -375,29 +356,6 @@ export class ORB implements EventTarget {
         this.accesibleServants.clear()
     }
 
-    handleCreate(msg: any) {
-        let template = this.implementationByName.get(msg.create)
-        if (template===undefined)
-            throw Error("peer requested instantiation of unknown class '"+msg.create+"'")
-
-        let obj = new template(this)
-        this.aclAdd(obj)
-        let answer = {
-            "corba": "1.0",
-            "result": obj.id,
-            "reqid": msg.reqid
-        }
-        let text = JSON.stringify(answer)
-        if (this.debug>0) {
-            console.log("ORB.handleMethod(): sending call reply "+text)
-        }
-        this.socket!.send(text)
-
-        if (this.debug>0) {
-            console.log("ORB.handleCreate(): created new object of class '"+msg.create+"' with id "+obj.id)
-        }
-    }
-    
     handleMethod(msg: any) {
 // FIXME: errors thrown here don't appear on the console
         if (this.debug>0)
@@ -419,6 +377,7 @@ export class ORB implements EventTarget {
             msg.params[i] = this.deserialize(msg.params[i])
         }
 
+        servant.orb = this // set orb to client connection orb
         let result = servant[msg.method].apply(servant, msg.params) as any
                 
         result
@@ -516,13 +475,9 @@ export abstract class Stub {
     orb: ORB
     id: number
     
-    constructor(orb: ORB, remoteID?: number) {
+    constructor(orb: ORB, remoteID: number) {
         this.orb = orb
-        if (remoteID === undefined) {
-            this.id = ASYNCHROUNOUSLY_CREATE_REMOTE_OBJECT_TO_GET_ID
-        } else {
-            this.id = remoteID
-        }
+        this.id = remoteID
     }
 
     abstract _idlClassName(): string    
