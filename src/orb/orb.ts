@@ -145,6 +145,8 @@ export class ORB implements EventTarget {
     // initial references
     //
     bind(id: string, obj: any) {
+        if (this.initialReferences.get(id)!==undefined)
+            throw Error("ORB.bind(): the id '"+id+"' is already bound to an object")
         this.initialReferences.set(id, obj)
     }
     
