@@ -23,6 +23,7 @@ export class ORB implements EventTarget {
     socket?: any		// socket with the client/server
 
     stubsByName: Map<string, any>
+    stubsById: Map<number, Stub>
 
     servants: Array<Skeleton|undefined>
     unusedServantIds: Array<number>
@@ -55,6 +56,7 @@ export class ORB implements EventTarget {
             this.initialReferences = orb.initialReferences
             this.name = "spawned from '"+orb.name+"'"
         }
+        this.stubsById = new Map<number, Stub>()
         this.accesibleServants = new Set<Skeleton>()
         this.reqid = 0
         this.listeners = new Map<string, Set<EventListenerOrEventListenerObject>>()
@@ -128,8 +130,14 @@ export class ORB implements EventTarget {
         servant.id = -1
     }
     
-    registerStub(name: string, aStubClass: any) {
+    registerStub(name: string, aStubClass: any) { // FIXME?: registerStubClass() ???
         this.stubsByName.set(name, aStubClass)
+    }
+    
+    releaseStub(stub: Stub): void {
+        if (!this.stubsById.has(stub.id))
+            throw Error("ORB.releaseStub(): the stub with id "+stub.id+" is unknown to this ORB")
+        this.stubsById.delete(stub.id)
     }
 
     static registerValueType(name: string, valuetype: any): void {
@@ -179,9 +187,12 @@ export class ORB implements EventTarget {
         }
         let remoteInitialReference = await this.send(data)
         if (remoteInitialReference.result === undefined) {
-            throw Error("ORB.resolve('"+id+"'): failed to resolve reference")
+            throw Error("ORB.resolve('"+id+"'): protocol error, no result value")
         }
         let object = this.deserialize(remoteInitialReference.result)
+        if (object === null) {
+            throw Error("ORB.resolve('"+id+"'): failed to resolve reference")
+        }
         return object
     }
     
@@ -190,7 +201,7 @@ export class ORB implements EventTarget {
     //
 
     serialize(object: any): string {
-        if (typeof object !== "object") {
+        if (object === null || typeof object !== "object") {
             return JSON.stringify(object)
         }
  
@@ -229,6 +240,9 @@ export class ORB implements EventTarget {
     }
 
     _deserialize(data: any): any {
+        if (data === null)
+            return null
+
         if (typeof data !== "object")
             return data
         
@@ -243,11 +257,15 @@ export class ORB implements EventTarget {
         let reference = data["#R"]
         let value = data["#V"]
         if (reference !== undefined && value !== undefined) {
+            let object = this.stubsById.get(value)
+            if (object !== undefined)
+                return object
             let aStubClass = this.stubsByName.get(reference)
             if (aStubClass === undefined) {
                 throw Error("ORB: can not deserialize object of unregistered stub '"+reference+"'")
             }
-            let object = new aStubClass(this, value)
+            object = new aStubClass(this, value)
+            this.stubsById.set(value, object!)
             return object
         }
 
@@ -433,8 +451,13 @@ export class ORB implements EventTarget {
     
     handleResolveInitialReferences(msg: any) {
         let object = this.initialReferences.get(msg.resolve)
-        this.aclAdd(object)
-
+        if (object === undefined) {
+            console.log("ORB.handleResolveInitialReferences(): failed to resolve '"+msg.resolve+"'")
+            object = null
+        } else {
+            this.aclAdd(object)
+        }
+        
         let answer = {
             "corba": "1.0",
             "result": this.serialize(object),
@@ -459,28 +482,38 @@ export class ORB implements EventTarget {
     
 }
 
-export abstract class Skeleton {
+export abstract class CORBAObject {
     orb: ORB
     id: number
+    constructor(orb: ORB, id: number) {
+        this.orb = orb
+        this.id = id
+    }
+}
+
+export abstract class Skeleton extends CORBAObject {
     acl: Set<ORB>
 
     constructor(orb: ORB) {
-        this.orb = orb
+        super(orb, 0)
         this.id = orb.registerServant(this)
         this.acl = new Set<ORB>()
+    }
+    
+    release(): void {
     }
     
     abstract _idlClassName(): string
 }
 
-export abstract class Stub {
-    orb: ORB
-    id: number
-    
+export abstract class Stub extends CORBAObject {
     constructor(orb: ORB, remoteID: number) {
-        this.orb = orb
-        this.id = remoteID
+        super(orb, remoteID)
     }
-
-    abstract _idlClassName(): string    
+    
+    release(): void {
+        this.orb.releaseStub(this)
+    }
+    
+    abstract _idlClassName(): string
 }

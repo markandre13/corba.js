@@ -75,7 +75,7 @@ describe("initial references", function() {
             
                 let result = await serverORB.resolve("NoServer")
             })
-            it("on the client", async function() {
+            it.only("on the client", async function() {
                 let serverORB = new server.ORB()
                 let serve = new Server_impl(serverORB)
                 serverORB.bind("Server", serve)
@@ -93,6 +93,7 @@ describe("initial references", function() {
                     error = caughtError
                 }
                 expect(error).to.be.an.instanceof(Error)
+                expect(error.message).to.equal("ORB.resolve('NoServer'): failed to resolve reference")
             })
         })
         describe("will return the object by that reference", function() {
