@@ -4,5 +4,6 @@ interface Data {
 
 interface Server {
     Data getData();
+    short setData(in Data data);
 };
 

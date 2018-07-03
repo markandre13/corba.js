@@ -75,7 +75,7 @@ describe("initial references", function() {
             
                 let result = await serverORB.resolve("NoServer")
             })
-            it.only("on the client", async function() {
+            it("on the client", async function() {
                 let serverORB = new server.ORB()
                 let serve = new Server_impl(serverORB)
                 serverORB.bind("Server", serve)

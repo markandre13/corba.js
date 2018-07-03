@@ -73,7 +73,13 @@ export class ORB extends Browser.ORB {
                 throw Error("expected corba version 1.0 but got "+msg.corba)
             }
             if (msg.method !== undefined) {
-                this.handleMethod(msg)
+                try {
+                    this.handleMethod(msg)
+                }
+                catch(error) {
+                    console.log(error.message)
+                    throw error
+                }
             } else
             if (msg.list !== undefined) {
                 this.handleListInitialReferences(msg)

@@ -1,0 +1,11 @@
+interface Listener
+{
+    string getName();
+    short call();
+};
+
+interface Server {
+    short call();
+    short set(in Listener listener);
+    Listener get(in string name);
+};

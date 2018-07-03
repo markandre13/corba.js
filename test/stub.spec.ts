@@ -19,6 +19,9 @@ class Data_impl extends skel.Data {
 }
 
 class Server_impl extends skel.Server {
+    static data = new Set<stub.Data>()
+    static dataCounter = 0
+
     constructor(orb: ORB) {
         super(orb)
 //console.log("Server_impl.constructor(): id="+this.id)
@@ -30,9 +33,15 @@ class Server_impl extends skel.Server {
 //console.log("Server_impl.getData(): created Data_impl() with id "+data.id)
         return data
     }
+    
+    async setData(data: stub.Data) {
+        ++Server_impl.dataCounter
+        Server_impl.data.add(data)
+        return 0
+    }
 }
 
-describe("corba.js", function() {
+describe("stub", function() {
     it("the client won't create another object on the server when receiving an object reference", async function() {
 
         let serverORB = new ORB()
@@ -43,6 +52,7 @@ describe("corba.js", function() {
         serverORB.bind("Server", new Server_impl(serverORB))
         //serverORB.register("Server", Server_impl)
         //serverORB.register("Data", Data_impl)
+        clientORB.registerStub("Server", stub.Server)
         clientORB.registerStub("Data", stub.Data)
 
         // mock network connection between server and client ORB
@@ -64,5 +74,89 @@ describe("corba.js", function() {
         let data = await server.getData()
         data.hello()
         expect(Data_impl.numberOfInstances).to.equal(1)
+    })
+    
+    it("passing the same implementation twice will create only one stub", async function() {
+        let serverORB = new ORB()
+//serverORB.debug = 1
+        let clientORB = new ORB()
+//clientORB.debug = 1
+
+        serverORB.bind("Server", new Server_impl(serverORB))
+        //serverORB.register("Server", Server_impl)
+        //serverORB.register("Data", Data_impl)
+        clientORB.registerStub("Server", stub.Server)
+        serverORB.registerStub("Data", stub.Data)
+
+        // mock network connection between server and client ORB
+        serverORB.socket = {
+            send: function(data: any) {
+                clientORB.socket!.onmessage({data:data} as any)
+            }
+        } as any
+        serverORB.accept()
+
+        clientORB.socket = {
+            send: function(data: any) {
+                serverORB.socket!.onmessage({data:data} as any)
+            }
+        } as any
+
+        // client creates server stub which lets server create it's client stub
+        let server = stub.Server.narrow(await clientORB.resolve("Server"))
+
+        let data = new Data_impl(clientORB)
+        Server_impl.dataCounter = 0
+        Server_impl.data.clear()
+        server.setData(data)
+        server.setData(data)
+        
+        expect(Server_impl.dataCounter).to.equal(2)
+        expect(Server_impl.data.size).to.equal(1)
+    })
+
+    it("releasing a stub will relase the ORBs internal stub entry", async function() {
+        let serverORB = new ORB()
+//serverORB.debug = 1
+        let clientORB = new ORB()
+//clientORB.debug = 1
+
+        serverORB.bind("Server", new Server_impl(serverORB))
+        //serverORB.register("Server", Server_impl)
+        //serverORB.register("Data", Data_impl)
+        clientORB.registerStub("Server", stub.Server)
+        serverORB.registerStub("Data", stub.Data)
+
+        // mock network connection between server and client ORB
+        serverORB.socket = {
+            send: function(data: any) {
+                clientORB.socket!.onmessage({data:data} as any)
+            }
+        } as any
+        serverORB.accept()
+
+        clientORB.socket = {
+            send: function(data: any) {
+                serverORB.socket!.onmessage({data:data} as any)
+            }
+        } as any
+
+        // client creates server stub which lets server create it's client stub
+        let server = stub.Server.narrow(await clientORB.resolve("Server"))
+
+        let data = new Data_impl(clientORB)
+        expect(serverORB.stubsById.size).to.equal(0)
+        Server_impl.dataCounter = 0
+        Server_impl.data.clear()
+        server.setData(data)
+        server.setData(data)
+        expect(serverORB.stubsById.size).to.equal(1)
+        
+        expect(Server_impl.dataCounter).to.equal(2)
+        expect(Server_impl.data.size).to.equal(1)
+        
+        for(let stub of Server_impl.data)
+            stub.release()
+        expect(serverORB.stubsById.size).to.equal(0)
     })
 })

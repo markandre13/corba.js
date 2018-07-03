@@ -323,7 +323,13 @@ export class ORB implements EventTarget {
                 if (msg.corba !== "1.0")
                     reject(Error("expected corba version 1.0 but got "+msg.corba))
                 if (msg.method !== undefined) {
-                    this.handleMethod(msg)
+                    try {
+                        this.handleMethod(msg)
+                    }
+                    catch(error) {
+                        console.log(error.message)
+                        throw error
+                    }
                 } else
                 if (msg.list !== undefined) {
                     this.handleListInitialReferences(msg)
@@ -377,7 +383,6 @@ export class ORB implements EventTarget {
     }
 
     handleMethod(msg: any) {
-// FIXME: errors thrown here don't appear on the console
         if (this.debug>0)
             console.log("ORB.handleMethod(", msg, ")")
         if (msg.id >= this.servants.length) {
@@ -399,6 +404,9 @@ export class ORB implements EventTarget {
 
         servant.orb = this // set orb to client connection orb
         let result = servant[msg.method].apply(servant, msg.params) as any
+    
+        if (this.debug>0)
+            console.log("ORB.handleMethod(): got result ", result)
                 
         result
             .then( (result: any) => {
