@@ -127,8 +127,8 @@ describe("corba.js", function() {
 
         serverORB.bind("Server", new Server_impl(serverORB))
         
-        serverORB.registerStub("Client", stub.Client)
-        clientORB.registerStub("Server", stub.Server)
+        serverORB.registerStubClass(stub.Client)
+        clientORB.registerStubClass(stub.Server)
         
         for(let orb of [ serverORB, clientORB ]) {
             ORB.registerValueType("Origin", Origin)

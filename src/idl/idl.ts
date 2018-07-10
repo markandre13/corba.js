@@ -221,7 +221,7 @@ function writeTSSkeleton(specification: Node): void
                 
                 out.write("export abstract class "+identifier+" extends Skeleton implements _interface." + identifier + " {\n")
 
-                out.write("    _idlClassName(): string {\n")
+                out.write("    static _idlClassName(): string {\n")
                 out.write("        return \"" + identifier + "\"\n")
                 out.write("    }\n\n")
 
@@ -293,7 +293,7 @@ function writeTSStub(specification: Node): void
 
                 out.write("export class " + identifier + " extends Stub implements _interface." + identifier + " {\n")
                 
-                out.write("    _idlClassName(): string {\n")
+                out.write("    static _idlClassName(): string {\n")
                 out.write("        return \"" + identifier + "\"\n")
                 out.write("    }\n\n")
 

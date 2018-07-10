@@ -81,7 +81,7 @@ describe("initial references", function() {
                 serverORB.bind("Server", serve)
             
                 let clientORB = new client.ORB()
-                clientORB.registerStub("Server", stub.Server)
+                clientORB.registerStubClass(stub.Server)
             
                 mockConnection(serverORB, clientORB)
 
@@ -115,7 +115,7 @@ describe("initial references", function() {
                 serverORB.bind("Server", serve)
             
                 let clientORB = new client.ORB()
-                clientORB.registerStub("Server", stub.Server)
+                clientORB.registerStubClass(stub.Server)
             
                 mockConnection(serverORB, clientORB)
             
@@ -131,7 +131,7 @@ describe("initial references", function() {
                 serverORB.bind("Server", serve)
             
                 let clientORB = new client.ORB()
-                clientORB.registerStub("Server", stub.Server)
+                clientORB.registerStubClass(stub.Server)
             
                 mockConnection(serverORB, clientORB)
             
@@ -146,7 +146,7 @@ describe("initial references", function() {
                 serverORB.bind("Server", serve)
             
                 let clientORB = new client.ORB()
-                clientORB.registerStub("Server", stub.Server)
+                clientORB.registerStubClass(stub.Server)
             
                 mockConnection(serverORB, clientORB)
             

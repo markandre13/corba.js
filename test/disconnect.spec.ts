@@ -74,13 +74,13 @@ describe("disconnect", function() {
         let serverORB = new server.ORB()
 //serverORB.debug = 1
         serverORB.bind("Server", new Server_impl(serverORB))
-        serverORB.registerStub("Listener", stub.Listener)
+        serverORB.registerStubClass(stub.Listener)
         
         // setup client A
         let clientA = new client.ORB()
 //clientA.debug = 1
-        clientA.registerStub("Server", stub.Server) // FIXME: do we still want the name when stubs have a _idlClassName() method?
-        clientA.registerStub("Session", stub.Session)
+        clientA.registerStubClass(stub.Server)
+        clientA.registerStubClass(stub.Session)
         let connectionA = mockConnection(serverORB, clientA)
         
         let objectA = await clientA.resolve("Server")
@@ -99,8 +99,8 @@ describe("disconnect", function() {
         // setup client B
         let clientB = new client.ORB()
 //clientB.debug = 1
-        clientB.registerStub("Server", stub.Server) // FIXME: do we still want the name when stubs have a _idlClassName() method?
-        clientB.registerStub("Session", stub.Session)
+        clientB.registerStubClass(stub.Server)
+        clientB.registerStubClass(stub.Session)
         let connectionB = mockConnection(serverORB, clientB)
         
         let objectB = await clientB.resolve("Server")

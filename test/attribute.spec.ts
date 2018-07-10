@@ -21,7 +21,7 @@ xdescribe("attribute", function() {
         serverORB.bind("Servant", new Servant_impl(serverORB))
             
         let clientORB = new client.ORB()
-        clientORB.registerStub("Servant", Servant)
+        clientORB.registerStubClass(Servant)
             
         mockConnection(serverORB, clientORB)
            

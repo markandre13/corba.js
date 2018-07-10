@@ -130,8 +130,8 @@ export class ORB implements EventTarget {
         servant.id = -1
     }
     
-    registerStub(name: string, aStubClass: any) { // FIXME?: registerStubClass() ???
-        this.stubsByName.set(name, aStubClass)
+    registerStubClass(aStubClass: any) {
+        this.stubsByName.set(aStubClass._idlClassName(), aStubClass)
     }
     
     releaseStub(stub: Stub): void {
@@ -209,7 +209,7 @@ export class ORB implements EventTarget {
             throw Error("ORB.serialize(): Stub")
         }
         if (object instanceof Skeleton) {
-            return `{"#R":"${object._idlClassName()}","#V":${object.id}}`
+            return `{"#R":"${(object.constructor as any)._idlClassName()}","#V":${object.id}}`
         }       
 
         if (object instanceof Array) {
@@ -510,8 +510,6 @@ export abstract class Skeleton extends CORBAObject {
     
     release(): void {
     }
-    
-    abstract _idlClassName(): string
 }
 
 export abstract class Stub extends CORBAObject {
@@ -522,6 +520,4 @@ export abstract class Stub extends CORBAObject {
     release(): void {
         this.orb.releaseStub(this)
     }
-    
-    abstract _idlClassName(): string
 }

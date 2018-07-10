@@ -50,12 +50,11 @@ describe("stub", function() {
 //clientORB.debug = 1
 
         serverORB.bind("Server", new Server_impl(serverORB))
-        //serverORB.register("Server", Server_impl)
-        //serverORB.register("Data", Data_impl)
-        clientORB.registerStub("Server", stub.Server)
-        clientORB.registerStub("Data", stub.Data)
+        clientORB.registerStubClass(stub.Server)
+        clientORB.registerStubClass(stub.Data)
 
         // mock network connection between server and client ORB
+        // FIXME: use mockConnection
         serverORB.socket = {
             send: function(data: any) {
                 clientORB.socket!.onmessage({data:data} as any)
@@ -83,12 +82,11 @@ describe("stub", function() {
 //clientORB.debug = 1
 
         serverORB.bind("Server", new Server_impl(serverORB))
-        //serverORB.register("Server", Server_impl)
-        //serverORB.register("Data", Data_impl)
-        clientORB.registerStub("Server", stub.Server)
-        serverORB.registerStub("Data", stub.Data)
+        clientORB.registerStubClass(stub.Server)
+        serverORB.registerStubClass(stub.Data)
 
         // mock network connection between server and client ORB
+        // FIXME: use mockConnection
         serverORB.socket = {
             send: function(data: any) {
                 clientORB.socket!.onmessage({data:data} as any)
@@ -122,12 +120,11 @@ describe("stub", function() {
 //clientORB.debug = 1
 
         serverORB.bind("Server", new Server_impl(serverORB))
-        //serverORB.register("Server", Server_impl)
-        //serverORB.register("Data", Data_impl)
-        clientORB.registerStub("Server", stub.Server)
-        serverORB.registerStub("Data", stub.Data)
+        clientORB.registerStubClass(stub.Server)
+        serverORB.registerStubClass(stub.Data)
 
         // mock network connection between server and client ORB
+        // FIXME: use mockConnection
         serverORB.socket = {
             send: function(data: any) {
                 clientORB.socket!.onmessage({data:data} as any)

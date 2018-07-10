@@ -34,12 +34,12 @@ describe("object by reference", function() {
         let serverORB = new server.ORB()
 //serverORB.debug = 1
         serverORB.bind("Server", new Server_impl(serverORB))
-        serverORB.registerStub("Listener", stub.Listener)
+        serverORB.registerStubClass(stub.Listener)
             
         let clientORB = new client.ORB()
 //clientORB.debug = 1
-        clientORB.registerStub("Server", stub.Server) // FIXME: do we still want the name when stubs have a _idlClassName() method?
-        clientORB.registerStub("Session", stub.Session)
+        clientORB.registerStubClass(stub.Server)
+        clientORB.registerStubClass(stub.Session)
             
         mockConnection(serverORB, clientORB)
            

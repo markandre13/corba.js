@@ -71,7 +71,7 @@ describe("access", async function() {
 
         // setup client A
         let clientA = new client.ORB()
-        clientA.registerStub("Server", stub.Server)
+        clientA.registerStubClass(stub.Server)
         let connectionA = mockConnection(serverORB, clientA)
 
         let objectA = await clientA.resolve("ServerA")
@@ -121,11 +121,11 @@ describe("access", async function() {
         let serverImpl = new Server_impl(serverORB, "S")
 
         serverORB.bind("Server", serverImpl)
-        serverORB.registerStub("Listener", stub.Listener)
+        serverORB.registerStubClass(stub.Listener)
 
         // setup client A
         let clientA = new client.ORB()
-        clientA.registerStub("Server", stub.Server)
+        clientA.registerStubClass(stub.Server)
         let connectionA = mockConnection(serverORB, clientA)
         let serverStub = stub.Server.narrow(await clientA.resolve("Server"))
         let objectA = new Listener_impl(clientA, "A")
@@ -185,8 +185,8 @@ describe("access", async function() {
 
         // setup client A
         let clientA = new client.ORB()
-        clientA.registerStub("Server", stub.Server)
-        clientA.registerStub("Listener", stub.Listener)
+        clientA.registerStubClass(stub.Server)
+        clientA.registerStubClass(stub.Listener)
         let connectionA = mockConnection(serverORB, clientA)
         let serverStub = stub.Server.narrow(await clientA.resolve("Server"))
 
