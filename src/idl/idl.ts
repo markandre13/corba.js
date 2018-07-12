@@ -21,6 +21,8 @@ import { Type, Node } from "./idl-node"
 import { Lexer } from "./idl-lexer"
 import { specification } from "./idl-parser"
 
+let classAttributes = new Map<string, Array<string>>()
+
 function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
@@ -403,13 +405,13 @@ function writeIndent(out: fs.WriteStream, indent: number) {
         out.write("    ")
 }
 
-function writeTSValueTypeDefinitions(out: fs.WriteStream, specification: Node, indent=0)
+function writeTSValueTypeDefinitions(out: fs.WriteStream, specification: Node, prefix="", indent=0)
 {
     for(let definition of specification.child) {
         switch(definition!.type) {
             case Type.TKN_MODULE: {
                 out.write("export namespace "+definition!.text+" {\n\n")
-                writeTSValueTypeDefinitions(out, definition!, indent+1)
+                writeTSValueTypeDefinitions(out, definition!, prefix+definition!.text+".", indent+1)
                 out.write("} // namespace "+definition!.text+"\n\n")
             } break
             case Type.TKN_NATIVE: {
@@ -423,10 +425,25 @@ function writeTSValueTypeDefinitions(out: fs.WriteStream, specification: Node, i
 
                 writeIndent(out, indent)
                 out.write("export interface "+identifier)
+
+                let attributes = new Array<string>()
+                classAttributes.set(prefix+identifier, attributes)
+
                 if (inheritance_spec !== undefined) {
                     if (inheritance_spec.child.length > 2)
                         throw Error("multiple inheritance is not supported for TypeScript")
                     out.write(" extends "+inheritance_spec.child[1]!.text)
+                    
+                    let superAttributes = classAttributes.get(prefix+inheritance_spec.child[1]!.text!)
+                    if (superAttributes === undefined) {
+                        superAttributes = classAttributes.get(inheritance_spec.child[1]!.text!)
+                    }
+                    if (superAttributes === undefined) {
+                        throw Error("failed to find attributes for super class")
+                    }
+                    for(let attribute of superAttributes) {
+                        attributes.push(attribute)
+                    }
                 }
                 out.write(" {\n")
 
@@ -440,6 +457,7 @@ function writeTSValueTypeDefinitions(out: fs.WriteStream, specification: Node, i
                         for(let declarator of declarators.child) {
                             writeIndent(out, indent+1)
                             out.write(declarator!.text+": "+typeIDLtoTS(type, Type.TKN_VALUETYPE)+"\n")
+                            attributes.push(declarator!.text!)
                         }
                     }
                 }
@@ -478,6 +496,19 @@ function writeTSValueTypeDefinitions(out: fs.WriteStream, specification: Node, i
                 }
                 writeIndent(out, indent)
                 out.write("}\n\n")
+                
+                writeIndent(out, indent)
+                out.write(`ORB.valueTypeByName.set("${prefix}${identifier}", {attributes:[`)
+                let comma = false
+                for(let attribute of attributes) {
+                    if (comma) {
+                        out.write(", ")
+                    } else {
+                        comma = true
+                    }
+                    out.write(`"${attribute}"`)
+                }
+                out.write("]})\n\n")
 
                 writeIndent(out, indent)
                 out.write("export function init"+identifier+"(object: "+identifier+", init?: Partial<"+identifier+">) {\n")

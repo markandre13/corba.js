@@ -16,6 +16,12 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+export interface valueTypeInformation {
+    attributes: Array<string>
+    name?: string
+    constructor?: Function
+}
+
 export class ORB implements EventTarget {
     debug: number		// values > 0 enable debug output
     name: string
@@ -30,8 +36,8 @@ export class ORB implements EventTarget {
     
     accesibleServants: Set<Skeleton>
     
-    static valueTypeByName = new Map<string, any>()
-    static valueTypeByPrototype = new Map<any, string>()
+    static valueTypeByName = new Map<string, valueTypeInformation>()
+    static valueTypeByPrototype = new Map<any, valueTypeInformation>()
 
     initialReferences: Map<string, any>
 
@@ -140,13 +146,18 @@ export class ORB implements EventTarget {
         this.stubsById.delete(stub.id)
     }
 
-    static registerValueType(name: string, valuetype: any): void {
-        ORB.valueTypeByName.set(name, valuetype)
-        ORB.valueTypeByPrototype.set(valuetype.prototype, name)
+    static registerValueType(name: string, valuetypeConstructor: Function): void {
+        let information = ORB.valueTypeByName.get(name)
+        if (information === undefined) {
+            throw Error(`ORB.registerValueType: unknown valuetype '${name}'`)
+        }
+        information.name        = name
+        information.constructor = valuetypeConstructor
+        ORB.valueTypeByPrototype.set(valuetypeConstructor.prototype, information)
     }
     
     static lookupValueType(name: string): any {
-        return ORB.valueTypeByName.get(name)
+        return ORB.valueTypeByName.get(name)!.constructor
     }
 
     //
@@ -224,15 +235,23 @@ export class ORB implements EventTarget {
 
         let data = ""
         let prototype = Object.getPrototypeOf(object)
-        let name = ORB.valueTypeByPrototype.get(prototype)
-        if (name === undefined)
-            throw Error("ORB: can not serialize object of unregistered class "+object.constructor.name)
-        for(let [attribute, value] of Object.entries(object)) {
+        let valueTypeInformation: valueTypeInformation | undefined
+        while(prototype !== null) {
+            valueTypeInformation = ORB.valueTypeByPrototype.get(prototype)
+            if (valueTypeInformation !== undefined)
+                break
+            prototype = Object.getPrototypeOf(prototype)
+        }
+        if (valueTypeInformation === undefined) {
+            console.log(object)
+            throw Error("ORB: can not serialize object of unregistered valuetype")
+        }
+        for(let attribute of valueTypeInformation.attributes) {
             if (data.length!==0)
                 data += ","
-            data += '"'+attribute+'":'+this.serialize(value)
+            data += '"'+attribute+'":'+this.serialize(object[attribute])
         }
-        return `{"#T":"${name}","#V":{${data}}}`
+        return `{"#T":"${valueTypeInformation.name!}","#V":{${data}}}`
     }
 
     deserialize(text: string): any {
@@ -262,7 +281,7 @@ export class ORB implements EventTarget {
                 return object
             let aStubClass = this.stubsByName.get(reference)
             if (aStubClass === undefined) {
-                throw Error("ORB: can not deserialize object of unregistered stub '"+reference+"'")
+                throw Error(`ORB: can not deserialize object of unregistered stub '${reference}'`)
             }
             object = new aStubClass(this, value)
             this.stubsById.set(value, object!)
@@ -272,10 +291,10 @@ export class ORB implements EventTarget {
         if (type === undefined || value === undefined) {
             throw Error("ORB: no type/value information in serialized data")
         }
-        let aClass = ORB.valueTypeByName.get(type)
-        if (aClass === undefined)
-            throw Error("ORB: can not deserialize object of unregistered valuetype "+type)
-        let object = new aClass()
+        let valueTypeInformation = ORB.valueTypeByName.get(type)
+        if (valueTypeInformation === undefined)
+            throw Error(`ORB: can not deserialize object of unregistered valuetype '${type}'`)
+        let object = new (valueTypeInformation.constructor as any)()
         for(let [innerAttribute, innerValue] of Object.entries(value)) {
             object[innerAttribute] = this._deserialize(innerValue)
         }

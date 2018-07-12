@@ -19,6 +19,7 @@ valuetype Rectangle {
 };
 
 valuetype FigureModel {
+    public sequence<Figure> data;
 };
 
 interface Client {
