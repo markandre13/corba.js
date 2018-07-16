@@ -130,13 +130,11 @@ describe("corba.js", function() {
         serverORB.registerStubClass(stub.Client)
         clientORB.registerStubClass(stub.Server)
         
-        for(let orb of [ serverORB, clientORB ]) {
-            ORB.registerValueType("Origin", Origin)
-            ORB.registerValueType("Size", Size)
-            ORB.registerValueType("Figure", Figure)
-            ORB.registerValueType("Rectangle", Rectangle)
-            ORB.registerValueType("FigureModel", FigureModel)
-        }
+        ORB.registerValueType("Origin", Origin)
+        ORB.registerValueType("Size", Size)
+        ORB.registerValueType("Figure", Figure)
+        ORB.registerValueType("Rectangle", Rectangle)
+        ORB.registerValueType("FigureModel", FigureModel)
 
         mockConnection(serverORB, clientORB).name = "acceptedORB"
 
@@ -168,9 +166,12 @@ describe("corba.js", function() {
         model.data.push(new Rectangle(50, 60, 70, 80))
         await Server_impl.instance!.client!.setFigureModel(model)
 
+        expect(Client_impl.figureModelReceivedFromServer!.data[0]).to.be.an.instanceof(Rectangle)
         expect(Client_impl.figureModelReceivedFromServer!.data[0].toString()).to.equal("Rectangle: (10,20,30,40)")
         let rectangle = Client_impl.figureModelReceivedFromServer!.data[0] as Rectangle
+        expect(rectangle.origin).to.be.an.instanceof(Origin)
         expect(rectangle.origin.toString()).to.equal("Origin: x=10, y=20")
+        expect(rectangle.size).to.be.an.instanceof(Size)
         expect(rectangle.size.toString()).to.equal("Size: width=30, height=40")
     })
 })

@@ -19,7 +19,7 @@
 export interface valueTypeInformation {
     attributes: Array<string>
     name?: string
-    constructor?: Function
+    construct?: Function
 }
 
 export class ORB implements EventTarget {
@@ -149,15 +149,25 @@ export class ORB implements EventTarget {
     static registerValueType(name: string, valuetypeConstructor: Function): void {
         let information = ORB.valueTypeByName.get(name)
         if (information === undefined) {
-            throw Error(`ORB.registerValueType: unknown valuetype '${name}'`)
+            throw Error(`ORB.registerValueType: valuetype '${name}' not defined in IDL`)
         }
-        information.name        = name
-        information.constructor = valuetypeConstructor
+        if (information.construct !== undefined) {
+            throw Error(`ORB.registerValueType: valuetype '${name}' is already registered`)
+        }
+        information.name      = name
+        information.construct = valuetypeConstructor
         ORB.valueTypeByPrototype.set(valuetypeConstructor.prototype, information)
     }
     
     static lookupValueType(name: string): any {
-        return ORB.valueTypeByName.get(name)!.constructor
+        let information = ORB.valueTypeByName.get(name)
+        if (information === undefined) {
+            throw Error(`ORB.lookupValueType: valuetype '${name}' not defined in IDL`)
+        }
+        if (information.construct === undefined) {
+            throw Error(`ORB.lookupValueType: valuetype '${name}' not registered via ORB.registerValueType()`)
+        }
+        return information.construct
     }
 
     //
@@ -294,7 +304,7 @@ export class ORB implements EventTarget {
         let valueTypeInformation = ORB.valueTypeByName.get(type)
         if (valueTypeInformation === undefined)
             throw Error(`ORB: can not deserialize object of unregistered valuetype '${type}'`)
-        let object = new (valueTypeInformation.constructor as any)()
+        let object = new (valueTypeInformation.construct as any)()
         for(let [innerAttribute, innerValue] of Object.entries(value)) {
             object[innerAttribute] = this._deserialize(innerValue)
         }
