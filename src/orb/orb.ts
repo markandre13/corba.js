@@ -265,7 +265,15 @@ export class ORB implements EventTarget {
     }
 
     deserialize(text: string): any {
-        return this._deserialize(JSON.parse(text))
+        if (text === undefined || text === null)
+            return null
+        try {
+            return this._deserialize(JSON.parse(text))
+        }
+        catch(error) {
+            console.log(text)
+            throw error
+        }
     }
 
     _deserialize(data: any): any {
