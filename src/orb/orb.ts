@@ -471,7 +471,8 @@ export class ORB implements EventTarget {
                 this.socket!.send(text)
             })
             .catch( (error: any) => {
-                console.log("ORB.handleMethod(): method '"+msg.method+"' threw error: ", error)
+                // FIXME: also print the class name
+                console.log("ORB.handleMethod(): the method '"+msg.method+"' threw an error: ", error)
             })
     }
     
