@@ -674,36 +674,6 @@ function writeTSValueImplDefinitions(out: fs.WriteStream, specification: Node, p
                 }
                 writeIndent(out, indent)
                 out.write("}\n\n")
-
-                writeIndent(out, indent)
-                out.write("export function init"+identifier+"(object: "+identifier+", init?: Partial<"+identifier+">) {\n")
-                for(let i=1; i<value_dcl.child.length; ++i) {
-                    let value_element = value_dcl.child[i]!
-                    if (value_element.type === Type.SYN_STATE_MEMBER) {
-                        let state_member = value_element
-                        let attribute    = state_member.child[0]!
-                        let type         = state_member.child[1]!
-                        let declarators  = state_member.child[2]!
-                        for(let declarator of declarators.child) {
-                            let decl_identifier = declarator!.text
-                            writeIndent(out, indent+2)
-                            out.write("object."+decl_identifier+" = ")
-                            if (type.type === Type.TKN_IDENTIFIER) {
-                                // FIXME: doesn't work for Array<Layer>()
-                                // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?
-//                                out.write(") ? new "+type.text+"() : new "+type.text+"(init."+decl_identifier+")\n")
-                                out.write("new (ORB.lookupValueType(\""+type.text+"\"))(init === undefined ? undefined : init."+decl_identifier+")\n")
-                            } else {
-                                out.write("(init === undefined || init."+decl_identifier+" === undefined) ? ")
-                                out.write(defaultValueIDLtoTS(type, Type.TKN_VALUETYPE))
-                                out.write(" : init."+decl_identifier+"\n")
-                            }
-                        }
-                    }
-                }
-
-                writeIndent(out, indent)
-                out.write("}\n\n")
             } break
         }
     }
