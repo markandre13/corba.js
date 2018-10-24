@@ -20,7 +20,7 @@ The IDL mimics the CORBA 3.0 IDL grammar.
 The CORBA IDL was derived from the Spring IDL, which was an object oriented
 operating system research project at Sun Microsystems in the 80ties.
 
-CORBA was quite a hype in its days and was used by OpenDoc (IBM, Apple),
+CORBA was quite a hype in it's days and was used by OpenDoc (IBM, Apple),
 Fresco (an X11 successor), KDE, ... but in the end it failed. Bloated,
 huge, designed by comitee, ...
 
@@ -40,3 +40,48 @@ are to be passed by value, the valuetype's content can be used.
 ## Protocol
 
 The protocol takes some inspiration from JSON-RPC and EJSON.
+
+// FIXME: explain the reduced syntax available here
+
+module
+  defines namespaces
+  // FIXME: only for valuetypes?
+interface
+  defines a method only interface
+valuetype
+  by value...?
+native
+  anounces global interfaces/classes
+
+--ts-interface *.ts
+  export interface A { ... }
+
+--ts-skeleton *_skel.ts
+  // extend skeleton to implement the class
+  export abstract class A extends Skeleton implements iface.A
+
+--ts-stub *_stub.ts
+  // class to represent the remote object
+  export class A extends Stub implements iface.A
+
+  // FIXME: stub/skeleton in arguments?
+
+--ts-valuetype *_value.ts & *_value.ts
+  // FIXME?: does not handle pointers
+  export interface A // FIXME: separate attribute only interface
+
+  // helper to serialize/marshall the valuetype
+  ORB.valueTypeByName.set(<class name>, {attributes:[<attribute list>]}
+  
+  // helper to unserialize/unmarshall the valuetype 
+  export function initA(object: A, init?: Partial<A>) { ... }
+
+--ts-valueimpl *_valueimpl.ts
+  provides a default implementation for the valuetype which initializes all attributes.
+  when the valuetype contains methods, the resulting class will be 'abstract'.
+
+  export [abstract] class A implements valuetype.A {
+    constructor(init?: Partial<A>) {
+      valuetype.initA(this, init)
+    }
+  }

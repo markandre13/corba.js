@@ -11,9 +11,10 @@ valuetype Size {
 };
 
 valuetype Figure {
+    public unsigned long id;
 };
 
-valuetype Rectangle {
+valuetype Rectangle: Figure {
     public Origin origin;
     public Size size;
 };

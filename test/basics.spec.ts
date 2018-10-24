@@ -1,11 +1,13 @@
 import { expect } from "chai"
 
 import { ORB } from "../src/orb/orb-nodejs"
+import * as value from "./basics_value"
+import * as valuetype from "./basics_valuetype"
 import * as skel from "./basics_skel"
 import * as stub from "./basics_stub"
 import { mockConnection } from "./util"
 
-class Origin
+class Origin implements value.Origin
 {
     x: number
     y: number
@@ -19,7 +21,7 @@ class Origin
     }
 }
 
-class Size {
+class Size implements value.Size {
     width: number
     height: number
     constructor(width?: number, height?: number) {
@@ -31,7 +33,8 @@ class Size {
     }
 }
 
-abstract class Figure {
+abstract class Figure implements value.Figure {
+    id: number = 0
     abstract toString(): string
 }
 
@@ -42,7 +45,7 @@ class FigureModel {
     }
 }
 
-class Rectangle extends Figure {
+class Rectangle extends Figure implements valuetype.Rectangle {
     origin: Origin
     size: Size
     constructor(x?: number, y?: number, width?: number, height?: number) {
