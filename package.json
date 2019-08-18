@@ -1,6 +1,6 @@
 {
   "name": "corba.js",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
   "author": "Mark-André Hopf <mhopf@mark13.org>",
   "license": "GPL-3.0",
@@ -18,10 +18,10 @@
     "test": "bin/corba-idl --ts-all test/*.idl && karma start"
   },
   "devDependencies": {
-    "@types/chai": "^4.1.7",
-    "@types/mocha": "^5.2.6",
-    "@types/node": "^11.13.8",
-    "@types/ws": "^6.0.1",
+    "@types/chai": "^4.2.0",
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^11.13.19",
+    "@types/ws": "^6.0.2",
     "bufferutil": "^4.0.1",
     "chai": "^4.2.0",
     "karma": "^4.1.0",

@@ -838,7 +838,7 @@ for(; i<process.argv.length; ++i) {
     let filedata = fs.readFileSync(filename, "utf8")
 
     let lexer = new Lexer(filedata)
-    let syntaxTree
+    let syntaxTree: Node | undefined
     try {
         syntaxTree = specification(lexer)
     }
