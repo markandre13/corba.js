@@ -476,16 +476,23 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                         for(let declarator of declarators.child) {
                             let decl_identifier = declarator!.text
                             writeIndent(out, indent+2)
-                            out.write("object."+decl_identifier+" = ")
                             if (type.type === Type.TKN_IDENTIFIER) {
                                 // FIXME: doesn't work for Array<Layer>()
                                 // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?
 //                                out.write(") ? new "+type.text+"() : new "+type.text+"(init."+decl_identifier+")\n")
-                                out.write("new (ORB.lookupValueType(\""+type.text+"\"))(init === undefined ? undefined : init."+decl_identifier+")\n")
+
+                                if (type.child[0]?.type == Type.TKN_NATIVE &&
+                                    type.text!.length > 4 &&
+                                    type.text!.substring(type.text!.length-4)==="_ptr")
+                                {
+                                    out.write(`if (init !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${type.text!.substring(0, type.text!.length-4)}"))(init.${decl_identifier})\n`)
+                                } else {
+                                    out.write(`object.${decl_identifier} = new (ORB.lookupValueType("${type.text}"))(init === undefined ? undefined : init.${decl_identifier})\n`)
+                                }
                             } else {
-                                out.write("(init === undefined || init."+decl_identifier+" === undefined) ? ")
+                                out.write(`object.${decl_identifier} = (init === undefined || init.${decl_identifier} === undefined) ? `)
                                 out.write(defaultValueIDLtoTS(type, Type.TKN_VALUETYPE))
-                                out.write(" : init."+decl_identifier+"\n")
+                                out.write(` : init.${decl_identifier}\n`)
                             }
                         }
                     }

@@ -257,9 +257,11 @@ export class ORB implements EventTarget {
             throw Error("ORB: can not serialize object of unregistered valuetype")
         }
         for(let attribute of valueTypeInformation.attributes) {
-            if (data.length!==0)
-                data += ","
-            data += '"'+attribute+'":'+this.serialize(object[attribute])
+            if (object[attribute] !== undefined) {
+                if (data.length!==0)
+                    data += ","
+                data += '"'+attribute+'":'+this.serialize(object[attribute])
+            }
         }
         return `{"#T":"${valueTypeInformation.name!}","#V":{${data}}}`
     }

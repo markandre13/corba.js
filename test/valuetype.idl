@@ -1,0 +1,43 @@
+/*
+ * IDL for valuetype.spec.ts
+ */
+
+// test the '_ptr' hack
+native Point_ptr;
+native Matrix_ptr;
+
+valuetype Point {
+    public double x, y;
+};
+
+valuetype Size {
+    public double width, height;
+};
+
+valuetype Matrix {
+    public double a, b, c, d, e, f;
+};
+
+valuetype Figure {
+    public unsigned long id;
+    public Matrix_ptr matrix;
+
+    Point_ptr getHandlePosition(in unsigned short handleId);
+};
+
+valuetype Rectangle: Figure {
+    public Point origin;
+    public Size size;
+};
+
+valuetype FigureModel {
+    public sequence<Figure> data;
+};
+
+interface Client {
+    oneway void setFigureModel(in FigureModel figuremodel);
+};
+
+interface Server {
+    oneway void setClient(in Client client);
+};
