@@ -117,6 +117,9 @@ export class Lexer {
                             this.state = 1
                             this.text = ""
                             continue
+                        case ':':
+                            this.state = 7
+                            break
                         default:
                             if (Lexer.isAlpha(c)) {
                                 this.state = 2
@@ -243,6 +246,15 @@ export class Lexer {
                             break
                         default:
                             this.state = 5
+                    }
+                    break
+                case 7: // :
+                    this.state = 0
+                    if (c == ':') {
+                        return new Node(Type.TKN_COLON_COLON, "::")
+                    } else {
+                        this.ungetc()
+                        return new Node(Type.TKN_TEXT, ':')
                     }
             }
             if (oldstate == 0) {

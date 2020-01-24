@@ -21,6 +21,7 @@ export enum Type {
 
     TKN_IDENTIFIER,
     TKN_TEXT,
+    TKN_COLON_COLON,
     
     // CORBA 3.0 IDL keywords
     TKN_ABSTRACT,
