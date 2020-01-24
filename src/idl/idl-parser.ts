@@ -20,16 +20,58 @@ import { Type, Node } from "./idl-node"
 import { Lexer } from "./idl-lexer"
 
 let lexer: Lexer
-let typenames: Map<string, Node>
 
-function addTypename(name: string, type: Node): void {
-/*
-    this does not work with modules
-    if (typenames.has(name))
-        throw Error("duplicate typename '"+name+"'")
-*/
-    typenames.set(name, type)
+class Scope {
+    typenames: Map<string, Node>
+    constructor() {
+        this.typenames = new Map<string, Node>()
+    }
+    addType(name: string, type: Node): void {
+        // this does not work with modules
+        if (this.typenames.has(name))
+            throw Error("duplicate typename '"+name+"'")
+        this.typenames.set(name, type)
+    }
+    getType(name: string): Node | undefined {
+        return this.typenames.get(name)
+    }
+    addTypeNodes(node: Node) {
+        // at the end of specification or a module, append all type nodes to the top level node
+        for(let [typename, typenode] of this.typenames) {
+            if (typenode.type === Type.TKN_NATIVE ||
+                typenode.type === Type.SYN_INTERFACE ||
+                typenode.type === Type.TKN_VALUETYPE)
+                continue
+            node.add(typenode)
+        }
+    }
+
 }
+
+class ScopeManager {
+    stack: Array<Scope>
+    constructor() {
+        this.stack = new Array<Scope>()
+        this.stack.push(new Scope())
+    }
+    getGlobalScope(): Scope {
+        return this.stack[0]
+    }
+    getCurrentScope(): Scope {
+        return this.stack[this.stack.length-1]
+    }
+    addType(name: string, type: Node): void {
+        this.getCurrentScope().addType(name, type)
+    }
+    getType(name: string): Node | undefined {
+        return this.getCurrentScope().getType(name)
+    }
+    addTypeNodes(node: Node) {
+        this.getCurrentScope().addTypeNodes(node)
+    }
+}
+    
+let scope: ScopeManager
 
 function expect(text: string, customMessage?: string): void {
     let t0 = lexer.lex()
@@ -50,7 +92,7 @@ function expect(text: string, customMessage?: string): void {
 export function specification(aLexer: Lexer): Node | undefined
 {
     lexer = aLexer
-    typenames = new Map<string, Node>()
+    scope = new ScopeManager()
     
     let node = new Node(Type.SYN_SPECIFICATION)
     while(true) {
@@ -60,13 +102,7 @@ export function specification(aLexer: Lexer): Node | undefined
         node.add(t0)
     }
     
-    for(let [typename, typenode] of typenames) {
-        if (typenode.type === Type.TKN_NATIVE ||
-            typenode.type === Type.SYN_INTERFACE ||
-            typenode.type === Type.TKN_VALUETYPE)
-            continue
-        node.add(typenode)
-    }
+    scope.addTypeNodes(node)
     
     return node
 }
@@ -148,7 +184,7 @@ function interface_dcl(): Node | undefined
     let node = new Node(Type.SYN_INTERFACE)
     node.add(t0)
     node.add(t2)
-    addTypename(t0.child[1]!.text!, node)
+    scope.addType(t0.child[1]!.text!, node)
     return node
 }
 
@@ -218,7 +254,7 @@ function scoped_name(): Node | undefined
     t0 = identifier()
     
     if (t0 !== undefined) {
-        let type = typenames.get(t0.text!)
+        let type = scope.getType(t0.text!)
         if (type === undefined)
             throw Error("encountered undefined type '"+t0.text+"'")
         t0.add(type)
@@ -280,7 +316,7 @@ function value_dcl(): Node | undefined
     let identifier = header.child[1]!.text!
 
     node.text = identifier
-    addTypename(identifier, node)
+    scope.addType(identifier, node)
     
     while(true) {
         let t1 = value_element()
@@ -426,7 +462,7 @@ function type_dcl(): Node | undefined
         }
         t0.add(t1)
         t0.text = t1.text
-        addTypename(t1.text!, t0)
+        scope.addType(t1.text!, t0)
         return t0
     }
     lexer.unlex(t0)
