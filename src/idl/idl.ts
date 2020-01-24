@@ -99,8 +99,13 @@ function defaultValueIDLtoTS(type: Node | undefined, filetype = Type.NONE): stri
 
 function hasValueType(specification: Node): boolean {
     for(let definition of specification.child) {
-        if (definition!.type === Type.TKN_VALUETYPE) {
-            return true
+        switch(definition!.type) {
+            case Type.TKN_VALUETYPE:
+                return true
+            case Type.TKN_MODULE:
+                if (hasValueType(definition!))
+                    return true
+
         }
     }
     return false
@@ -633,14 +638,16 @@ function writeTSValueImpl(specification: Node): void
     if (hasNative(specification)) {
         out.write("declare global {\n")
         for(let definition of specification.child) {
-            if (definition!.type === Type.TKN_NATIVE) {
-                let native = definition!
-                let nativeName = native.text!
-                if ( nativeName.length <= 4 ||
-                     nativeName.substring(nativeName.length-4) !== "_ptr" )
-                {
-                    out.write("    interface " + nativeName + " {}\n")
-                }
+            switch(definition!.type) {
+                case Type.TKN_NATIVE: {
+                    let native = definition!
+                    let nativeName = native.text!
+                    if ( nativeName.length <= 4 ||
+                        nativeName.substring(nativeName.length-4) !== "_ptr" )
+                    {
+                        out.write("    interface " + nativeName + " {}\n")
+                    }
+                } break
             }
         }
         out.write("}\n\n")
@@ -756,7 +763,7 @@ function writeTSValueImplDefinitions(out: fs.WriteStream, specification: Node, p
 function printHelp() {
     console.log(
 `corba.js IDL compiler
-Copyright (C) 2018 Mark-André Hopf <mhopf@mark13.org>
+Copyright (C) 2018, 2020 Mark-André Hopf <mhopf@mark13.org>
 This is free software; see the source for copying conditions.  There is
 ABSOLUTELY NO WARRANTY; not even for MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE.
@@ -811,7 +818,7 @@ for(i=2; i<process.argv.length; ++i) {
             process.exit(0)
         default:
             if (process.argv[i].length>0 && process.argv[i].charAt(0)=="-") {
-                console.log("corba-idl: error: unrecognized command line option '"+process.argv[i]+"'")
+                console.log(`corba-idl: error: unrecognized command line option '${process.argv[i]}'`)
                 process.exit(1)
             }
             break argloop
@@ -831,7 +838,7 @@ for(; i<process.argv.length; ++i) {
 
     let n = filename.lastIndexOf(".")
     if (n === -1) {
-        console.log("corba-idl: error: filename '"+filename+"' must at least contain one dot ('.')")
+        console.log(`corba-idl: error: filename '${filename}' must at least contain one dot ('.')`)
         process.exit(1)
     }
     filenamePrefix = filename.substr(0, n)
@@ -850,7 +857,7 @@ for(; i<process.argv.length; ++i) {
         syntaxTree = specification(lexer)
     }
     catch(error) {
-        console.log("corba-idl: error: "+error.message+" in file '"+filename+" at line "+lexer.line+", column "+lexer.column)
+        console.log(`corba-idl: error: ${error.message} in file '${filename}' at line ${lexer.line}, column ${lexer.column}`)
         if (debug)
             console.log(error.stack)
         process.exit(1)
