@@ -22,22 +22,24 @@ import { Lexer } from "./idl-lexer"
 let lexer: Lexer
 
 class Scope {
-    typenames: Map<string, Node>
+    types: Map<string, Node>
+    modules: Map<string, Node>
     constructor() {
-        this.typenames = new Map<string, Node>()
+        this.types = new Map<string, Node>()
+        this.modules = new Map<string, Node>()
     }
     addType(name: string, type: Node): void {
         // this does not work with modules
-        if (this.typenames.has(name))
+        if (this.types.has(name))
             throw Error("duplicate typename '"+name+"'")
-        this.typenames.set(name, type)
+        this.types.set(name, type)
     }
     getType(name: string): Node | undefined {
-        return this.typenames.get(name)
+        return this.types.get(name)
     }
-    addTypeNodes(node: Node) {
+    addNodes(node: Node) {
         // at the end of specification or a module, append all type nodes to the top level node
-        for(let [typename, typenode] of this.typenames) {
+        for(let [typename, typenode] of this.types) {
             if (typenode.type === Type.TKN_NATIVE ||
                 typenode.type === Type.SYN_INTERFACE ||
                 typenode.type === Type.TKN_VALUETYPE)
@@ -64,11 +66,24 @@ class ScopeManager {
         this.getCurrentScope().addType(name, type)
     }
     getType(name: string): Node | undefined {
-        return this.getCurrentScope().getType(name)
+        for(let i=this.stack.length-1; i>=0; --i) {
+            let type = this.getCurrentScope().getType(name)
+            if (type !== undefined)
+                return type
+        }
+        return undefined
     }
-    addTypeNodes(node: Node) {
-        this.getCurrentScope().addTypeNodes(node)
+    addNodes(node: Node) {
+        this.getCurrentScope().addNodes(node)
     }
+    enterModule(node: Node) {
+        this.stack.push(new Scope())
+    }
+    leaveModule(node: Node) {
+        this.addNodes(node)
+        this.stack.pop()
+    }
+  
 }
     
 let scope: ScopeManager
@@ -102,7 +117,7 @@ export function specification(aLexer: Lexer): Node | undefined
         node.add(t0)
     }
     
-    scope.addTypeNodes(node)
+    scope.addNodes(node)
     
     return node
 }
@@ -135,6 +150,7 @@ function _module(): Node | undefined
             throw Error("exepted identifer after 'module'")
         t0.text = t1.text
         expect("{")
+        scope.enterModule(t0)
         while(true) {
             let t2 = definition()
             if (t2 === undefined)
@@ -142,6 +158,7 @@ function _module(): Node | undefined
             t0.add(t2)
         }
         expect("}")
+        scope.leaveModule(t0)
         return t0
     }
     lexer.unlex(t0)
