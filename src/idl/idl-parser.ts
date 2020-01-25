@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 20202 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ class ScopeManager {
     }
     getType(name: string): Node | undefined {
         for(let i=this.stack.length-1; i>=0; --i) {
-            let type = this.getCurrentScope().getType(name)
+            let type = this.stack[i].getType(name)
             if (type !== undefined)
                 return type
         }
@@ -92,7 +92,7 @@ function expect(text: string, customMessage?: string): void {
     let t0 = lexer.lex()
     let errorMessage
     if (customMessage === undefined)
-        errorMessage = "expected '"+text+"'"
+        errorMessage = `expected '${text}' but got ${t0?.toString()}`
     else
         errorMessage = customMessage
     
@@ -267,17 +267,45 @@ function _export(): Node | undefined
 // 12
 function scoped_name(): Node | undefined
 {
-    let t0
-    t0 = identifier()
+    let t0 = undefined
+    let t1 = lexer.lex()
+
+    if (t1 === undefined)
+        return undefined
     
-    if (t0 !== undefined) {
-        let type = scope.getType(t0.text!)
-        if (type === undefined)
-            throw Error("encountered undefined type '"+t0.text+"'")
-        t0.add(type)
+    let context
+    if (t1.type === Type.TKN_COLON_COLON)  {
+        t0 = t1
+        t1 = lexer.lex()
+        if (t1 === undefined) {
+            lexer.unlex(t0)
+            return undefined
+        }
+        context = scope.getGlobalScope()
+    } else {
+        context = scope.getCurrentScope()
     }
-    // "::" stuff is missing
-    return t0
+    
+    if (t1.type !== Type.TKN_IDENTIFIER) {
+        lexer.unlex(t1)
+        lexer.unlex(t0)
+        return undefined
+    }
+    
+    let type = context.getType(t1.text!)
+    t1.add(type)
+    return t1
+    // let t0
+    // t0 = identifier()
+    
+    // if (t0 !== undefined) {
+    //     let type = scope.getType(t0.text!)
+    //     if (type === undefined)
+    //         throw Error("encountered undefined type '"+t0.text+"'")
+    //     t0.add(type)
+    // }
+    // // "::" stuff is missing
+    // return t0
 }
 
 // 13
@@ -342,7 +370,7 @@ function value_dcl(): Node | undefined
         node.add(t1)
     }
 
-    expect('}', "valuetype attributes must be prefixed with either 'public' or 'private'")
+    expect('}') // , "valuetype attributes must be prefixed with either 'public' or 'private'")
 
     return node
 }
