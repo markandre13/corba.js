@@ -77,6 +77,7 @@ class ScopeManager {
         this.getCurrentScope().addNodes(node)
     }
     enterModule(node: Node) {
+        this.getCurrentScope().addType(node.text!, node)
         this.stack.push(new Scope())
     }
     leaveModule(node: Node) {
@@ -86,7 +87,7 @@ class ScopeManager {
   
 }
     
-let scope: ScopeManager
+let scoper: ScopeManager
 
 function expect(text: string, customMessage?: string): void {
     let t0 = lexer.lex()
@@ -107,7 +108,7 @@ function expect(text: string, customMessage?: string): void {
 export function specification(aLexer: Lexer): Node | undefined
 {
     lexer = aLexer
-    scope = new ScopeManager()
+    scoper = new ScopeManager()
     
     let node = new Node(Type.SYN_SPECIFICATION)
     while(true) {
@@ -117,7 +118,7 @@ export function specification(aLexer: Lexer): Node | undefined
         node.add(t0)
     }
     
-    scope.addNodes(node)
+    scoper.addNodes(node)
     
     return node
 }
@@ -150,7 +151,7 @@ function _module(): Node | undefined
             throw Error("exepted identifer after 'module'")
         t0.text = t1.text
         expect("{")
-        scope.enterModule(t0)
+        scoper.enterModule(t0)
         while(true) {
             let t2 = definition()
             if (t2 === undefined)
@@ -158,7 +159,7 @@ function _module(): Node | undefined
             t0.add(t2)
         }
         expect("}")
-        scope.leaveModule(t0)
+        scoper.leaveModule(t0)
         return t0
     }
     lexer.unlex(t0)
@@ -201,7 +202,7 @@ function interface_dcl(): Node | undefined
     let node = new Node(Type.SYN_INTERFACE)
     node.add(t0)
     node.add(t2)
-    scope.addType(t0.child[1]!.text!, node)
+    scoper.addType(t0.child[1]!.text!, node)
     return node
 }
 
@@ -267,45 +268,80 @@ function _export(): Node | undefined
 // 12
 function scoped_name(): Node | undefined
 {
-    let t0 = undefined
-    let t1 = lexer.lex()
+    // FIXME: identifierToken needs to take the full colon separated path?
 
-    if (t1 === undefined)
+    let globalNamespaceToken = undefined
+    let identifierToken = lexer.lex()
+
+    if (identifierToken === undefined)
         return undefined
     
-    let context
-    if (t1.type === Type.TKN_COLON_COLON)  {
-        t0 = t1
-        t1 = lexer.lex()
-        if (t1 === undefined) {
-            lexer.unlex(t0)
+    if (identifierToken.type === Type.TKN_COLON_COLON)  {
+        globalNamespaceToken = identifierToken
+        identifierToken = lexer.lex()
+        if (identifierToken === undefined) {
+            lexer.unlex(globalNamespaceToken)
             return undefined
         }
-        context = scope.getGlobalScope()
-    } else {
-        context = scope.getCurrentScope()
     }
     
-    if (t1.type !== Type.TKN_IDENTIFIER) {
-        lexer.unlex(t1)
-        lexer.unlex(t0)
+    if (identifierToken.type !== Type.TKN_IDENTIFIER) {
+        lexer.unlex(identifierToken)
+        lexer.unlex(globalNamespaceToken)
         return undefined
     }
     
-    let type = context.getType(t1.text!)
-    t1.add(type)
-    return t1
-    // let t0
-    // t0 = identifier()
-    
-    // if (t0 !== undefined) {
-    //     let type = scope.getType(t0.text!)
-    //     if (type === undefined)
-    //         throw Error("encountered undefined type '"+t0.text+"'")
-    //     t0.add(type)
-    // }
-    // // "::" stuff is missing
-    // return t0
+    let type
+    if (globalNamespaceToken === undefined) {
+        type = scoper.getType(identifierToken.text!)
+    } else {
+        type = scoper.getGlobalScope().getType(identifierToken.text!)
+    }
+    if (type === undefined) {
+        throw Error(`unknown type ${identifierToken}`)
+    }
+    // console.log(`got type ${type?.toString()} for ${identifierToken.text}`)
+    if (type.type == Type.TKN_MODULE) {
+        resolve_module(identifierToken, type)
+    }
+    identifierToken.add(type)
+    return identifierToken
+}
+
+function resolve_module(identifierToken: Node, module: Node): Node {
+    let t2 = lexer.lex()
+    if (t2 === undefined || t2.type !== Type.TKN_COLON_COLON)
+        throw Error(`Expected :: after module identifier '${identifierToken.text}'`)
+    let t3 = lexer.lex()
+    if (t3 === undefined || t3.type !== Type.TKN_IDENTIFIER)
+        throw Error(`Expected identifier after ::'`)
+    // console.log(`need to lookup ${t3.text} in ${type}`)
+    // console.log(type)
+    for(let child of module.child) {
+        // console.log(`it's ${n?.toString()}`) 
+        switch(child?.type) {
+            case Type.TKN_MODULE:
+                if (child.text === t3.text) {
+                    return resolve_module(identifierToken, child)
+                }
+                break
+            case Type.TKN_NATIVE:
+            case Type.TKN_VALUETYPE:
+                if (child.text === t3.text) {
+                    identifierToken.add(child)
+                    return identifierToken
+                }
+                break
+            case Type.SYN_INTERFACE:
+                // FIXME: WE WANT THE NAME ON THE TOP NODE
+                if (child.child[0]!.child[1]!.text === t3.text) {
+                    identifierToken.add(child)
+                    return identifierToken
+                }
+                break
+        }
+    }
+    throw Error(`failed to lookup ${t3.text}`)
 }
 
 // 13
@@ -361,7 +397,7 @@ function value_dcl(): Node | undefined
     let identifier = header.child[1]!.text!
 
     node.text = identifier
-    scope.addType(identifier, node)
+    scoper.addType(identifier, node)
     
     while(true) {
         let t1 = value_element()
@@ -507,7 +543,7 @@ function type_dcl(): Node | undefined
         }
         t0.add(t1)
         t0.text = t1.text
-        scope.addType(t1.text!, t0)
+        scoper.addType(t1.text!, t0)
         return t0
     }
     lexer.unlex(t0)

@@ -30,24 +30,27 @@ module M1 {
                         public double a;
                         N1 f(in N1 a);
                         ::N1 g(in ::N1 a);
-                        // ::M1::N2 h(in ::M1::N2 a);
+                        M1::N2 h(in M1::N2 a);
+                        ::M1::N2 h(in ::M1::N2 a);
                 };
                 interface M1M2X2 {
-                        // oneway void f(in X1 a, in V1 b);
+                        oneway void f(in X1 a, in V1 b);
                 };
         };
 
         interface M1X3 {
-                // oneway void f(in X1 a, in V1 b);
-                // oneway void g(in ::X1 a, in V2 b);
-                // oneway void h(in M2::M1M2X2 a);
-                // oneway void i(in ::M1::M2::M1M2X2 a, in M2::V3 b);
+                oneway void f(in X1 a, in V1 b);
+                oneway void g(in ::X1 a, in V2 b);
+                oneway void h(in M2::M1M2X2 a);
+                oneway void i(in M1::N2 a, in M1::V2 b);
+                oneway void j(in M1::M2::M1M2X2 a, in M1::M2::V3 b);
+                oneway void k(in ::M1::M2::M1M2X2 a, in M2::V3 b);
         };
 };
 
 interface X3 {
         oneway void f(in X1 a);
-        // oneway void g(in ::X1 a);
-        // oneway void h(in M1::M2::M1M2X2 a, in M1::M2::V3 b);
-        // oneway void i(in ::M1::M2::M1M2X2 a);
+        oneway void g(in ::X1 a);
+        oneway void h(in M1::M2::M1M2X2 a, in M1::M2::V3 b);
+        oneway void i(in ::M1::M2::M1M2X2 a);
 };
