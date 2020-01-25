@@ -8,6 +8,8 @@ import * as skel from "./valuetype_skel"
 import * as stub from "./valuetype_stub"
 import { mockConnection } from "./util"
 
+/*
+
 class Point implements value.Point
 {
     x: number
@@ -192,3 +194,4 @@ describe("corba.js", function() {
         expect(r2).to.equal(str)
     })
 })
+*/

@@ -3,6 +3,12 @@
  */
 
 // test the '_ptr' hack
+
+valuetype Dummy {
+    public double fubar;
+};
+
+/*
 native Point_ptr;
 native Matrix_ptr;
 
@@ -41,3 +47,4 @@ interface Client {
 interface Server {
     oneway void setClient(in Client client);
 };
+*/

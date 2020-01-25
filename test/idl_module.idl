@@ -13,6 +13,7 @@ valuetype V1 {
         N1 f(in N1 a);
 };
 
+/*
 module M1 {
 
         native N2;
@@ -54,3 +55,4 @@ interface X3 {
         oneway void h(in M1::M2::M1M2X2 a, in M1::M2::V3 b);
         oneway void i(in ::M1::M2::M1M2X2 a);
 };
+*/
