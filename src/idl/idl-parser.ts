@@ -42,7 +42,8 @@ class Scope {
         for(let [typename, typenode] of this.types) {
             if (typenode.type === Type.TKN_NATIVE ||
                 typenode.type === Type.SYN_INTERFACE ||
-                typenode.type === Type.TKN_VALUETYPE)
+                typenode.type === Type.TKN_VALUETYPE ||
+                typenode.type === Type.TKN_MODULE)
                 continue
             node.add(typenode)
         }
@@ -296,6 +297,7 @@ function scoped_name(): Node | undefined
         type = scoper.getType(identifierToken.text!)
     } else {
         type = scoper.getGlobalScope().getType(identifierToken.text!)
+        throw Error(`No way known to translate '::${identifierToken.text}' to TypeScript`)
     }
     if (type === undefined) {
         throw Error(`unknown type ${identifierToken}`)

@@ -415,8 +415,10 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
     for(let definition of specification.child) {
         switch(definition!.type) {
             case Type.TKN_MODULE: {
+                writeIndent(out, indent)
                 out.write("export namespace "+definition!.text+" {\n\n")
                 writeTSValueDefinitions(out, definition!, prefix+definition!.text+".", indent+1)
+                writeIndent(out, indent)
                 out.write("} // namespace "+definition!.text+"\n\n")
             } break
             case Type.TKN_NATIVE: {
@@ -849,7 +851,14 @@ for(; i<process.argv.length; ++i) {
     else
         filenameLocal = filenamePrefix.substr(n+1)
 
-    let filedata = fs.readFileSync(filename, "utf8")
+    let filedata 
+    try {
+        filedata = fs.readFileSync(filename, "utf8")
+    }
+    catch(error) {
+        console.log(`corba-idl: error: failed to read file '${filename}': ${error.message}`)
+        process.exit(1)
+    }
 
     let lexer = new Lexer(filedata)
     let syntaxTree: Node | undefined
@@ -866,6 +875,8 @@ for(; i<process.argv.length; ++i) {
         console.log("corba-idl: error: empty file or unexpected internal failure")
         process.exit(1)
     }
+    if (debug>0)
+        syntaxTree.printTree()
 
     try {
         if (tsInterface)
@@ -882,7 +893,7 @@ for(; i<process.argv.length; ++i) {
             writeTSValueImpl(syntaxTree!)
     }
     catch(error) {
-        console.log("corba-idl: error: "+error.message+" in file '"+filename+"'")
+        console.log(`corba-idl: error: ${error.message} in file '${filename}'`)
         if (debug)
             console.log(error.stack)
         process.exit(1)

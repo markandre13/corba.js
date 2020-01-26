@@ -223,6 +223,20 @@ export class Node
         throw Error("Node.toString(): unknown type "+String(this.type))
     }
 
+    printTree(depth: number = 0) {
+        let indent = ""
+        for(let i=0; i<depth; ++i)
+            indent = indent + "    "
+        console.log(indent+this.toString())
+        for(let c of this.child) {
+            if (c===undefined) {
+                console.log(indent+"    undefined")
+            } else {
+                c.printTree(depth+1)
+            }
+        }
+    }
+
     add(node: Node | undefined): void {
         this.child.push(node)
     }
