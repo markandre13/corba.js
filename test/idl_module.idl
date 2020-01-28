@@ -10,16 +10,16 @@ native N1;
 
 valuetype V1 {
         public double a;
-        // N1 f(in N1 a);
+        N1 f(in N1 a);
 };
 
 module M1 {
 
-        native N2;
+        native N2; // hmm... native should/needs to be always global?
 
         valuetype V2 {
                 public double a;
-                // N1 f(in N1 a);
+                N1 f(in N1 a);
                 // ::N1 g(in ::N1 a);
                 // N2 h(in N2 a);
         };
@@ -33,19 +33,21 @@ module M1 {
         //                M1::N2 h(in M1::N2 a);
         //                ::M1::N2 h(in ::M1::N2 a);
                 };
-        //        interface M1M2X2 {
-        //                oneway void f(in X1 a, in V1 b);
-        //        };
+                interface M1M2X2 {
+                        oneway void f(in X1 a, in V1 b);
+                };
         };
 
-        //interface M1X3 {
+        interface M1X3 {
+                // N1 f(in N1 a); // THIS SHOULD BE AN ERROR, CAN NOT SEND NATIVE TYPES OVER THE WIRE
+                V1 f(in V1 a);
                 // oneway void f(in X1 a, in V1 b);
                 // oneway void g(in ::X1 a, in V2 b);
                 // oneway void h(in M2::M1M2X2 a);
                 // oneway void i(in M1::N2 a, in M1::V2 b);
                 // oneway void j(in M1::M2::M1M2X2 a, in M1::M2::V3 b);
                 // oneway void k(in ::M1::M2::M1M2X2 a, in M2::V3 b);
-        //};
+        };
 };
 
 interface X3 {
@@ -54,4 +56,3 @@ interface X3 {
         // oneway void h(in M1::M2::M1M2X2 a, in M1::M2::V3 b);
         // oneway void i(in ::M1::M2::M1M2X2 a);
 };
-

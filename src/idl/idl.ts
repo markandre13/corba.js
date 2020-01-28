@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2020 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -156,9 +156,19 @@ function writeTSInterface(specification: Node): void
     if (hasValueType(specification)) {
         out.write("import * as valuetype from \"./" + filenameLocal + "_valuetype\"\n\n")
     }
+    writeTSInterfaceDefinitions(out, specification)
+}
 
+function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, prefix="", indent=0): void
+{
     for(let definition of specification.child) {
         switch(definition!.type) {
+            case Type.TKN_MODULE:
+                out.write("export namespace "+definition!.text+" {\n\n")
+                writeTSInterfaceDefinitions(out, definition!, prefix+definition!.text+".", indent+1)
+                out.write("} // namespace "+definition!.text+"\n\n")  
+                break
+
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
@@ -166,7 +176,7 @@ function writeTSInterface(specification: Node): void
                 
                 out.write("export interface "+identifier+" {\n")
                 for (let _export of interface_body.child) {
-                    switch(_export!.type) {
+                    switch(_export!.type) {            
                         case Type.SYN_OPERATION_DECLARATION: {
                             let op_dcl = _export!
                             let attribute = op_dcl.child[0]
@@ -223,18 +233,27 @@ function writeTSSkeleton(specification: Node): void
         out.write("import * as valuetype from \"./" + filenameLocal + "_valuetype\"\n")
     }
     out.write("import * as _interface from \"./" + filenameLocal + "\"\n\n")
-    
+    writeTSSkeletonDefitions(out, specification)
+}
+
+function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, prefix="", indent=0): void
+{ 
     for(let definition of specification.child) {
         switch(definition!.type) {
+            case Type.TKN_MODULE:
+                out.write("export namespace "+definition!.text+" {\n\n")
+                writeTSSkeletonDefitions(out, definition!, prefix+definition!.text+".", indent+1)
+                out.write("} // namespace "+definition!.text+"\n\n")  
+                break
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
                 let interface_body = interface_dcl.child[1]!
                 
-                out.write("export abstract class "+identifier+" extends Skeleton implements _interface." + identifier + " {\n")
+                out.write(`export abstract class ${identifier} extends Skeleton implements _interface.${prefix}${identifier} {\n`)
 
                 out.write("    static _idlClassName(): string {\n")
-                out.write("        return \"" + identifier + "\"\n")
+                out.write(`        return "${prefix}${identifier}"\n`)
                 out.write("    }\n\n")
 
                 for (let _export of interface_body.child) {
@@ -295,25 +314,36 @@ function writeTSStub(specification: Node): void
         out.write("import * as valuetype from \"./" + filenameLocal + "_valuetype\"\n")
     }
     out.write("import * as _interface from \"./" + filenameLocal + "\"\n\n")
-    
+
+    writeTSStubDefinitions(out, specification)
+}
+
+function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix="", indent=0): void
+{ 
     for(let definition of specification.child) {
         switch(definition!.type) {
+            case Type.TKN_MODULE:
+                out.write("export namespace "+definition!.text+" {\n\n")
+                writeTSStubDefinitions(out, definition!, prefix+definition!.text+".", indent+1)
+                out.write("} // namespace "+definition!.text+"\n\n")  
+                break
+
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
                 let interface_body = interface_dcl.child[1]!
 
-                out.write("export class " + identifier + " extends Stub implements _interface." + identifier + " {\n")
+                out.write(`export class ${identifier} extends Stub implements _interface.${prefix}${identifier} {\n`)
                 
-                out.write("    static _idlClassName(): string {\n")
-                out.write("        return \"" + identifier + "\"\n")
-                out.write("    }\n\n")
+                out.write(`    static _idlClassName(): string {\n`)
+                out.write(`        return "${prefix}${identifier}"\n`)
+                out.write(`    }\n\n`)
 
-                out.write("    static narrow(object: any): " + identifier + " {\n")
-                out.write("        if (object instanceof " + identifier + ")\n")
-                out.write("            return object as " + identifier + "\n")
-                out.write("        throw Error(\"" + identifier + ".narrow() failed\")\n")
-                out.write("    }\n\n")
+                out.write(`    static narrow(object: any): ${prefix}${identifier} {\n`)
+                out.write(`        if (object instanceof ${prefix}${identifier})\n`)
+                out.write(`            return object as ${prefix}${identifier}\n`)
+                out.write(`        throw Error("${prefix}${identifier}.narrow() failed")\n`)
+                out.write(`    }\n\n`)
                 
                 for (let _export of interface_body.child) {
                     switch(_export!.type) {
@@ -523,7 +553,6 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
         }
     }
 }
-
 
 function writeTSValueType(specification: Node): void
 {
