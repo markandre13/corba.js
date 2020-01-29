@@ -251,7 +251,7 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                 let interface_body = interface_dcl.child[1]!
                 
                 out.write(`export abstract class ${identifier} extends Skeleton implements _interface.${prefix}${identifier} {\n`)
-
+                out.write(`    constructor(orb: ORB) { super(orb) }\n`)
                 out.write("    static _idlClassName(): string {\n")
                 out.write(`        return "${prefix}${identifier}"\n`)
                 out.write("    }\n\n")

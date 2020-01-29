@@ -22,6 +22,9 @@ class N1 {
 }
 
 class X1_impl extends skel.X1 {
+    constructor(orb: ORB) {
+        super(orb)
+    }
     async f() {
         text = "X1"
     }
@@ -58,13 +61,21 @@ namespace M1 {
         }
 
         export class M1M2X2_impl extends skel.M1.M2.M1M2X2 {
-            async f(a: skel.X1, b: V1) {
-                throw Error()
+            constructor(orb: ORB) {
+                super(orb)
+            }
+            async f(a: V1): Promise<V1> {
+                text = "M1M2X2"
+                a.a = a.a + 19
+                return a
             }
         }
     }
 
     export class M1X3_impl extends skel.M1.M1X3 {
+        constructor(orb: ORB) {
+            super(orb)
+        }  
         async f(a: V1): Promise<V1> {
             text = "M1X3"
             a.a = a.a + 8
@@ -79,19 +90,20 @@ describe("corba.js", function() {
 
         let serverORB = new ORB()
         serverORB.name = "serverORB"
-//serverORB.debug = 1
+// serverORB.debug = 1
         let clientORB = new ORB()
         clientORB.name = "clientORB"
-//clientORB.debug = 1
+// clientORB.debug = 1
 
-        serverORB.bind("X1", new X1_impl(serverORB))
+        let x1_impl = new X1_impl(serverORB)
+        serverORB.bind("X1", x1_impl)
         serverORB.bind("M1X3", new M1.M1X3_impl(serverORB))
         serverORB.bind("M1M2X2", new M1.M2.M1M2X2_impl(serverORB))
         
         clientORB.registerStubClass(stub.X1)
         clientORB.registerStubClass(stub.M1.M1X3)
         clientORB.registerStubClass(stub.M1.M2.M1M2X2)
-        
+
         // wait, couldn't we get the name from the class? or at least check the name when registering?
         ORB.registerValueType("V1", V1)
         ORB.registerValueType("M1.V2", M1.V2)
@@ -109,6 +121,10 @@ describe("corba.js", function() {
         let r3 = await m1x3.f(new V1({a:9}))
         expect(r3.a).is.equal(17)
         expect(text).is.equal("M1X3")
+
+        let r2 = await m1m2x2.f(new V1({a:9}))
+        expect(r2.a).is.equal(28)
+        expect(text).is.equal("M1M2X2")
 
         let v1_orig = new V1({a: 3.1415})
         let v1_json = clientORB.serialize(v1_orig)

@@ -387,15 +387,26 @@ export class ORB implements EventTarget {
         })
     }
 
-    async call(stub: Stub, method: string, params: Array<any>) {
+    async call(stub: Stub, method: string, params: Array<any>): Promise<any> {
+        if (this.debug>0) {
+            console.log("ORB.call(...) method "+method)
+        }
         for(let i in params) {
             if (params[i] instanceof Skeleton) {
                 this.aclAdd(params[i])
             }
             if (params[i] instanceof Stub) {
+                console.log("ORB.call(): methods '"+method+"' received stub as argument")
+                // FIXME: this error get's lost in async/await/Promise
                 throw Error("ORB.call(): methods '"+method+"' received stub as argument")
             }
-            params[i] = this.serialize(params[i])
+            try {
+                params[i] = this.serialize(params[i])
+            }
+            catch(error) {
+                console.log(error)
+                throw error
+            }
         }
         let msg = await this.send({ // FIXME: we should'n wait here for oneway function but this looks like we do...
             "corba": "1.0",
