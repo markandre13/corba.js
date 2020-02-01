@@ -157,6 +157,8 @@ function _module(): Node | undefined
             let t2 = definition()
             if (t2 === undefined)
                 break
+            if (t2.type == Type.TKN_NATIVE)
+                throw Error("'native' can not be used within 'module'")
             t0.add(t2)
         }
         expect("}")
@@ -331,6 +333,7 @@ function resolve_module(identifierToken: Node, module: Node): Node {
             case Type.TKN_VALUETYPE:
                 if (child.text === t3.text) {
                     identifierToken.add(child)
+                    identifierToken.text = `${identifierToken.text}.${child.text}`
                     return identifierToken
                 }
                 break
@@ -338,6 +341,7 @@ function resolve_module(identifierToken: Node, module: Node): Node {
                 // FIXME: WE WANT THE NAME ON THE TOP NODE
                 if (child.child[0]!.child[1]!.text === t3.text) {
                     identifierToken.add(child)
+                    identifierToken.text = `${identifierToken.text}.${child.text}`
                     return identifierToken
                 }
                 break

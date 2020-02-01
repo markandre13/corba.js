@@ -44,7 +44,8 @@ function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
                  type.child.length>0 &&
                  type.child[0]!.type === Type.TKN_VALUETYPE )
             {
-                return "valuetype." + type.text!
+                // FIXME: when referencing another file, the type name needs to be absolute
+                return `valuetype.${type.text!}`
             }
             return type.text!
         case Type.TKN_VOID:
@@ -64,9 +65,9 @@ function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
         case Type.SYN_LONG_DOUBLE:
             return "number"
         case Type.TKN_SEQUENCE:
-            return "Array<"+typeIDLtoTS(type!.child[0], filetype)+">"
+            return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
         default:
-            throw Error("no mapping from IDL type to TS type for "+type.toString())
+            throw Error(`no mapping from IDL type to TS type for ${type.toString()}`)
     }
 }
 
@@ -91,9 +92,9 @@ function defaultValueIDLtoTS(type: Node | undefined, filetype = Type.NONE): stri
         case Type.SYN_LONG_DOUBLE:
             return "0"
         case Type.TKN_SEQUENCE:
-            return "new Array<"+typeIDLtoTS(type!.child[0], filetype)+">()"
+            return `new Array<${typeIDLtoTS(type!.child[0], filetype)}>()`
         default:
-            throw Error("no default value for IDL type in TS for type "+type.toString())
+            throw Error(`no default value for IDL type in TS for type ${type.toString()}`)
     }
 }
 

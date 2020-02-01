@@ -49,12 +49,17 @@ class V1 extends valueimpl.V1 {
 
 namespace M1 {
 
+    class N2 {}
+
     export class V2 extends valueimpl.M1.V2 {
         constructor(value?: Partial<V2>) {
             super(value)
         }
         f(a: N1): N1 {
             return a
+        }
+        h(a: N2): N2 {
+            throw Error("not implemented")
         }
     }
 
@@ -64,7 +69,10 @@ namespace M1 {
                 super(value)
             }
             f(a: N1): N1 {
-                throw Error("")
+                throw Error("not implemented")
+            }
+            h(a: M1.V2): M1.V2 {
+                throw Error("not implemented")
             }
         }
 
@@ -76,11 +84,13 @@ namespace M1 {
                 text = "M1M2X2::m()"
                 // await x1.f()
             }
-
             async f(a: V1): Promise<V1> {
                 text = "M1M2X2"
                 a.a = a.a + 19
                 return a
+            }
+            async h(a: M1.V2): Promise<M1.V2> {
+                throw Error()
             }
         }
     }

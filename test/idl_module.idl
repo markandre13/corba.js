@@ -6,7 +6,10 @@ interface X1 {
         oneway void f();
 };
 
+// native type can not be defined within modules
 native N1;
+native N2;
+native N3;
 
 valuetype V1 {
         public double a;
@@ -15,27 +18,25 @@ valuetype V1 {
 
 module M1 {
 
-        native N2; // hmm... native should/needs to be always global?
-
         valuetype V2 {
                 public double a;
                 N1 f(in N1 a);
                 // ::N1 g(in ::N1 a);
-                // N2 h(in N2 a);
+                N2 h(in N2 a);
         };
 
         module M2 {
-                native N3;
                 valuetype V3 {
                         public double a;
                         N1 f(in N1 a);
         //                ::N1 g(in ::N1 a);
-        //                M1::N2 h(in M1::N2 a);
+                        M1::V2 h(in M1::V2 a);
         //                ::M1::N2 h(in ::M1::N2 a);
                 };
                 interface M1M2X2 {
                         oneway void m(in X1 x1);
                         V1 f(in V1 a);
+                        M1::V2 h(in M1::V2 a);
                         // oneway void f(in X1 a, in V1 b);
                 };
         };
@@ -43,6 +44,7 @@ module M1 {
         interface M1X3 {
                 // N1 f(in N1 a); // THIS SHOULD BE AN ERROR, CAN NOT SEND NATIVE TYPES OVER THE WIRE
                 V1 f(in V1 a);
+                // M2::V3 h(in M2::V3 a);
                 // oneway void f(in X1 a, in V1 b);
                 // oneway void g(in ::X1 a, in V2 b);
                 // oneway void h(in M2::M1M2X2 a);
