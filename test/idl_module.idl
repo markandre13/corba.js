@@ -34,6 +34,7 @@ module M1 {
         //                ::M1::N2 h(in ::M1::N2 a);
                 };
                 interface M1M2X2 {
+                        oneway void m(in X1 x1);
                         V1 f(in V1 a);
                         // oneway void f(in X1 a, in V1 b);
                 };
@@ -51,9 +52,9 @@ module M1 {
         };
 };
 
-interface X3 {
-        oneway void f(in X1 a);
-        // oneway void g(in ::X1 a);
-        // oneway void h(in M1::M2::M1M2X2 a, in M1::M2::V3 b);
-        // oneway void i(in ::M1::M2::M1M2X2 a);
-};
+//interface X4 {
+//        oneway void f(in X1 a);
+//        // oneway void g(in ::X1 a);
+//        // oneway void h(in M1::M2::M1M2X2 a, in M1::M2::V3 b);
+//        // oneway void i(in ::M1::M2::M1M2X2 a);
+//};

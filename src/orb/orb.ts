@@ -344,7 +344,7 @@ export class ORB implements EventTarget {
         })
     }
     
-    async send(data: any): Promise<any> {
+    send(data: any, oneway: boolean = false): Promise<any> {
         let reqid = ++this.reqid
         data.reqid = reqid
         if (this.debug>0) {
@@ -384,10 +384,13 @@ export class ORB implements EventTarget {
                 reject(err)
             }
             this.socket.send(JSON.stringify(data))
+            if (oneway)
+                resolve()
         })
     }
 
-    async call(stub: Stub, method: string, params: Array<any>): Promise<any> {
+    async call(stub: Stub, oneway: boolean, method: string, params: Array<any>): Promise<any> {
+        // throw Error("FAILURE")
         if (this.debug>0) {
             console.log("ORB.call(...) method "+method)
         }
@@ -396,9 +399,7 @@ export class ORB implements EventTarget {
                 this.aclAdd(params[i])
             }
             if (params[i] instanceof Stub) {
-                console.log("ORB.call(): methods '"+method+"' received stub as argument")
-                // FIXME: this error get's lost in async/await/Promise
-                throw Error("ORB.call(): methods '"+method+"' received stub as argument")
+                throw Error("ORB.call(): not implemented: method '"+method+"' received stub as argument")
             }
             try {
                 params[i] = this.serialize(params[i])
@@ -408,13 +409,16 @@ export class ORB implements EventTarget {
                 throw error
             }
         }
+
         let msg = await this.send({ // FIXME: we should'n wait here for oneway function but this looks like we do...
             "corba": "1.0",
             "method": method,
             "params": params,
             "id": stub.id
-        })
-        return this.deserialize(msg.result)
+        }, oneway)
+
+        if (!oneway)
+            return this.deserialize(msg.result)
     }
     
     release() {

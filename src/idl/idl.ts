@@ -383,8 +383,8 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             out.write("): Promise<" + typeIDLtoTS(type) + "> {\n")
                             out.write("        ")
                             if (!oneway)
-                                out.write("return await ")
-                            out.write("this.orb.call(this, \""+identifier+"\", [")
+                                out.write("return ")
+                            out.write(`await this.orb.call(this, ${oneway}, "${identifier}", [`)
                             comma = false
                             for(let parameter_dcl of parameter_decls) {
                                 let identifier = parameter_dcl!.child[2]!.text

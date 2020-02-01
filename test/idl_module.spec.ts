@@ -1,6 +1,10 @@
-import { expect } from "chai"
+import * as chai from "chai"
+import * as chaiAsPromised from "chai-as-promised"
+chai.use(chaiAsPromised)
+const expect = chai.expect
 
 import { ORB } from "../src/orb/orb-nodejs"
+import * as inf from "./idl_module"
 import * as value from "./idl_module_value"
 import * as valueimpl from "./idl_module_valueimpl"
 import * as valuetype from "./idl_module_valuetype"
@@ -17,23 +21,27 @@ import { mockConnection } from "./util"
 
 let text = ""
 
-class N1 {
-
-}
-
+// interface X1
 class X1_impl extends skel.X1 {
     constructor(orb: ORB) {
         super(orb)
-    }
+    }   
+    // oneway void f();
     async f() {
         text = "X1"
     }
 }
 
+// native N1
+class N1 {
+}
+
+// valutetype V1
 class V1 extends valueimpl.V1 {
     constructor(value?: Partial<V1>) {
         super(value)
     }
+    // N1 f(in N1 a);
     f(a: N1): N1 {
         throw Error("")
     }
@@ -64,6 +72,11 @@ namespace M1 {
             constructor(orb: ORB) {
                 super(orb)
             }
+            async m(x1: inf.X1): Promise<void> {
+                text = "M1M2X2::m()"
+                // await x1.f()
+            }
+
             async f(a: V1): Promise<V1> {
                 text = "M1M2X2"
                 a.a = a.a + 19
@@ -117,6 +130,14 @@ describe("corba.js", function() {
 
         await x1.f()
         expect(text).is.equal("X1")
+
+        // START OF TEST IF INTERNAL ERRORS ARE PROPAGATED
+        await expect(m1m2x2.m(x1)).to.be.rejectedWith(Error, "ORB.call(): not implemented: method 'm' received stub as argument", "missing internal error")
+
+        await expect(m1m2x2.m(x1_impl)).to.be.rejectedWith(Error, "ORB: can not deserialize object of unregistered stub 'X1'")
+        serverORB.registerStubClass(stub.X1)
+        await expect(m1m2x2.m(x1_impl)).not.to.be.rejected
+        // END OF TEST IF INTERNAL ERRORS ARE PROPAGATED
 
         let r3 = await m1x3.f(new V1({a:9}))
         expect(r3.a).is.equal(17)
