@@ -104,6 +104,9 @@ namespace M1 {
             a.a = a.a + 8
             return a
         }
+        async h(a: M2.V3): Promise<M2.V3> {
+            throw Error()
+        }
     }
 
 }

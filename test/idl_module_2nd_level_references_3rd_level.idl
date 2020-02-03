@@ -1,0 +1,15 @@
+/*
+ * IDL for x.spec.ts
+ */
+
+module M1 {
+        module M2 {
+                valuetype V3 {
+                        public double a;
+                };
+        };
+
+        interface I1 {
+                M2::V3 h(in M2::V3 a);
+        };
+};

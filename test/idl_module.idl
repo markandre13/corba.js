@@ -44,7 +44,7 @@ module M1 {
         interface M1X3 {
                 // N1 f(in N1 a); // THIS SHOULD BE AN ERROR, CAN NOT SEND NATIVE TYPES OVER THE WIRE
                 V1 f(in V1 a);
-                // M2::V3 h(in M2::V3 a);
+                M2::V3 h(in M2::V3 a);
                 // oneway void f(in X1 a, in V1 b);
                 // oneway void g(in ::X1 a, in V2 b);
                 // oneway void h(in M2::M1M2X2 a);

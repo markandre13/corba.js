@@ -40,14 +40,35 @@ function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
             {
                 return type.text!.substring(0, type.text!.length-4) + " | undefined"
             }
+
+            // this is for writeTS(Interface|Skeleton|Stub)Definitions
             if ( filetype !== Type.TKN_VALUETYPE &&
                  type.child.length>0 &&
                  type.child[0]!.type === Type.TKN_VALUETYPE )
             {
-                // FIXME: when referencing another file, the type name needs to be absolute
-                return `valuetype.${type.text!}`
+                return `valuetype.${type!.text!}`
             }
             return type.text!
+        case Type.TKN_VALUETYPE: {
+            let s = ""
+            if ( filetype !== Type.TKN_VALUETYPE ) {
+                let t = type.child[type.child.length-1]
+                s=`.${t!.text}${s}`
+                for(let x:Node|undefined=t?.typeParent; x; x=x.typeParent) {
+                    // if (x?.type === Type.TKN_MODULE) // FIXME: this line can be removed
+                        s=`.${x!.text}${s}`
+                }
+                s = `valuetype${s}`
+            } else {
+                for(let x of type.child) {
+                    if (s.length === 0)
+                        s = x!.text!
+                    else
+                        s = `${s}.${x!.text!}`
+                }
+            }
+            return s
+        } break
         case Type.TKN_VOID:
             return "void"
         case Type.TKN_BOOLEAN:
@@ -778,10 +799,10 @@ function writeTSValueImplDefinitions(out: fs.WriteStream, specification: Node, p
                             }
                             out.write(param_identifier)
                             out.write(": ")
-                            out.write(typeIDLtoTS(type, Type.TKN_VALUETYPE))
+                            out.write(typeIDLtoTS(type))
                         }
                         out.write("): ")
-                        out.write(typeIDLtoTS(type, Type.TKN_VALUETYPE))
+                        out.write(typeIDLtoTS(type))
                         out.write("\n")
                     }
                 }

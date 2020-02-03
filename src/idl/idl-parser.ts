@@ -22,40 +22,30 @@ import { Lexer } from "./idl-lexer"
 let lexer: Lexer
 
 class Scope {
+    node: Node|undefined
     types: Map<string, Node>
     modules: Map<string, Node>
-    constructor() {
+    constructor(node: Node|undefined) {
+        this.node = node
         this.types = new Map<string, Node>()
         this.modules = new Map<string, Node>()
     }
     addType(name: string, type: Node): void {
-        // this does not work with modules
         if (this.types.has(name))
             throw Error("duplicate typename '"+name+"'")
         this.types.set(name, type)
+        type.typeParent = this.node
     }
     getType(name: string): Node | undefined {
         return this.types.get(name)
     }
-    addNodes(node: Node) {
-        // at the end of specification or a module, append all type nodes to the top level node
-        for(let [typename, typenode] of this.types) {
-            if (typenode.type === Type.TKN_NATIVE ||
-                typenode.type === Type.SYN_INTERFACE ||
-                typenode.type === Type.TKN_VALUETYPE ||
-                typenode.type === Type.TKN_MODULE)
-                continue
-            node.add(typenode)
-        }
-    }
-
 }
 
 class ScopeManager {
     stack: Array<Scope>
     constructor() {
         this.stack = new Array<Scope>()
-        this.stack.push(new Scope())
+        this.stack.push(new Scope(undefined))
     }
     getGlobalScope(): Scope {
         return this.stack[0]
@@ -74,18 +64,13 @@ class ScopeManager {
         }
         return undefined
     }
-    addNodes(node: Node) {
-        this.getCurrentScope().addNodes(node)
-    }
     enterModule(node: Node) {
         this.getCurrentScope().addType(node.text!, node)
-        this.stack.push(new Scope())
+        this.stack.push(new Scope(node))
     }
     leaveModule(node: Node) {
-        this.addNodes(node)
         this.stack.pop()
     }
-  
 }
     
 let scoper: ScopeManager
@@ -116,11 +101,8 @@ export function specification(aLexer: Lexer): Node | undefined
         let t0 = definition()
         if (t0 === undefined)
             break
-        node.add(t0)
-    }
-    
-    scoper.addNodes(node)
-    
+        node.append(t0)
+    }    
     return node
 }
 
@@ -159,7 +141,7 @@ function _module(): Node | undefined
                 break
             if (t2.type == Type.TKN_NATIVE)
                 throw Error("'native' can not be used within 'module'")
-            t0.add(t2)
+            t0.append(t2)
         }
         expect("}")
         scoper.leaveModule(t0)
@@ -203,8 +185,8 @@ function interface_dcl(): Node | undefined
         throw Error("expected } after interface header but got "+t3.toString())
         
     let node = new Node(Type.SYN_INTERFACE)
-    node.add(t0)
-    node.add(t2)
+    node.append(t0)
+    node.append(t2)
     scoper.addType(t0.child[1]!.text!, node)
     return node
 }
@@ -238,9 +220,9 @@ function interface_header(): Node | undefined
         
     // let t3 = interface_inheritance_spec()
     let header = new Node(Type.SYN_INTERFACE_HEADER)
-    header.add(t0)
-    header.add(t2)
-    header.add(undefined)
+    header.append(t0)
+    header.append(t2)
+    header.append(undefined)
     return header
 }
 
@@ -252,7 +234,7 @@ function interface_body(): Node
         let t0 = _export()
         if (t0 === undefined)
             return body
-        body.add(t0)
+        body.append(t0)
     }
 }
 
@@ -271,8 +253,6 @@ function _export(): Node | undefined
 // 12
 function scoped_name(): Node | undefined
 {
-    // FIXME: identifierToken needs to take the full colon separated path?
-
     let globalNamespaceToken = undefined
     let identifierToken = lexer.lex()
 
@@ -304,50 +284,45 @@ function scoped_name(): Node | undefined
     if (type === undefined) {
         throw Error(`unknown type ${identifierToken}`)
     }
-    // console.log(`got type ${type?.toString()} for ${identifierToken.text}`)
     if (type.type == Type.TKN_MODULE) {
         resolve_module(identifierToken, type)
     }
-    identifierToken.add(type)
+    identifierToken.prepend(type)
     return identifierToken
 }
 
 function resolve_module(identifierToken: Node, module: Node): Node {
-    let t2 = lexer.lex()
-    if (t2 === undefined || t2.type !== Type.TKN_COLON_COLON)
+    let paamayimNekudotayim = lexer.lex()
+    if (paamayimNekudotayim === undefined || paamayimNekudotayim.type !== Type.TKN_COLON_COLON)
         throw Error(`Expected :: after module identifier '${identifierToken.text}'`)
-    let t3 = lexer.lex()
-    if (t3 === undefined || t3.type !== Type.TKN_IDENTIFIER)
+    let identifier = lexer.lex()
+    if (identifier === undefined || identifier.type !== Type.TKN_IDENTIFIER)
         throw Error(`Expected identifier after ::'`)
-    // console.log(`need to lookup ${t3.text} in ${type}`)
-    // console.log(type)
     for(let child of module.child) {
-        // console.log(`it's ${n?.toString()}`) 
         switch(child?.type) {
             case Type.TKN_MODULE:
-                if (child.text === t3.text) {
+                if (child.text === identifier.text) {
                     return resolve_module(identifierToken, child)
                 }
                 break
             case Type.TKN_NATIVE:
             case Type.TKN_VALUETYPE:
-                if (child.text === t3.text) {
-                    identifierToken.add(child)
-                    identifierToken.text = `${identifierToken.text}.${child.text}`
+                if (child.text === identifier.text) {
+                    identifierToken.prepend(child)
+                    identifierToken.type = child.type
                     return identifierToken
                 }
                 break
             case Type.SYN_INTERFACE:
-                // FIXME: WE WANT THE NAME ON THE TOP NODE
-                if (child.child[0]!.child[1]!.text === t3.text) {
-                    identifierToken.add(child)
-                    identifierToken.text = `${identifierToken.text}.${child.text}`
+                if (child.child[0]!.child[1]!.text === identifier.text) {
+                    identifierToken.prepend(child)
+                    identifierToken.type = child.type
                     return identifierToken
                 }
                 break
         }
     }
-    throw Error(`failed to lookup ${t3.text}`)
+    throw Error(`failed to lookup ${identifier.text}`)
 }
 
 // 13
@@ -398,7 +373,7 @@ function value_dcl(): Node | undefined
     expect('{')
 
     let node = new Node(Type.TKN_VALUETYPE)
-    node.add(header)
+    node.append(header)
     
     let identifier = header.child[1]!.text!
 
@@ -409,7 +384,7 @@ function value_dcl(): Node | undefined
         let t1 = value_element()
         if (t1 === undefined)
             break
-        node.add(t1)
+        node.append(t1)
     }
 
     expect('}') // , "valuetype attributes must be prefixed with either 'public' or 'private'")
@@ -437,9 +412,9 @@ function value_header(): Node | undefined
             let t3 = value_inheritance_spec()
             
             let node = new Node(Type.SYN_VALUE_HEADER)
-            node.add(t0)
-            node.add(t2)
-            node.add(t3)
+            node.append(t0)
+            node.append(t2)
+            node.append(t3)
             return node
         }
         lexer.unlex(t1)
@@ -466,14 +441,14 @@ function value_inheritance_spec(): Node | undefined
         throw Error("'truncatable' is not supported")
 
     let node = new Node(Type.SYN_VALUE_INHERITANCE_SPEC)
-    node.add(t1)
+    node.append(t1)
         
     while(true) {
         let t2 = value_name()
         if (t2 === undefined) {
             throw Error("expected a value name after '"+t0.text+"'")
         }
-        node.add(t2)
+        node.append(t2)
         let t3 = lexer.lex()
         if (t3 === undefined)
             throw Error("unexpected end of file")
@@ -532,9 +507,9 @@ function state_member(): Node | undefined
     expect(";")
 
     let node = new Node(Type.SYN_STATE_MEMBER)
-    node.add(t0)
-    node.add(t1)
-    node.add(t2)
+    node.append(t0)
+    node.append(t1)
+    node.append(t2)
     return node
 }
 
@@ -547,7 +522,7 @@ function type_dcl(): Node | undefined
         if (t1 === undefined) {
             throw Error("expected simple declarator after 'native'")
         }
-        t0.add(t1)
+        t0.append(t1)
         t0.text = t1.text
         scoper.addType(t1.text!, t0)
         return t0
@@ -637,7 +612,7 @@ function declarators(): Node | undefined
         return undefined
     let node = new Node(Type.SYN_DECLARATORS)
     while(true) {
-        node.add(t0)
+        node.append(t0)
         let t1 = lexer.lex()
         if (t1 === undefined || t1.type !== Type.TKN_TEXT || t1.text !== ",") {
             lexer.unlex(t1)
@@ -887,8 +862,8 @@ function sequence_type(): Node | undefined
         if (t1 === undefined)
             throw Error("expected type after 'sequence <'")
         expect(">")
-        t0.add(t1)
-        t0.add(undefined)
+        t0.append(t1)
+        t0.append(undefined)
         return t0
     }
     lexer.unlex(t0)
@@ -952,12 +927,12 @@ function op_dcl(): Node | undefined
     }
 
     let node = new Node(Type.SYN_OPERATION_DECLARATION)
-    node.add(t0)
-    node.add(t1)
-    node.add(t2)
-    node.add(t3)
-    node.add(undefined)
-    node.add(undefined)
+    node.append(t0)
+    node.append(t1)
+    node.append(t2)
+    node.append(t3)
+    node.append(undefined)
+    node.append(undefined)
     return node
 }
 
@@ -1003,7 +978,7 @@ function parameter_dcls(): Node | undefined
     while(true) {
         let t1 = param_dcl()
         if (t1 !== undefined)
-            declarations.add(t1)
+            declarations.append(t1)
     
         let t2 = lexer.lex()
     
@@ -1045,9 +1020,9 @@ function param_dcl(): Node | undefined
     }
 
     let declaration = new Node(Type.SYN_PARAMETER_DECLARATION)
-    declaration.add(t0)
-    declaration.add(t1)
-    declaration.add(t2)
+    declaration.append(t0)
+    declaration.append(t1)
+    declaration.append(t2)
     return declaration
 }
 
@@ -1104,9 +1079,9 @@ function readonly_attr_spec(): Node | undefined
             let t3 = readonly_attr_declarator()
             if (t3 === undefined)
                 throw Error("expected declarator for 'readonly attribute'")
-            t1.add(t0)
-            t1.add(t2)
-            t1.add(t3)
+            t1.append(t0)
+            t1.append(t2)
+            t1.append(t3)
             return t1
         }
         lexer.unlex(t1)
@@ -1123,7 +1098,7 @@ function readonly_attr_declarator(): Node | undefined
         return undefined
     let node = new Node(Type.SYN_DECLARATORS)
     while(true) {
-        node.add(t0)
+        node.append(t0)
         let t1 = lexer.lex()
         if (t1 === undefined || t1.type !== Type.TKN_TEXT || t1.text! !== ",") {
             lexer.unlex(t1)
@@ -1146,9 +1121,9 @@ function attr_spec(): Node | undefined
         let t2 = attr_declarator()
         if (t2 === undefined)
             throw Error("expected declarator for 'attribute'")
-        t0.add(undefined)
-        t0.add(t1)
-        t0.add(t2)
+        t0.append(undefined)
+        t0.append(t1)
+        t0.append(t2)
         return t0
     }
     lexer.unlex(t0)
@@ -1163,7 +1138,7 @@ function attr_declarator(): Node | undefined
         return undefined
     let node = new Node(Type.SYN_DECLARATORS)
     while(true) {
-        node.add(t0)
+        node.append(t0)
         let t1 = lexer.lex()
         if (t1 === undefined || t1.type !== Type.TKN_TEXT || t1.text! !== ",") {
             lexer.unlex(t1)

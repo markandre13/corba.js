@@ -118,6 +118,7 @@ export class Node
     type: Type
     text?: string
     
+    typeParent: Node|undefined
     child: Array<Node|undefined>
     
     constructor(type: Type, text?: string) {
@@ -236,8 +237,11 @@ export class Node
             }
         }
     }
-
-    add(node: Node | undefined): void {
+    append(node: Node | undefined): void {
         this.child.push(node)
     }
+    prepend(node: Node | undefined): void {
+        this.child.unshift(node)
+    }
+
 }
