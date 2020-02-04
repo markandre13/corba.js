@@ -28,7 +28,17 @@ function writeIndent(out: fs.WriteStream, indent: number) {
         out.write("    ")
 }
 
-function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
+enum FileType {
+    NONE,
+    VALUE,
+    VALUETYPE,
+    VALUEIMPL,
+    INTERFACE,
+    SKELETON,
+    STUB
+}
+
+function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
     switch(type!.type) {
@@ -42,7 +52,7 @@ function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
             }
 
             // this is for writeTS(Interface|Skeleton|Stub)Definitions
-            if ( filetype !== Type.TKN_VALUETYPE &&
+            if ( filetype !== FileType.VALUETYPE &&
                  type.child.length>0 &&
                  type.child[0]!.type === Type.TKN_VALUETYPE )
             {
@@ -52,7 +62,7 @@ function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
         case Type.TKN_VALUETYPE:
         case Type.SYN_INTERFACE: {
             let s = ""
-            if ( filetype !== Type.TKN_VALUETYPE ) {
+            if ( filetype !== FileType.VALUETYPE ) {
                 let t = type.child[type.child.length-1]
                 s=`.${t!.text}${s}`
                 for(let x:Node|undefined=t?.typeParent; x; x=x.typeParent) {
@@ -97,7 +107,7 @@ function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
     }
 }
 
-function defaultValueIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
+function defaultValueIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
     switch(type!.type) {
@@ -446,7 +456,7 @@ function writeTSValue(specification: Node): void
         out.write("// no valuetype's defined in IDL")
         return
     }
-    out.write("import * as _interface from \"./" + filenameLocal + "\"\n\n")
+    // out.write("import * as _interface from \"./" + filenameLocal + "\"\n\n")
     
     if (hasNative(specification)) {
         out.write("declare global {\n")
@@ -520,7 +530,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                         let declarators  = state_member.child[2]!
                         for(let declarator of declarators.child) {
                             writeIndent(out, indent+1)
-                            out.write(declarator!.text+": "+typeIDLtoTS(type, Type.TKN_VALUETYPE)+"\n")
+                            out.write(declarator!.text+": "+typeIDLtoTS(type, FileType.VALUETYPE)+"\n")
                             attributes.push(declarator!.text!)
                         }
                     }
@@ -555,7 +565,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                                 }
                             } else {
                                 out.write(`object.${decl_identifier} = (init === undefined || init.${decl_identifier} === undefined) ? `)
-                                out.write(defaultValueIDLtoTS(type, Type.TKN_VALUETYPE))
+                                out.write(defaultValueIDLtoTS(type, FileType.VALUETYPE))
                                 out.write(` : init.${decl_identifier}\n`)
                             }
                         }
@@ -590,7 +600,7 @@ function writeTSValueType(specification: Node): void
         out.write("// no valuetype's defined in IDL")
         return
     }
-    out.write("import * as _interface from \"./" + filenameLocal + "\"\n\n")
+    // out.write("import * as _interface from \"./" + filenameLocal + "\"\n\n")
     out.write("import * as value from \"./" + filenameLocal + "_value\"\n\n")
     
     if (hasNative(specification)) {
@@ -665,10 +675,10 @@ function writeTSValueTypeDefinitions(out: fs.WriteStream, specification: Node, p
                             }
                             out.write(param_identifier)
                             out.write(": ")
-                            out.write(typeIDLtoTS(type, Type.TKN_VALUETYPE))
+                            out.write(typeIDLtoTS(type, FileType.VALUETYPE))
                         }
                         out.write("): ")
-                        out.write(typeIDLtoTS(type, Type.TKN_VALUETYPE))
+                        out.write(typeIDLtoTS(type, FileType.VALUETYPE))
                         out.write("\n")
                     }
                 }
@@ -761,7 +771,7 @@ function writeTSValueImplDefinitions(out: fs.WriteStream, specification: Node, p
                         let declarators  = state_member.child[2]!
                         for(let declarator of declarators.child) {
                             writeIndent(out, indent+1)
-                            out.write(declarator!.text+"!: "+typeIDLtoTS(type, Type.TKN_VALUETYPE)+"\n")
+                            out.write(declarator!.text+"!: "+typeIDLtoTS(type, FileType.VALUETYPE)+"\n")
                         }
                     }
                 }
