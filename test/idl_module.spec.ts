@@ -4,7 +4,7 @@ chai.use(chaiAsPromised)
 const expect = chai.expect
 
 import { ORB } from "../src/orb/orb-nodejs"
-import * as inf from "./idl_module"
+import * as _interface from "./idl_module"
 import * as value from "./idl_module_value"
 import * as valueimpl from "./idl_module_valueimpl"
 import * as valuetype from "./idl_module_valuetype"
@@ -80,7 +80,7 @@ namespace M1 {
             constructor(orb: ORB) {
                 super(orb)
             }
-            async m(x1: inf.X1): Promise<void> {
+            async m(x1: _interface.X1): Promise<void> {
                 text = "M1M2X2::m()"
                 // await x1.f()
             }
@@ -105,6 +105,10 @@ namespace M1 {
             return a
         }
         async h(a: M2.V3): Promise<M2.V3> {
+            throw Error()
+        }
+        // FIXME: In the Skeleton file it does not prefix the types with _interface
+        async i(a: skel.M1.M2.M1M2X2): Promise<skel.M1.M2.M1M2X2> {
             throw Error()
         }
     }

@@ -184,7 +184,7 @@ function interface_dcl(): Node | undefined
     if (t3.type !== Type.TKN_TEXT && t3.text != '}')
         throw Error("expected } after interface header but got "+t3.toString())
         
-    let node = new Node(Type.SYN_INTERFACE)
+    let node = new Node(Type.SYN_INTERFACE, t0.child[1]!.text)
     node.append(t0)
     node.append(t2)
     scoper.addType(t0.child[1]!.text!, node)
@@ -1014,9 +1014,7 @@ function param_dcl(): Node | undefined
 
     let t2 = simple_declarator()
     if (t2 === undefined) {
-        lexer.unlex(t1)
-        lexer.unlex(t0)
-        return undefined
+        throw Error("Missing parameter name.")
     }
 
     let declaration = new Node(Type.SYN_PARAMETER_DECLARATION)

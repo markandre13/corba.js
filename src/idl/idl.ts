@@ -49,7 +49,8 @@ function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
                 return `valuetype.${type!.text!}`
             }
             return type.text!
-        case Type.TKN_VALUETYPE: {
+        case Type.TKN_VALUETYPE:
+        case Type.SYN_INTERFACE: {
             let s = ""
             if ( filetype !== Type.TKN_VALUETYPE ) {
                 let t = type.child[type.child.length-1]
@@ -58,14 +59,18 @@ function typeIDLtoTS(type: Node | undefined, filetype = Type.NONE): string {
                     // if (x?.type === Type.TKN_MODULE) // FIXME: this line can be removed
                         s=`.${x!.text}${s}`
                 }
-                s = `valuetype${s}`
+                if (type.type === Type.TKN_VALUETYPE)
+                    s = `valuetype${s}`
+                else
+                    s = s.substring(1)        
             } else {
                 for(let x of type.child) {
-                    if (s.length === 0)
-                        s = x!.text!
-                    else
-                        s = `${s}.${x!.text!}`
+                    s = `${s}.${x!.text!}`
                 }
+                // if (type.type === Type.TKN_VALUETYPE)
+                //     s = `valuetype${s}`
+                // else
+                s = s.substring(1)
             }
             return s
         } break
@@ -926,7 +931,7 @@ for(; i<process.argv.length; ++i) {
         console.log("corba-idl: error: empty file or unexpected internal failure")
         process.exit(1)
     }
-    if (debug>0)
+    if (debug>1)
         syntaxTree.printTree()
 
     try {
