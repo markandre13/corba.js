@@ -89,6 +89,9 @@ namespace M1 {
                 a.a = a.a + 19
                 return a
             }
+            async g(a: M1.V2): Promise<M1.V2> {
+                throw Error()
+            }
             async h(a: M1.V2): Promise<M1.V2> {
                 throw Error()
             }
@@ -107,8 +110,10 @@ namespace M1 {
         async h(a: M2.V3): Promise<M2.V3> {
             throw Error()
         }
-        // FIXME: In the Skeleton file it does not prefix the types with _interface
-        async i(a: skel.M1.M2.M1M2X2): Promise<skel.M1.M2.M1M2X2> {
+        async i(a: _interface.M1.M2.M1M2X2): Promise<_interface.M1.M2.M1M2X2> {
+            throw Error()
+        }
+        async j(a: _interface.M1.M2.M1M2X2): Promise<_interface.M1.M2.M1M2X2> {
             throw Error()
         }
     }

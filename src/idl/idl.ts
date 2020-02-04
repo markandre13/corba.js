@@ -69,10 +69,33 @@ function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE)
                     // if (x?.type === Type.TKN_MODULE) // FIXME: this line can be removed
                         s=`.${x!.text}${s}`
                 }
-                if (type.type === Type.TKN_VALUETYPE)
-                    s = `valuetype${s}`
-                else
-                    s = s.substring(1)        
+                s = s.substring(1)
+                switch(type.type) {
+                    case Type.TKN_VALUETYPE:
+                        switch(filetype) {
+                            case FileType.VALUE:
+                            // case FileType.VALUETYPE:
+                            case FileType.VALUEIMPL:
+                            case FileType.INTERFACE:
+                            case FileType.SKELETON:
+                            case FileType.STUB:
+                                s = `valuetype.${s}`
+                                break
+                        }
+                        break
+                    case Type.SYN_INTERFACE:
+                        switch(filetype) {
+                            case FileType.VALUE:
+                            // case FileType.VALUETYPE:
+                            case FileType.VALUEIMPL:
+                            // case FileType.INTERFACE:
+                            case FileType.SKELETON:
+                            case FileType.STUB:
+                                s = `_interface.${s}`
+                                break
+                        }
+                        break
+                }                
             } else {
                 for(let x of type.child) {
                     s = `${s}.${x!.text!}`
@@ -245,9 +268,9 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(identifier+": "+typeIDLtoTS(type))
+                                out.write(identifier+": "+typeIDLtoTS(type, FileType.INTERFACE))
                             }
-                            out.write("): Promise<" + typeIDLtoTS(type) + ">\n")
+                            out.write("): Promise<" + typeIDLtoTS(type, FileType.INTERFACE) + ">\n")
                         } break
                         case Type.TKN_ATTRIBUTE: {
                         } break
@@ -326,9 +349,9 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(identifier+": "+typeIDLtoTS(type))
+                                out.write(identifier+": "+typeIDLtoTS(type, FileType.SKELETON))
                             }
-                            out.write("): Promise<" + typeIDLtoTS(type) + ">\n")
+                            out.write("): Promise<" + typeIDLtoTS(type, FileType.SKELETON) + ">\n")
                         } break
                         case Type.TKN_ATTRIBUTE: {
                         } break
@@ -415,9 +438,9 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(identifier+": "+typeIDLtoTS(type))
+                                out.write(identifier+": "+typeIDLtoTS(type, FileType.STUB))
                             }
-                            out.write("): Promise<" + typeIDLtoTS(type) + "> {\n")
+                            out.write("): Promise<" + typeIDLtoTS(type, FileType.STUB) + "> {\n")
                             out.write("        ")
                             if (!oneway)
                                 out.write("return ")
