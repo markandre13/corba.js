@@ -309,14 +309,14 @@ function resolve_module(identifierToken: Node, module: Node): Node {
             case Type.TKN_VALUETYPE:
                 if (child.text === identifier.text) {
                     identifierToken.prepend(child)
-                    identifierToken.type = child.type
+                    // identifierToken.type = child.type
                     return identifierToken
                 }
                 break
             case Type.SYN_INTERFACE:
                 if (child.child[0]!.child[1]!.text === identifier.text) {
                     identifierToken.prepend(child)
-                    identifierToken.type = child.type
+                    // identifierToken.type = child.type
                     return identifierToken
                 }
                 break

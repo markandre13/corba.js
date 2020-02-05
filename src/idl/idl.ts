@@ -42,7 +42,7 @@ function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE)
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
     switch(type!.type) {
-        case Type.TKN_IDENTIFIER:
+        case Type.TKN_IDENTIFIER: {
             if ( type.child.length>0 &&
                  type.child[0]!.type === Type.TKN_NATIVE &&
                  type.text!.length > 4 &&
@@ -51,61 +51,81 @@ function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE)
                 return type.text!.substring(0, type.text!.length-4) + " | undefined"
             }
 
-            // this is for writeTS(Interface|Skeleton|Stub)Definitions
-            if ( filetype !== FileType.VALUETYPE &&
-                 type.child.length>0 &&
-                 type.child[0]!.type === Type.TKN_VALUETYPE )
-            {
-                return `valuetype.${type!.text!}`
-            }
-            return type.text!
-        case Type.TKN_VALUETYPE:
-        case Type.SYN_INTERFACE: {
             let s = ""
             if ( filetype !== FileType.VALUETYPE ) {
-                let t = type.child[type.child.length-1]
-                s=`.${t!.text}${s}`
-                for(let x:Node|undefined=t?.typeParent; x; x=x.typeParent) {
+                let t = type.child[type.child.length-1]!
+                s=`.${t.text}${s}`
+                // this should be able to extend the relative name into an absolute name
+                for(let x:Node|undefined=t.typeParent; x; x=x.typeParent) {
                     // if (x?.type === Type.TKN_MODULE) // FIXME: this line can be removed
                         s=`.${x!.text}${s}`
                 }
                 s = s.substring(1)
-                switch(type.type) {
+                switch(t.type) {
                     case Type.TKN_VALUETYPE:
-                        switch(filetype) {
-                            case FileType.VALUE:
-                            // case FileType.VALUETYPE:
-                            case FileType.VALUEIMPL:
-                            case FileType.INTERFACE:
-                            case FileType.SKELETON:
-                            case FileType.STUB:
-                                s = `valuetype.${s}`
-                                break
-                        }
+                        // if (filetype !== FileType.VALUETYPE)
+                            s = `valuetype.${s}`
+                             
                         break
                     case Type.SYN_INTERFACE:
-                        switch(filetype) {
-                            case FileType.VALUE:
-                            // case FileType.VALUETYPE:
-                            case FileType.VALUEIMPL:
-                            // case FileType.INTERFACE:
-                            case FileType.SKELETON:
-                            case FileType.STUB:
-                                s = `_interface.${s}`
-                                break
-                        }
-                        break
+                        if (filetype !== FileType.INTERFACE)
+                            s = `_interface.${s}`
                 }                
             } else {
+                // this should construct the relative name from the current position -> always do this!
                 for(let x of type.child) {
                     s = `${s}.${x!.text!}`
                 }
-                // if (type.type === Type.TKN_VALUETYPE)
-                //     s = `valuetype${s}`
-                // else
                 s = s.substring(1)
             }
             return s
+
+
+        //     // this is for writeTS(Interface|Skeleton|Stub)Definitions
+        //     if ( filetype !== FileType.VALUETYPE &&
+        //          type.child.length>0 &&
+        //          type.child[0]!.type === Type.TKN_VALUETYPE )
+        //     {
+        //         return `valuetype.${type!.text!}`
+        //     }
+        //     return type.text!
+        // case Type.TKN_VALUETYPE:
+        // case Type.SYN_INTERFACE: {
+            // let relativeName = ""
+            // // this should construct the relative name from the current position -> always do this!
+            // for(let x of type.child) {
+            //     relativeName = `${relativeName}.${x!.text!}`
+            // }
+            // relativeName = relativeName.substring(1)
+
+            // let x = type.child[type.child.length-1]
+            // let absolutePrefix="" // x!.text
+            // // this should be able to extend the relative name into an absolute name
+            // for(x=x?.typeParent; x; x=x.typeParent) {
+            //     absolutePrefix=`.${x!.text}${absolutePrefix}`
+            // }
+            // // absolutePrefix = absolutePrefix.substring(1)
+
+            // let name: string
+            // switch(type.type) {
+            //     case Type.TKN_VALUETYPE:
+            //         if (filetype !== FileType.VALUETYPE)
+            //             name = `valuetype${absolutePrefix}.${relativeName}`
+            //         else
+            //             name = relativeName
+            //         break
+            //     case Type.SYN_INTERFACE:
+            //         if (filetype !== FileType.INTERFACE)
+            //             name = `_interface${absolutePrefix}.${relativeName}`
+            //         else
+            //             name = relativeName
+            //         break
+            // }
+
+            // console.log(`typeIDLtoTS: absolutePrefix='${absolutePrefix}' relativeName=${relativeName} name='${name}'`)
+
+            // return name
+
         } break
         case Type.TKN_VOID:
             return "void"

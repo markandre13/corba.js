@@ -208,7 +208,7 @@ describe("access", async function() {
         let connectionA = mockConnection(serverORB, clientA)
         let serverStub = stub.Server.narrow(await clientA.resolve("Server"))
 
-        let objectAStub = await serverStub.get("A")
+        let objectAStub = (await serverStub.get("A") as any) as skel.Listener
 
         // make a legal call to the server
         objectA.wasCalled = false
