@@ -36,7 +36,7 @@ module M1 {
                 interface M1M2X2 {
                         oneway void m(in X1 x1);
                         V1 f(in V1 a);
-                        // V2 g(in V2 a); <=== FIXME
+                        V2 g(in V2 a);
                         M1::V2 h(in M1::V2 a);
                         // oneway void f(in X1 a, in V1 b);
                 };

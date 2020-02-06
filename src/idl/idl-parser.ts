@@ -273,7 +273,7 @@ function scoped_name(): Node | undefined
         lexer.unlex(globalNamespaceToken)
         return undefined
     }
-    
+
     let type
     if (globalNamespaceToken === undefined) {
         type = scoper.getType(identifierToken.text!)
@@ -284,14 +284,16 @@ function scoped_name(): Node | undefined
     if (type === undefined) {
         throw Error(`unknown type ${identifierToken}`)
     }
+
+    identifierToken.append(type)
     if (type.type == Type.TKN_MODULE) {
         resolve_module(identifierToken, type)
     }
-    identifierToken.prepend(type)
+    
     return identifierToken
 }
 
-function resolve_module(identifierToken: Node, module: Node): Node {
+function resolve_module(identifierToken: Node, module: Node) {
     let paamayimNekudotayim = lexer.lex()
     if (paamayimNekudotayim === undefined || paamayimNekudotayim.type !== Type.TKN_COLON_COLON)
         throw Error(`Expected :: after module identifier '${identifierToken.text}'`)
@@ -302,22 +304,22 @@ function resolve_module(identifierToken: Node, module: Node): Node {
         switch(child?.type) {
             case Type.TKN_MODULE:
                 if (child.text === identifier.text) {
-                    return resolve_module(identifierToken, child)
+                    identifierToken.append(child)
+                    resolve_module(identifierToken, child)
+                    return
                 }
                 break
             case Type.TKN_NATIVE:
             case Type.TKN_VALUETYPE:
                 if (child.text === identifier.text) {
-                    identifierToken.prepend(child)
-                    // identifierToken.type = child.type
-                    return identifierToken
+                    identifierToken.append(child)
+                    return
                 }
                 break
             case Type.SYN_INTERFACE:
                 if (child.child[0]!.child[1]!.text === identifier.text) {
-                    identifierToken.prepend(child)
-                    // identifierToken.type = child.type
-                    return identifierToken
+                    identifierToken.append(child)
+                    return
                 }
                 break
         }
