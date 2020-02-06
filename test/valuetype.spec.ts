@@ -26,9 +26,7 @@ import * as skel from "./valuetype_skel"
 import * as stub from "./valuetype_stub"
 import { mockConnection } from "./util"
 
-/*
-
-class Point implements value.Point
+class Point implements value.testVT.Point
 {
     x: number
     y: number
@@ -42,7 +40,7 @@ class Point implements value.Point
     }
 }
 
-class Size implements value.Size {
+class Size implements value.testVT.Size {
     width: number
     height: number
     constructor(width?: number, height?: number) {
@@ -54,7 +52,7 @@ class Size implements value.Size {
     }
 }
 
-class Matrix extends valueimpl.Matrix {
+class Matrix extends valueimpl.testVT.Matrix {
     constructor(matrix?: Partial<Matrix>) {
         super(matrix)
         if (matrix === undefined) {
@@ -64,7 +62,7 @@ class Matrix extends valueimpl.Matrix {
     }
 }
 
-abstract class Figure extends valueimpl.Figure {
+abstract class Figure extends valueimpl.testVT.Figure {
     id: number = 0
     matrix: Matrix | undefined
     
@@ -82,7 +80,7 @@ class FigureModel {
     }
 }
 
-class Rectangle extends Figure implements valuetype.Rectangle {
+class Rectangle extends Figure implements valuetype.testVT.Rectangle {
     origin: Point
     size: Size
     constructor(x?: number, y?: number, width?: number, height?: number) {
@@ -98,12 +96,12 @@ class Rectangle extends Figure implements valuetype.Rectangle {
     }
 }
 
-class Server_impl extends skel.Server {
+class Server_impl extends skel.testVT.Server {
     static instance?: Server_impl
     static methodAWasCalled = false
     static methodBWasCalled = false
 
-    client?: stub.Client
+    client?: stub.testVT.Client
 
     constructor(orb: ORB) {
         super(orb)
@@ -111,12 +109,12 @@ class Server_impl extends skel.Server {
         Server_impl.instance = this
     }
     
-    async setClient(client: stub.Client) {
+    async setClient(client: stub.testVT.Client) {
         this.client = client
     }
 }
 
-class Client_impl extends skel.Client {
+class Client_impl extends skel.testVT.Client {
     static instance?: Client_impl
     static methodCWasCalled = false
     static figureModelReceivedFromServer?: FigureModel
@@ -148,38 +146,42 @@ describe("corba.js", function() {
 
         serverORB.bind("Server", new Server_impl(serverORB))
         
-        serverORB.registerStubClass(stub.Client)
-        clientORB.registerStubClass(stub.Server)
+        serverORB.registerStubClass(stub.testVT.Client)
+        clientORB.registerStubClass(stub.testVT.Server)
         
         // this collides with basics.spec.ts
-        ORB.registerValueType("Point", Point)
-        ORB.registerValueType("Size", Size)
-        ORB.registerValueType("Matrix", Matrix)
-        ORB.registerValueType("Figure", Figure)
-        ORB.registerValueType("Rectangle", Rectangle)
-        ORB.registerValueType("FigureModel", FigureModel)
+        ORB.registerValueType("testVT.Point", Point)
+        ORB.registerValueType("testVT.Size", Size)
+        ORB.registerValueType("testVT.Matrix", Matrix)
+        ORB.registerValueType("testVT.Figure", Figure)
+        ORB.registerValueType("testVT.Rectangle", Rectangle)
+        ORB.registerValueType("testVT.FigureModel", FigureModel)
 
         mockConnection(serverORB, clientORB).name = "acceptedORB"
 
-        let server = stub.Server.narrow(await clientORB.resolve("Server"))
+        let server = stub.testVT.Server.narrow(await clientORB.resolve("Server"))
         await server.setClient(new Client_impl(clientORB))
 
         // server sends FigureModel to client
         expect(Client_impl.figureModelReceivedFromServer).to.equal(undefined)
 
+        // figure with matrix === undefined
         let model = new FigureModel()
         let rect0 = new Rectangle(10, 20, 30, 40)
         rect0.id = 777
         model.data.push(rect0)
+
+        // figure with matrix !== undefined
         let rect1 = new Rectangle(50, 60, 70, 80)
         rect1.id = 1911
         rect1.matrix = new Matrix({a:0, b:1, c:2, d:3, e:4, f:5})
         model.data.push(rect1)
 
+        // send figure model through the network
         await Server_impl.instance!.client!.setFigureModel(model)
        
+        // check that the figure model was received correctly
         expect(Client_impl.figureModelReceivedFromServer!.data.length).to.equal(2)
-
         expect(Client_impl.figureModelReceivedFromServer!.data[0]).to.be.an.instanceof(Rectangle)
         let rectangle0 = Client_impl.figureModelReceivedFromServer!.data[0] as Rectangle
         expect(rectangle0.toString()).to.equal("Rectangle: (10,20,30,40)")
@@ -201,7 +203,7 @@ describe("corba.js", function() {
         expect(rectangle1.size.toString()).to.equal("Size: width=70, height=80")
 
         // one can call serialize/deserialize directly
-        let str = '{"#T":"Rectangle","#V":{"id":1138,"origin":{"#T":"Point","#V":{"x":10,"y":20}},"size":{"#T":"Size","#V":{"width":30,"height":40}}}}'
+        let str = '{"#T":"testVT.Rectangle","#V":{"id":1138,"origin":{"#T":"testVT.Point","#V":{"x":10,"y":20}},"size":{"#T":"testVT.Size","#V":{"width":30,"height":40}}}}'
         
         let r0 = clientORB.deserialize(str)
         let r1 = new Rectangle(10, 20, 30, 40)
@@ -210,6 +212,7 @@ describe("corba.js", function() {
 
         let r2 = clientORB.serialize(r1)
         expect(r2).to.equal(str)
+
+        // another try with matrix?
     })
 })
-*/

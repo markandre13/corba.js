@@ -22,47 +22,49 @@
 
 // test the '_ptr' hack
 
-valuetype Dummy {
-    public double fubar;
-};
+//valuetype Dummy {
+//    public double fubar;
+//};
 
-/*
 native Point_ptr;
 native Matrix_ptr;
 
-valuetype Point {
-    public double x, y;
-};
+module testVT {
 
-valuetype Size {
-    public double width, height;
-};
+    valuetype Point {
+        public double x, y;
+    };
 
-valuetype Matrix {
-    public double a, b, c, d, e, f;
-};
+    valuetype Size {
+        public double width, height;
+    };
 
-valuetype Figure {
-    public unsigned long id;
-    public Matrix_ptr matrix;
+    valuetype Matrix {
+        public double a, b, c, d, e, f;
+    };
 
-    Point_ptr getHandlePosition(in unsigned short handleId);
-};
+    valuetype Figure {
+        public unsigned long id;
+        public Matrix_ptr matrix;
 
-valuetype Rectangle: Figure {
-    public Point origin;
-    public Size size;
-};
+        Point_ptr getHandlePosition(in unsigned short handleId);
+    };
 
-valuetype FigureModel {
-    public sequence<Figure> data;
-};
+    valuetype Rectangle: Figure {
+        public Point origin;
+        public Size size;
+    };
 
-interface Client {
-    oneway void setFigureModel(in FigureModel figuremodel);
-};
+    valuetype FigureModel {
+        public sequence<Figure> data;
+    };
 
-interface Server {
-    oneway void setClient(in Client client);
+    interface Client {
+        oneway void setFigureModel(in FigureModel figuremodel);
+    };
+
+    interface Server {
+        oneway void setClient(in Client client);
+    };
+
 };
-*/
