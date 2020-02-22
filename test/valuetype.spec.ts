@@ -26,34 +26,32 @@ import * as skel from "./valuetype_skel"
 import * as stub from "./valuetype_stub"
 import { mockConnection } from "./util"
 
-class Point implements value.testVT.Point
+class VTPoint extends valueimpl.VTPoint
 {
-    x: number
-    y: number
+    x!: number
+    y!: number
     
-    constructor(x?: number, y?: number) {
-        this.x = x ? x : 0
-        this.y = y ? y : 0
+    constructor(init: Partial<VTPoint>) {
+        super(init)
     }
     toString(): string {
-        return "Point: x="+this.x+", y="+this.y
+        return "VTPoint: x="+this.x+", y="+this.y
     }
 }
 
-class Size implements value.testVT.Size {
-    width: number
-    height: number
-    constructor(width?: number, height?: number) {
-        this.width = width ? width : 0
-        this.height = height ? height : 0
+class Size extends valueimpl.testVT.Size {
+    width!: number
+    height!: number
+    constructor(init: Partial<Size>) {
+        super(init)
     }
     toString(): string {
         return "Size: width="+this.width+", height="+this.height
     }
 }
 
-class Matrix extends valueimpl.testVT.Matrix {
-    constructor(matrix?: Partial<Matrix>) {
+class VTMatrix extends valueimpl.testVT.VTMatrix {
+    constructor(matrix?: Partial<VTMatrix>) {
         super(matrix)
         if (matrix === undefined) {
             this.a = 1.0
@@ -64,7 +62,7 @@ class Matrix extends valueimpl.testVT.Matrix {
 
 abstract class Figure extends valueimpl.testVT.Figure {
     id: number = 0
-    matrix: Matrix | undefined
+    matrix: VTMatrix | undefined
     
     constructor(init?: Partial<Figure>) {
         super(init)
@@ -80,15 +78,14 @@ class FigureModel {
     }
 }
 
-class Rectangle extends Figure implements valuetype.testVT.Rectangle {
-    origin: Point
-    size: Size
-    constructor(x?: number, y?: number, width?: number, height?: number) {
-        super({})
-        this.origin = new Point(x, y)
-        this.size   = new Size(width, height)
+class Rectangle extends Figure implements valueimpl.testVT.Rectangle {
+    origin!: VTPoint
+    size!: Size
+    constructor(init?: Partial<Rectangle>) {
+        super(init)
+        value.testVT.initRectangle(this, init)
     }
-    getHandlePosition(i: number): Point | undefined {
+    getHandlePosition(i: number): VTPoint | undefined {
         return undefined
     }
     toString(): string {
@@ -132,6 +129,17 @@ class Client_impl extends skel.testVT.Client {
 }
 
 describe("corba.js", function() {
+
+    before(function(){
+        // this collides with basics.spec.ts
+        ORB.registerValueType("VTPoint", VTPoint)
+        ORB.registerValueType("testVT.Size", Size)
+        ORB.registerValueType("testVT.VTMatrix", VTMatrix)
+        ORB.registerValueType("testVT.Figure", Figure)
+        ORB.registerValueType("testVT.Rectangle", Rectangle)
+        ORB.registerValueType("testVT.FigureModel", FigureModel)
+    })
+
     it("valuetype", async function() {
 
         // ORB.valueTypeByName.clear()
@@ -149,14 +157,6 @@ describe("corba.js", function() {
         serverORB.registerStubClass(stub.testVT.Client)
         clientORB.registerStubClass(stub.testVT.Server)
         
-        // this collides with basics.spec.ts
-        ORB.registerValueType("testVT.Point", Point)
-        ORB.registerValueType("testVT.Size", Size)
-        ORB.registerValueType("testVT.Matrix", Matrix)
-        ORB.registerValueType("testVT.Figure", Figure)
-        ORB.registerValueType("testVT.Rectangle", Rectangle)
-        ORB.registerValueType("testVT.FigureModel", FigureModel)
-
         mockConnection(serverORB, clientORB).name = "acceptedORB"
 
         let server = stub.testVT.Server.narrow(await clientORB.resolve("Server"))
@@ -167,15 +167,15 @@ describe("corba.js", function() {
 
         // figure with matrix === undefined
         let model = new FigureModel()
-        let rect0 = new Rectangle(10, 20, 30, 40)
+        let rect0 = new Rectangle({origin: {x: 10, y: 20}, size: {width:30, height:40}})
         expect(rect0.matrix).to.be.undefined
         rect0.id = 777
         model.data.push(rect0)
 
         // figure with matrix !== undefined
-        let rect1 = new Rectangle(50, 60, 70, 80)
+        let rect1 = new Rectangle({origin: {x: 50, y: 60}, size: {width:70, height:80}})
         rect1.id = 1911
-        rect1.matrix = new Matrix({a:0, b:1, c:2, d:3, e:4, f:5})
+        rect1.matrix = new VTMatrix({a:0, b:1, c:2, d:3, e:4, f:5})
         model.data.push(rect1)
 
         // send figure model through the network
@@ -188,8 +188,8 @@ describe("corba.js", function() {
         expect(rectangle0.toString()).to.equal("Rectangle: (10,20,30,40)")
         expect(rectangle0.id).to.equal(777)
         expect(rectangle0.matrix).to.be.undefined
-        expect(rectangle0.origin).to.be.an.instanceof(Point)
-        expect(rectangle0.origin.toString()).to.equal("Point: x=10, y=20")
+        expect(rectangle0.origin).to.be.an.instanceof(VTPoint)
+        expect(rectangle0.origin.toString()).to.equal("VTPoint: x=10, y=20")
         expect(rectangle0.size).to.be.an.instanceof(Size)
         expect(rectangle0.size.toString()).to.equal("Size: width=30, height=40")
 
@@ -197,17 +197,17 @@ describe("corba.js", function() {
         let rectangle1 = Client_impl.figureModelReceivedFromServer!.data[1] as Rectangle
         expect(rectangle1.toString()).to.equal("Rectangle: (50,60,70,80)")
         expect(rectangle1.id).to.equal(1911)
-        expect(rectangle1.matrix).to.deep.equal(new Matrix({a:0, b:1, c:2, d:3, e:4, f:5}))
-        expect(rectangle1.origin).to.be.an.instanceof(Point)
-        expect(rectangle1.origin.toString()).to.equal("Point: x=50, y=60")
+        expect(rectangle1.matrix).to.deep.equal(new VTMatrix({a:0, b:1, c:2, d:3, e:4, f:5}))
+        expect(rectangle1.origin).to.be.an.instanceof(VTPoint)
+        expect(rectangle1.origin.toString()).to.equal("VTPoint: x=50, y=60")
         expect(rectangle1.size).to.be.an.instanceof(Size)
         expect(rectangle1.size.toString()).to.equal("Size: width=70, height=80")
 
         // one can call serialize/deserialize directly
-        let str = '{"#T":"testVT.Rectangle","#V":{"id":1138,"origin":{"#T":"testVT.Point","#V":{"x":10,"y":20}},"size":{"#T":"testVT.Size","#V":{"width":30,"height":40}}}}'
+        let str = '{"#T":"testVT.Rectangle","#V":{"id":1138,"origin":{"#T":"VTPoint","#V":{"x":10,"y":20}},"size":{"#T":"testVT.Size","#V":{"width":30,"height":40}}}}'
         
         let r0 = clientORB.deserialize(str)
-        let r1 = new Rectangle(10, 20, 30, 40)
+        let r1 = new Rectangle({origin: {x: 10, y: 20}, size: {width:30, height:40}})
         r1.id = 1138
         expect(r0).to.deep.equal(r1)
 
@@ -215,5 +215,49 @@ describe("corba.js", function() {
         expect(r2).to.equal(str)
 
         // another try with matrix?
+    })
+
+    describe("initialization", ()=>{
+        it("create point", ()=>{
+            let point = new (ORB.lookupValueType("VTPoint"))({x: 10, y: 20})
+            expect(point).to.be.an.instanceof(VTPoint)
+            expect(point.x).to.equal(10)
+            expect(point.y).to.equal(20)
+        })
+        it("create size", ()=>{
+            let size = new (ORB.lookupValueType("testVT.Size"))()
+            expect(size).to.be.an.instanceof(Size)
+        })
+        it("when no initializer is given _ptr valuetype members are left undefined", ()=>{
+            let f = new Rectangle()
+            expect(f.origin).to.be.an.instanceof(VTPoint)
+            expect(f.size).to.be.an.instanceof(Size)
+            expect(f.matrix).to.be.undefined
+
+            let orb = new ORB()
+            orb.serialize(f)
+        })
+        it("when not part of the initializer _ptr valuetype members are left undefined", ()=>{
+            let f = new Rectangle({})
+            expect(f.origin).to.be.an.instanceof(VTPoint)
+            expect(f.size).to.be.an.instanceof(Size)
+            expect(f.matrix).to.be.undefined
+
+            let orb = new ORB()
+            orb.serialize(f)
+        })
+        it("when part of initializer...", ()=>{
+            let f = new Rectangle({origin: {x: 10, y: 20}, size: {width:30, height:40}})
+            expect(f.origin).to.be.an.instanceof(VTPoint)
+            expect(f.origin.x).to.equal(10)
+            expect(f.origin.y).to.equal(20)
+            expect(f.size).to.be.an.instanceof(Size)
+            expect(f.size.width).to.equal(30)
+            expect(f.size.height).to.equal(40)
+            expect(f.matrix).to.be.undefined
+
+            let orb = new ORB()
+            orb.serialize(f)
+        })
     })
 })

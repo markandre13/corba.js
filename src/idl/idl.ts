@@ -43,14 +43,7 @@ function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE)
         throw Error("internal error: parser delivered no type information")
     switch(type!.type) {
         case Type.TKN_IDENTIFIER: {
-            if ( type.child.length>0 &&
-                 type.child[0]!.type === Type.TKN_NATIVE &&
-                 type.text!.length > 4 &&
-                 type.text!.substring(type.text!.length-4)==="_ptr" )
-            {
-                return type.text!.substring(0, type.text!.length-4) + " | undefined"
-            }
-
+            
             let identifierType = type.child[type.child.length-1]!
             let relativeName = ""
             for(let x of type.child) {
@@ -61,6 +54,14 @@ function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE)
             let absolutePrefix=""
             for(let x: Node|undefined=type.child[0]?.typeParent; x; x=x.typeParent) {
                 absolutePrefix=`.${x!.text}${absolutePrefix}`
+            }
+
+            if ( type.child.length>0 &&
+                type.child[0]!.type === Type.TKN_NATIVE &&
+                type.text!.length > 4 &&
+                type.text!.substring(type.text!.length-4)==="_ptr" )
+            {
+                return `${absolutePrefix.substring(1)} | undefined`
             }
 
             let name: string
@@ -552,19 +553,23 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                         let declarators  = state_member.child[2]!
                         for(let declarator of declarators.child) {
                             let decl_identifier = declarator!.text
-                            writeIndent(out, indent+2)
+                            writeIndent(out, indent+1)
                             if (type.type === Type.TKN_IDENTIFIER) {
                                 // FIXME: doesn't work for Array<Layer>()
                                 // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?
 //                                out.write(") ? new "+type.text+"() : new "+type.text+"(init."+decl_identifier+")\n")
 
+                                // console.log(`writeTSValueDefinitions`, type, typeIDLtoTS(type))
+                                
                                 if (type.child[0]?.type == Type.TKN_NATIVE &&
                                     type.text!.length > 4 &&
                                     type.text!.substring(type.text!.length-4)==="_ptr")
                                 {
-                                    out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${prefix}${type.text!.substring(0, type.text!.length-4)}"))(init.${decl_identifier})\n`)
+                                    let name = typeIDLtoTS(type)
+                                    out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init.${decl_identifier})\n`)
                                 } else {
-                                    out.write(`object.${decl_identifier} = new (ORB.lookupValueType("${prefix}${type.text}"))(init === undefined ? undefined : init.${decl_identifier})\n`)
+                                    let name = typeIDLtoTS(type).substring(10) // hack: strip "valuetype."
+                                    out.write(`object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init === undefined ? undefined : init.${decl_identifier})\n`)
                                 }
                             } else {
                                 out.write(`object.${decl_identifier} = (init === undefined || init.${decl_identifier} === undefined) ? `)

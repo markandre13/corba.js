@@ -286,8 +286,15 @@ function scoped_name(): Node | undefined
     }
 
     identifierToken.append(type)
-    if (type.type == Type.TKN_MODULE) {
+    if (type.type === Type.TKN_MODULE) {
         resolve_module(identifierToken, type)
+    }
+    if (type.type === Type.TKN_NATIVE &&
+        type.text!.length > 4 &&
+        type.text!.substring(type.text!.length-4)==="_ptr" &&
+        type.typeParent === undefined)
+    {
+        type.typeParent = scoper.getType(type.text!.substring(0, type.text!.length-4))
     }
     
     return identifierToken

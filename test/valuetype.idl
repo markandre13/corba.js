@@ -22,36 +22,32 @@
 
 // test the '_ptr' hack
 
-//valuetype Dummy {
-//    public double fubar;
-//};
+native VTPoint_ptr;
+native VTMatrix_ptr;
 
-native Point_ptr;
-native Matrix_ptr;
+valuetype VTPoint {
+    public double x, y;
+};
 
 module testVT {
-
-    valuetype Point {
-        public double x, y;
-    };
 
     valuetype Size {
         public double width, height;
     };
 
-    valuetype Matrix {
+    valuetype VTMatrix {
         public double a, b, c, d, e, f;
     };
 
     valuetype Figure {
         public unsigned long id;
-        public Matrix_ptr matrix;
+        public VTMatrix_ptr matrix;
 
-        Point_ptr getHandlePosition(in unsigned short handleId);
+        VTPoint_ptr getHandlePosition(in unsigned short handleId);
     };
 
     valuetype Rectangle: Figure {
-        public Point origin;
+        public VTPoint origin;
         public Size size;
     };
 
