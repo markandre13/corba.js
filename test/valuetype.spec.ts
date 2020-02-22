@@ -84,7 +84,7 @@ class Rectangle extends Figure implements valuetype.testVT.Rectangle {
     origin: Point
     size: Size
     constructor(x?: number, y?: number, width?: number, height?: number) {
-        super()
+        super({})
         this.origin = new Point(x, y)
         this.size   = new Size(width, height)
     }
@@ -168,6 +168,7 @@ describe("corba.js", function() {
         // figure with matrix === undefined
         let model = new FigureModel()
         let rect0 = new Rectangle(10, 20, 30, 40)
+        expect(rect0.matrix).to.be.undefined
         rect0.id = 777
         model.data.push(rect0)
 

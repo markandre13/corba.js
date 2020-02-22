@@ -562,9 +562,9 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                                     type.text!.length > 4 &&
                                     type.text!.substring(type.text!.length-4)==="_ptr")
                                 {
-                                    out.write(`if (init !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${type.text!.substring(0, type.text!.length-4)}"))(init.${decl_identifier})\n`)
+                                    out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${prefix}${type.text!.substring(0, type.text!.length-4)}"))(init.${decl_identifier})\n`)
                                 } else {
-                                    out.write(`object.${decl_identifier} = new (ORB.lookupValueType("${type.text}"))(init === undefined ? undefined : init.${decl_identifier})\n`)
+                                    out.write(`object.${decl_identifier} = new (ORB.lookupValueType("${prefix}${type.text}"))(init === undefined ? undefined : init.${decl_identifier})\n`)
                                 }
                             } else {
                                 out.write(`object.${decl_identifier} = (init === undefined || init.${decl_identifier} === undefined) ? `)
