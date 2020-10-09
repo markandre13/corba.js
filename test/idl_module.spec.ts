@@ -6,7 +6,7 @@ const expect = chai.expect
 import { ORB } from "../src/orb/orb-nodejs"
 import * as _interface from "./idl_module"
 import * as value from "./idl_module_value"
-import * as valueimpl from "./idl_module_valueimpl"
+//import * as valueimpl from "./idl_module_valueimpl"
 import * as valuetype from "./idl_module_valuetype"
 import * as skel from "./idl_module_skel"
 import * as stub from "./idl_module_stub"
@@ -37,9 +37,10 @@ class N1 {
 }
 
 // valutetype V1
-class V1 extends valueimpl.V1 {
-    constructor(value?: Partial<V1>) {
-        super(value)
+class V1 implements valuetype.V1 {
+    a!: number
+    constructor(init?: Partial<V1>) {
+        value.initV1(this, init)
     }
     // N1 f(in N1 a);
     f(a: N1): N1 {
@@ -51,9 +52,10 @@ namespace M1 {
 
     class N2 {}
 
-    export class V2 extends valueimpl.M1.V2 {
-        constructor(value?: Partial<V2>) {
-            super(value)
+    export class V2 implements value.M1.V2 {
+        a!: number
+        constructor(init?: Partial<V2>) {
+            value.M1.initV2(this, init)
         }
         f(a: N1): N1 {
             return a
@@ -64,9 +66,10 @@ namespace M1 {
     }
 
     export namespace M2 {
-        export class V3 extends valueimpl.M1.M2.V3 {
-            constructor(value?: Partial<V3>) {
-                super(value)
+        export class V3 implements value.M1.M2.V3 {
+            a!: number
+            constructor(init?: Partial<V3>) {
+                value.M1.M2.initV3(this, init)
             }
             f(a: N1): N1 {
                 throw Error("not implemented")

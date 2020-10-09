@@ -37,6 +37,7 @@ module testVT {
 
     valuetype VTMatrix {
         public double a, b, c, d, e, f;
+        void identity();
     };
 
     valuetype Figure {

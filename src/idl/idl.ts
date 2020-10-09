@@ -851,7 +851,6 @@ Options:
   --ts-stub       create TypeScript stub file
   --ts-skeleton   create TypeScript skeleton file
   --ts-valuetype  create TypeScript valuetype file
-  --ts-valueimpl  create TypeScript valuetype implementation file
   --debug|-d      increase debug level
   --help|-h       this page
 `)
@@ -867,7 +866,7 @@ for(i=2; i<process.argv.length; ++i) {
             ++i
             break argloop
         case "--ts-all":
-            tsInterface = tsStub = tsSkeleton = tsValueType = tsValueImpl = true
+            tsInterface = tsStub = tsSkeleton = tsValueType = true
             break
         case "--ts-interface":
             tsInterface = true
@@ -881,9 +880,9 @@ for(i=2; i<process.argv.length; ++i) {
         case "--ts-valuetype":
             tsValueType = true
             break
-        case "--ts-valueimpl":
-            tsValueImpl = true
-            break
+        // case "--ts-valueimpl":
+        //     tsValueImpl = true
+        //     break
         case "--debug":
         case "-d":
             ++debug

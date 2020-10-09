@@ -20,52 +20,60 @@
 
 import { ORB } from "../src/orb/orb-nodejs"
 import * as value from "./valuetype_value"
-import * as valueimpl from "./valuetype_valueimpl"
+//import * as valueimpl from "./valuetype_valueimpl"
 import * as valuetype from "./valuetype_valuetype"
 import * as skel from "./valuetype_skel"
 import * as stub from "./valuetype_stub"
 import { mockConnection } from "./util"
 
-class VTPoint extends valueimpl.VTPoint
+class VTPoint implements value.VTPoint
 {
     x!: number
     y!: number
     
     constructor(init: Partial<VTPoint>) {
-        super(init)
+        value.initVTPoint(this, init)
     }
     toString(): string {
         return "VTPoint: x="+this.x+", y="+this.y
     }
 }
 
-class Size extends valueimpl.testVT.Size {
+class Size implements value.testVT.Size {
     width!: number
     height!: number
     constructor(init: Partial<Size>) {
-        super(init)
+        value.testVT.initSize(this, init)
     }
     toString(): string {
         return "Size: width="+this.width+", height="+this.height
     }
 }
 
-class VTMatrix extends valueimpl.testVT.VTMatrix {
+class VTMatrix implements value.testVT.VTMatrix {
+    a!: number
+    b!: number
+    c!: number
+    d!: number
+    e!: number
+    f!: number
     constructor(matrix?: Partial<VTMatrix>) {
-        super(matrix)
+        value.testVT.initVTMatrix(this, matrix)
         if (matrix === undefined) {
             this.a = 1.0
             this.d = 1.0
         }
     }
+    identity() {
+    }
 }
 
-abstract class Figure extends valueimpl.testVT.Figure {
+abstract class Figure implements value.testVT.Figure {
     id: number = 0
     matrix: VTMatrix | undefined
     
     constructor(init?: Partial<Figure>) {
-        super(init)
+        value.testVT.initFigure(this, init)
     }
 
     abstract toString(): string
@@ -78,7 +86,7 @@ class FigureModel {
     }
 }
 
-class Rectangle extends Figure implements valueimpl.testVT.Rectangle {
+class Rectangle extends Figure implements value.testVT.Rectangle {
     origin!: VTPoint
     size!: Size
     constructor(init?: Partial<Rectangle>) {
