@@ -7,8 +7,7 @@ module.exports = (config) => {
       { pattern: "src/orb/*.ts" }
     ],
     preprocessors: { 
-      "**/*.ts": ["karma-typescript"],
-      "": ['coverage'] // get's accidentily executed when installed
+      "**/*.ts": ["karma-typescript"]
     },
     reporters: ["mocha", "karma-typescript"],
     karmaTypescriptConfig: {
