@@ -38,7 +38,7 @@ class Server_impl extends skel.Server {
     }
 
     async call() {
-        this.name = name
+        // this.name = "XXX"
         this.wasCalled = true
         return 0
     }
@@ -69,7 +69,7 @@ class Listener_impl extends skel.Listener {
     }
 
     async call() {
-        this.name = name
+        // this.name = name
         this.wasCalled = true
         return 0
     }
@@ -100,9 +100,9 @@ describe("access", async function() {
         serverB.wasCalled = false
         serverStub.call()
         expect(serverA.wasCalled).to.equal(true)
-        expect(serverB.wasCalled).to.equal(false)
+        expect(serverB.wasCalled).to.equal(false);
 
-        serverStub.id = serverB.id
+        (serverStub as any).id = (serverB as any).id
 
         // object not published with bind can not be accessed
         serverA.wasCalled = false
@@ -158,10 +158,10 @@ describe("access", async function() {
         // make a legal call to the client
         objectA.wasCalled = false
         await objectAStub!.call()
-        expect(objectA.wasCalled).to.equal(true)
+        expect(objectA.wasCalled).to.equal(true);
 
         // make an illegal call to the client
-        objectAStub!.id = objectB.id
+        (objectAStub as any).id = (objectB as any).id
 
         objectA.wasCalled = false
         objectB.wasCalled = false
@@ -213,10 +213,10 @@ describe("access", async function() {
         // make a legal call to the server
         objectA.wasCalled = false
         await objectAStub!.call()
-        expect(objectA.wasCalled).to.equal(true)
+        expect(objectA.wasCalled).to.equal(true);
         
         // make an illegal call to the client
-        objectAStub.id = objectB.id
+        (objectAStub as any).id = (objectB as any).id
 
         objectA.wasCalled = false
         objectB.wasCalled = false

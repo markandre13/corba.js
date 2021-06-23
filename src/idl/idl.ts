@@ -315,8 +315,7 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
             
                             let identifier = op_dcl.child[2]!.text
                             let parameter_decls = op_dcl.child[3]!.child
-                            out.write("    abstract async ")
-                            out.write(identifier+"(")
+                            out.write(`    abstract ${identifier}(`)
                             let comma = false
                             for(let parameter_dcl of parameter_decls) {
                                 let attribute = parameter_dcl!.child[0]!.type
@@ -332,7 +331,7 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                                 }
                                 out.write(identifier+": "+typeIDLtoTS(type, FileType.SKELETON))
                             }
-                            out.write("): Promise<" + typeIDLtoTS(type, FileType.SKELETON) + ">\n")
+                            out.write(`): Promise<${typeIDLtoTS(type, FileType.SKELETON)}>\n`)
                         } break
                         case Type.TKN_ATTRIBUTE: {
                         } break
@@ -924,12 +923,15 @@ for(; i<process.argv.length; ++i) {
     else
         filenameLocal = filenamePrefix.substr(n+1)
 
-    let filedata 
+    let filedata: string
     try {
         filedata = fs.readFileSync(filename, "utf8")
     }
     catch(error) {
-        console.log(`corba-idl: error: failed to read file '${filename}': ${error.message}`)
+        if (error instanceof Error)
+            console.log(`corba-idl: error: failed to read file '${filename}': ${error.message}`)
+        else
+            console.log(error)
         process.exit(1)
     }
 
@@ -939,9 +941,13 @@ for(; i<process.argv.length; ++i) {
         syntaxTree = specification(lexer)
     }
     catch(error) {
-        console.log(`corba-idl: error: ${error.message} in file '${filename}' at line ${lexer.line}, column ${lexer.column}`)
-        if (debug)
-            console.log(error.stack)
+        if (error instanceof Error) {
+            console.log(`corba-idl: error: ${error.message} in file '${filename}' at line ${lexer.line}, column ${lexer.column}`)
+            if (debug)
+                console.log(error.stack)
+        } else {
+            console.log(error)
+        }
         process.exit(1)
     }
     if (syntaxTree === undefined) {
@@ -966,9 +972,13 @@ for(; i<process.argv.length; ++i) {
             writeTSValueImpl(syntaxTree!)
     }
     catch(error) {
-        console.log(`corba-idl: error: ${error.message} in file '${filename}'`)
-        if (debug)
-            console.log(error.stack)
+        if (error instanceof Error) {
+            console.log(`corba-idl: error: ${error.message} in file '${filename}'`)
+            if (debug)
+                console.log(error.stack)
+        } else {
+            console.log(error)
+        }
         process.exit(1)
     }
 }

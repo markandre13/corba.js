@@ -4,7 +4,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "traceResolution": false,
-    "lib": ["es5", "es6", "es2017.object", "dom"],
+    "lib": ["dom", "esnext"],
     "baseUrl": ".",
     "paths": {
       "corba.js": [ "src/orb/orb.ts" ]
@@ -12,6 +12,8 @@
     "outDir": "lib",
     "declaration": true,
     "strict": true,
+    "strictNullChecks": true,
+    "noImplicitOverride": true,
     "allowJs": false,
     "noImplicitAny": true,
     "inlineSourceMap": false,

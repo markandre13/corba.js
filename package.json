@@ -1,6 +1,6 @@
 {
   "name": "corba.js",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
   "author": "Mark-André Hopf <mhopf@mark13.org>",
   "license": "GPL-3.0",
@@ -15,29 +15,30 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "bin/corba-idl --ts-all test/*.idl && karma start"
+    "test": "bin/corba-idl --ts-all test/*.idl && karma start",
+    "update": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {
-    "@types/chai": "^4.2.13",
-    "@types/chai-as-promised": "^7.1.3",
-    "@types/mocha": "^5.2.7",
-    "@types/node": "^11.15.31",
-    "@types/ws": "^6.0.4",
-    "bufferutil": "^4.0.1",
-    "chai": "^4.2.0",
+    "@types/chai": "^4.2.19",
+    "@types/chai-as-promised": "^7.1.4",
+    "@types/mocha": "^8.2.2",
+    "@types/node": "^15.12.4",
+    "@types/ws": "^7.4.5",
+    "bufferutil": "^4.0.3",
+    "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
-    "karma": "^5.2.3",
+    "karma": "^6.3.4",
     "karma-chai": "^0.1.0",
-    "karma-chrome-launcher": "^2.2.0",
+    "karma-chrome-launcher": "^3.1.0",
     "karma-mocha": "^2.0.1",
     "karma-mocha-reporter": "^2.2.5",
     "karma-source-map-support": "^1.4.0",
-    "karma-typescript": "^5.2.0",
-    "mocha": "^6.2.3",
-    "typescript": "^3.9.7",
-    "utf-8-validate": "^5.0.2"
+    "karma-typescript": "^5.5.1",
+    "mocha": "^9.0.1",
+    "typescript": "^4.3.4",
+    "utf-8-validate": "^5.0.5"
   },
   "dependencies": {
-    "ws": "^6.2.1"
+    "ws": "^7.5.0"
   }
 }

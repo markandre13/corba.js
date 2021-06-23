@@ -41,7 +41,7 @@ export class ORB extends Browser.ORB {
     const wss = new WebSocket.Server({ server });
 */
 
-    async listen(host: string, port: number): Promise<void> {
+    override async listen(host: string, port: number): Promise<void> {
         return new Promise<void>( (resolve, reject) => {
             const wss = new WebSocket.Server({host: host,port: port}, function() {
                 resolve()
@@ -63,7 +63,7 @@ export class ORB extends Browser.ORB {
         })
     }
     
-    accept() {
+    override accept() {
         this.socket.onmessage = (message: any) => {	// FIXME: we have almost the same code in send()
             if (this.debug>0) {
                 console.log("ORB.accept(): got message ", message.data)
@@ -77,7 +77,8 @@ export class ORB extends Browser.ORB {
                     this.handleMethod(msg)
                 }
                 catch(error) {
-                    console.log(error.message)
+                    if (error instanceof Error)
+                        console.log(error.message)
                     throw error
                 }
             } else

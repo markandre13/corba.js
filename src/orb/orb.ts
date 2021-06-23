@@ -366,7 +366,10 @@ export class ORB implements EventTarget {
                         this.handleMethod(msg)
                     }
                     catch(error) {
-                        console.log(error.message)
+                        if (error instanceof Error)
+                            console.log(error.message)
+                        else
+                            console.log(error)
                         throw error
                     }
                 } else
@@ -384,8 +387,9 @@ export class ORB implements EventTarget {
                 reject(err)
             }
             this.socket.send(JSON.stringify(data))
-            if (oneway)
-                resolve()
+            if (oneway) {
+                resolve(undefined)
+            }
         })
     }
 
