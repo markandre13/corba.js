@@ -2,3 +2,5 @@
 src/
 test/
 coverage/
+karma.conf.js
+tsconfig.json
