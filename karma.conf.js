@@ -11,6 +11,7 @@ module.exports = (config) => {
     },
     reporters: ["mocha", "karma-typescript"],
     karmaTypescriptConfig: {
+      stopOnFailure: false,
       tsconfig: "tsconfig.json",
       bundlerOptions: {
         sourceMap: true
