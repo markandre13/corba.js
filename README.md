@@ -16,11 +16,8 @@ http://www.corba.org/
 * After SOAP became more and more complicated, SOAP was replaced by REST.
 * With the advent of WebApps and WebSockets, CORBA became feasible again.
 
-corba.js is currently being written to develop <a
-href="https://github.com/markandre13/workflow">workflow - A collaborative
-real-time white- and kanban board</a>, which has so much communication
-happening between the server and it's clients, that I wanted as much of the
-network code being created automatically.
+corba.js is currently being written to develop [workflow](https://github.com/markandre13/workflow#readme), which has so much communication
+happening between the server and it's clients, that I wanted as much of the network code being created automatically.
 
 ## Interfaces
 
@@ -249,10 +246,9 @@ be exchanged between ORBs. These can be declared as 'native':
     }
 ```
 
-NOTE: corba.js does not implement CORBA's capability to handle pointers, ie. when
+_NOTE: corba.js does not implement CORBA's capability to handle pointers, ie. when
 two objects are referencing the same object, two instances of the object will be
-created on the other side instead of one. As this feature might simplify the implementation
-of the Workflow App, it might be implemented for corba.js in the future.
+created on the other side instead of one. This is going to change with the implementation of CORBA's binary encoding GIOP._
 
 ## IDL
 
@@ -267,6 +263,8 @@ which didn't require thinking like the full list of keywords and no
 changes to the grammar).
 
 ## Protocol
+
+_NOTE: Since [workflow](https://github.com/markandre13/workflow#readme) began to use corba.js to export/import drawing, it turned out using JSON requires quite a lot of space. Because of that I began to implement a binary encoding based on CORBA's GIOP, which, at the same time, will also take care of pointers._
 
 corba.js does not implement the CORBA network protocol (GIOP/IIOP).
 

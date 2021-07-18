@@ -16,6 +16,7 @@
   "scripts": {
     "build": "tsc",
     "test": "bin/corba-idl --ts-all test/*.idl && karma start",
+    "test:watch": "bin/corba-idl --ts-all test/*.idl && karma start --singleRun=false --autoWatch=true | grep -v '^Chrome Headless .* LOG:'",
     "update": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {
