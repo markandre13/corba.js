@@ -17,14 +17,15 @@
     "build": "tsc",
     "test": "bin/corba-idl --ts-all test/*.idl && karma start",
     "test:watch": "bin/corba-idl --ts-all test/*.idl && karma start --singleRun=false --autoWatch=true | grep -v '^Chrome Headless .* LOG:'",
+    "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'test/giop.spec.ts'",
     "update": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {
-    "@types/chai": "^4.2.19",
+    "@types/chai": "^4.2.21",
     "@types/chai-as-promised": "^7.1.4",
-    "@types/mocha": "^8.2.2",
-    "@types/node": "^15.12.4",
-    "@types/ws": "^7.4.5",
+    "@types/mocha": "^8.2.3",
+    "@types/node": "^16.3.3",
+    "@types/ws": "^7.4.6",
     "bufferutil": "^4.0.3",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
@@ -35,11 +36,12 @@
     "karma-mocha-reporter": "^2.2.5",
     "karma-source-map-support": "^1.4.0",
     "karma-typescript": "^5.5.1",
-    "mocha": "^9.0.1",
-    "typescript": "^4.3.4",
+    "mocha": "^9.0.2",
+    "ts-node": "^10.1.0",
+    "typescript": "^4.3.5",
     "utf-8-validate": "^5.0.5"
   },
   "dependencies": {
-    "ws": "^7.5.0"
+    "ws": "^7.5.3"
   }
 }

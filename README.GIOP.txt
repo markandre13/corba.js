@@ -186,3 +186,23 @@ b8 ff ff ff indirection, positive indirection are reserved for future use
 <codebase_URL> ::= ( string | <indirection_tag> <indirection> )
 <block_size_tag> ::= long // 0 < block_size_tag < 2^31-256 (0x7fffff00)
 <end_tag> := long // -2^31 < end_tag < 0
+
+
+	0x0000:  4500 0078 c3c6 4000 4006 f296 c0a8 0169  E..x..@.@......i
+	0x0010:  c0a8 0169 bbd2 2328 4858 08b6 229f c2e3  ...i..#(HX.."...
+	0x0020:  8018 0200 848d 0000 0101 080a c912 5681  ..............V.
+
+send by mico, works
+	0x0030:  47 49 4f 50 01 00 01 00 38 00 00 00 00 00 00 00  GIOP....8.......
+	0x0040:  02 00 00 00 01 00 00 00 13 00 00 00 2f 31 35 35  ............/155
+	0x0050:  37 2f 31 36 32 36 37 32 32 35 35 39 2f 5f 30 00  7/1626722559/_0.
+	0x0060:  09 00 00 00 67 65 74 50 6f 69 6e 74 00 00 00 00  ....getPoint....
+	0x0070:  00 00 00 00                                      ....
+
+NOTE: it seems that some strings are 0 terminate while others are not
+
+object key: 19 bytes, 0x13, no trailing 0
+/1557/1626722559/_0
+
+9 bytes, trailing 0
+getPoint
