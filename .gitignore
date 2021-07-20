@@ -1,1 +1,8 @@
+.DS_Store
+*~
+DEADJOE
 node_modules
+lib
+coverage
+test/*.ts
+!test/*.spec.ts
