@@ -20,7 +20,6 @@ import { expect } from "chai"
 import * as net from "net"
 
 // 9.4 GIOP Message Formats
-
 enum MessageType {
     REQUEST = 0,
     REPLY = 1,
@@ -55,20 +54,22 @@ class GIOPBase {
 }
 
 class GIOPEncoder extends GIOPBase {
-    buffer = new ArrayBuffer(0x16 * 10)
+    buffer = new ArrayBuffer(0x16 * 10) // write code to extend on demand, fragment really large messages?
     data = new DataView(this.buffer)
     bytes = new Uint8Array(this.buffer)
     
     protected static textEncoder = new TextEncoder()
 
-    static endian?: boolean
+    static littleEndian?: boolean
 
     constructor() {
         super()
-        if (GIOPEncoder.endian === undefined) {
+        // use the systems endianes
+        if (GIOPEncoder.littleEndian === undefined) {
             const buffer = new ArrayBuffer(2)
             new Int16Array(buffer)[0] = 0x1234
-            GIOPEncoder.endian = new DataView(buffer).getUint8(0) === 0x34
+            GIOPEncoder.littleEndian = new DataView(buffer).getUint8(0) === 0x34
+            // GIOPEncoder.littleEndian = false
         }
     }
 
@@ -82,33 +83,34 @@ class GIOPEncoder extends GIOPBase {
 
     setGIOPHeader(type: MessageType) {
         this.data.setUint32(0, 0x47494f50)
+        
         this.data.setUint8(4, GIOPEncoder.MAJOR_VERSION)
         this.data.setUint8(5, GIOPEncoder.MINOR_VERSION)
-        this.data.setUint8(6, GIOPEncoder.endian ? GIOPEncoder.ENDIAN_LITTLE : GIOPEncoder.ENDIAN_BIG)
+        this.data.setUint8(6, GIOPEncoder.littleEndian ? GIOPEncoder.ENDIAN_LITTLE : GIOPEncoder.ENDIAN_BIG)
         this.data.setUint8(7, type)
-        this.data.setUint32(8, this.offset - 12, GIOPEncoder.endian)
+
+        this.data.setUint32(8, this.offset - 12, GIOPEncoder.littleEndian)
     }
-
-    // x() {
-    //     const serviceContextListLength = 0
-    //     this.dwords[3] = serviceContextListLength
-    //     const requestId = 0 // from the request this reply is associated with
-    //     this.dwords[4] = requestId
-    //     const replyStatus = 0 // no exception
-    //     this.dwords[5] = replyStatus
-    // }
-
+  
     type(name: string) {
         this.dword(0x7fffff02)
         const repositoryId = `IDL:${name}:1.0`
         this.string(repositoryId)
     }
 
-    string(value: string) {
+    blob(value: string) {
         this.dword(value.length)
         const rawString = GIOPEncoder.textEncoder.encode(value)
         this.bytes.set(rawString, this.offset)
-        this.offset += value.length + 1
+        this.offset += value.length
+    }
+
+    string(value: string) {
+        this.dword(value.length+1)
+        this.bytes.set(GIOPEncoder.textEncoder.encode(value), this.offset)
+        this.offset += value.length
+        this.bytes[this.offset] = 0
+        this.offset++
     }
 
     byte(value: number) {
@@ -117,23 +119,24 @@ class GIOPEncoder extends GIOPBase {
     }
 
     word(value: number) {
-        this.align(4)
-        this.data.setUint16(this.offset, value, GIOPEncoder.endian)
+        this.align(2)
+        this.data.setUint16(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 2
     }
 
     dword(value: number) {
         this.align(4)
-        this.data.setUint32(this.offset, value, GIOPEncoder.endian)
+        this.data.setUint32(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 4
     }
 
     double(value: number) {
         this.align(8)
-        this.data.setFloat64(this.offset, value, GIOPEncoder.endian)
+        this.data.setFloat64(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 8
     }
 
+    // just in case the host doesn't support IEEE 754
     slowDouble(value: number) {
         this.align(8)
 
@@ -195,13 +198,11 @@ class GIOPEncoder extends GIOPBase {
 }
 
 class GIOPDecoder extends GIOPBase {
-    protected buffer: ArrayBuffer
-    protected data: DataView
-    protected bytes: Uint8Array
-    // protected words: Uint16Array
-    // protected dwords: Uint32Array
+    buffer: ArrayBuffer
+    data: DataView
+    bytes: Uint8Array
 
-    endian = true
+    littleEndian = true
 
     protected static textDecoder = new TextDecoder()
 
@@ -210,28 +211,69 @@ class GIOPDecoder extends GIOPBase {
         this.buffer = buffer
         this.data = new DataView(buffer)
         this.bytes = new Uint8Array(this.buffer)
-        // this.words = new Uint16Array(this.buffer)
-        // this.dwords = new Uint32Array(this.buffer)
-        this.offset = 0x18
+    }
+
+    scanGIOPHeader(expectType: MessageType) {
+        const magic = this.data.getUint32(0)
+        if (magic !== 0x47494f50) {
+            throw Error(`Missing GIOP Header Magic Number`)
+        }
+
+        const giopMajorVersion = this.data.getUint8(4)
+        const giopMinorVersion = this.data.getUint8(5)
+        if (giopMajorVersion !== GIOPBase.MAJOR_VERSION && giopMinorVersion !== GIOPBase.MINOR_VERSION) {
+            throw Error(`Unsupported GIOP ${giopMajorVersion}.${giopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
+        }
+       
+        const byteOrder = this.data.getUint8(6)
+        this.littleEndian = byteOrder === GIOPBase.ENDIAN_LITTLE
+
+        const type = this.data.getUint8(7)
+        if (type !== expectType) {
+            throw Error(`Expected GIOP message type ${expectType} but got ${type}`)
+        }
+
+        const length = this.data.getUint32(8, GIOPEncoder.littleEndian)
+        if (this.buffer.byteLength !== length + 12) {
+            throw Error(`GIOP message is ${length + 12} bytes but buffer only contains ${this.buffer.byteLength}.`)
+        }
     }
 
     decode(): any {
         const code = this.dword()
         if (code === 0x7fffff02) {
             const len = this.dword()
-
+            // if len === 0xffffffff we have an indirection
             let name = this.string(len)
             if (name.length < 8 || name.substr(0, 4) !== "IDL:" || name.substr(name.length - 4) !== ":1.0")
                 throw Error(`Unsupported CORBA GIOP Repository ID '${name}'`)
 
             name = name.substr(4, name.length - 8)
-            if (name === "Point") {
+            if (name === "TPoint") {
                 const obj = new Point()
                 obj.decode(this)
                 return obj
             }
-            throw Error(`Unregistered CORBA Value Type ${name}`)
+            throw Error(`Unregistered CORBA Value Type 'IDL:${name}:1.0'`)
         }
+    }
+
+    blob(length?: number) {
+        if (length === undefined)
+            length = this.dword()
+        const rawString = this.bytes.subarray(this.offset, this.offset + length)
+        const value = GIOPDecoder.textDecoder.decode(rawString)
+        this.offset += length
+        return value
+    }
+
+    string(length?: number) {
+        if (length === undefined)
+            length = this.dword()
+        const rawString = this.bytes.subarray(this.offset, this.offset + length - 1)
+        const value = GIOPDecoder.textDecoder.decode(rawString)
+        this.offset += length
+        return value
     }
 
     byte() {
@@ -242,32 +284,26 @@ class GIOPDecoder extends GIOPBase {
 
     word() {
         this.align(2)
-        const value = this.data.getUint16(this.offset, this.endian)
+        const value = this.data.getUint16(this.offset, this.littleEndian)
         this.offset += 2
         return value
     }
 
     dword() {
         this.align(4)
-        const value = this.data.getUint32(this.offset, this.endian)
+        const value = this.data.getUint32(this.offset, this.littleEndian)
         this.offset += 4
-        return value
-    }
-
-    string(length?: number) {
-        if (length === undefined)
-            length = this.dword()
-        const rawString = this.bytes.subarray(this.offset, this.offset + length)
-        const value = GIOPDecoder.textDecoder.decode(rawString)
-        this.offset += length
         return value
     }
 
     double() {
         this.align(8)
-        return this.data.getFloat64(this.offset, this.endian)
+        const value = this.data.getFloat64(this.offset, this.littleEndian)
+        this.offset += 8
+        return value
     }
 
+    // just in case the host doesn't support IEEE 754
     slowDouble() {
         this.align(8)
         const lo = this.dword()
@@ -293,6 +329,43 @@ class GIOPDecoder extends GIOPBase {
 
 // ORB::object_to_string
 // ORB::string_to_object
+
+// Example IOR:
+//
+// 0000 01 00 00 00 0f 00 00 00 49 44 4c 3a 53 65 72 76 ........IDL:Serv
+//      ^           ^           ^
+//      |           |           OID: IDL:Server:1.0
+//      |           len
+//      byte order
+// 0010 65 72 3a 31 2e 30 00 00 02 00 00 00 00 00 00 00 er:1.0..........
+//                              ^           ^
+//                              |           tag id: TAG_INTERNET_IOP (9.7.2 IIOP IOR Profiles)
+//                              sequence length
+// 0020 2b 00 00 00 01 01 00 00 0a 00 00 00 31 32 37 2e +...........127.
+//      ^           ^           ^           ^
+//      |           |           |           host
+//      |           |           len
+//      |           iiop version major/minor
+//      tag length
+// 0030 30 2e 31 2e 31 00 65 9c 13 00 00 00 2f 32 35 35 0.1.1.e...../255
+//                        ^     ^           ^
+//                        |     |           object key
+//                        |     len
+//                        port
+// 0040 31 2f 31 35 32 34 38 39 35 31 36 38 2f 5f 30 00 1/1524895168/_0.
+//
+// 0050 01 00 00 00 24 00 00 00 01 00 00 00 01 00 00 00 ....$...........
+//      ^           ^           ^           ^
+//      |           |           |           component TAG_CODE_SETS ?
+//      |           |           seq length?
+//      |           tag length
+//      tag id: TAG_MULTIPLE_COMPONENTS
+// 0060 01 00 00 00 14 00 00 00 01 00 00 00 01 00 01 00 ................
+//      ^           ^
+//      |           len?
+//      native code set?
+// 0070 00 00 00 00 09 01 01 00 00 00 00 00             ............
+
 class IOR {
 
     static TAG_INTERNET_IOP = 0
@@ -309,7 +382,7 @@ class IOR {
         if (ior.substr(0, 4) != "IOR:")
             throw Error(`Missing "IOR:" prefix in "${ior}"`)
         if (ior.length & 1)
-            throw Error(`IOR has a wrong length."`)
+            throw Error(`IOR has a wrong length.`)
 
         const buffer = new ArrayBuffer((ior.length - 4) / 2)
         const bytes = new Uint8Array(buffer)
@@ -317,18 +390,20 @@ class IOR {
             bytes[j] = Number.parseInt(ior.substr(i, 2), 16)
         }
 
-        hexdump(bytes)
+        // hexdump(bytes)
 
         const decoder = new GIOPDecoder(buffer)
-        decoder.offset = 0
 
         const byteOrder = decoder.byte()
-        decoder.endian = byteOrder === GIOPBase.ENDIAN_LITTLE
+        decoder.littleEndian = byteOrder === GIOPBase.ENDIAN_LITTLE
 
         const oid = decoder.string()
+        if (oid !== "IDL:Server:1.0") {
+            throw Error(`Unsupported OID '${oid}'. Currently only 'IDL:Server:1.0' is implemented.`)
+        }
 
         const tagCount = decoder.dword()
-        console.log(`oid: '${oid}', tag count=${tagCount}`)
+        // console.log(`oid: '${oid}', tag count=${tagCount}`)
 
         for (let i = 0; i < tagCount; ++i) {
             const tagType = decoder.dword()
@@ -340,22 +415,27 @@ class IOR {
                 case IOR.TAG_INTERNET_IOP: {
                     const iiopMajorVersion = decoder.byte()
                     const iiopMinorVersion = decoder.byte()
+                    if (iiopMajorVersion !== GIOPBase.MAJOR_VERSION &&
+                        iiopMinorVersion !== GIOPBase.MINOR_VERSION)
+                    {
+                        throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
+                    }
                     this.host = decoder.string()
                     this.port = decoder.word()
-                    this.objectKey = decoder.string()
-                    console.log(`IIOP ${iiopMajorVersion}.${iiopMinorVersion} ${this.host}:${this.port} ${this.objectKey}`)
+                    this.objectKey = decoder.blob()
+                    // console.log(`IIOP ${iiopMajorVersion}.${iiopMinorVersion} ${this.host}:${this.port} ${this.objectKey}`)
                 } break
-                case IOR.TAG_MULTIPLE_COMPONENTS: {
-                    console.log(`Multiple Components`)
-                    const count = decoder.dword()
-                    console.log(`${count} components`)
-                } break
-                default:
-                    console.log(`Unhandled tag type=${tagType}`)
+                // case IOR.TAG_MULTIPLE_COMPONENTS: {
+                //     console.log(`Multiple Components`)
+                //     const count = decoder.dword()
+                //     console.log(`${count} components`)
+                // } break
+                // default:
+                //     console.log(`Unhandled tag type=${tagType}`)
             }
-            const unread = tagLength - (decoder.offset - tagStart)
-            if (unread > 0)
-                console.log(`note: ${unread} bytes at end of tag`)
+            // const unread = tagLength - (decoder.offset - tagStart)
+            // if (unread > 0)
+            //     console.log(`note: ${unread} bytes at end of tag`)
 
             decoder.offset = tagStart + tagLength
         }
@@ -371,8 +451,10 @@ class Point {
         this.y = y !== undefined ? y : 0
     }
 
+    // something like these would later be generated by the IDL compiler
+    // try to keep initializing objects from JSON as this also served nicely to serialize from/to databases.
     encode(encoder: GIOPEncoder) {
-        encoder.type("Point")
+        encoder.type("TPoint")
         encoder.double(this.x)
         encoder.double(this.y)
     }
@@ -393,8 +475,9 @@ describe("GIOP", () => {
         // encoder.hexdump()
 
         const decoder = new GIOPDecoder(encoder.buf)
+        decoder.offset = 0x18
         const pointOut = decoder.decode() as Point
-        // expect(pointOut)
+
         console.log(`point out = ${pointOut.x}, ${pointOut.y}`)
         expect(pointOut.x).to.equal(3.1415)
         expect(pointOut.y).to.equal(2.7182)
@@ -406,10 +489,6 @@ describe("GIOP", () => {
         // and hence we need to decode it
 
         // Spec: CORBA 3.3, 7.6.2 Interoperable Object References: IORs
-
-        //                   IOR:002020200000000f49444c3a73696d706c653a312e30002000000002564953010000004c000101200000000c31302e31302e31312e343700000071c2000000000000002700504d43000000000000000f49444c3a73696d706c653a312e3000200000000773696d706c650020000000000000000000000043000100200000000c31302e31302e31312e343700d71720200000002700504d43000000000000000f49444c3a73696d706c653a312e3000200000000773696d706c6500
-        // const ior = new IOR("IOR:010000001400000049444c3a53656375726548656c6c6f3a312e30000200000001000000240000000100000001000000010000001400000001000000010001000000000009010100000000000000000058000000010101001f000000736f72696e6d326b2e78326b2e6765636164736f6674776172652e636f6d00005c2f0000130000002f313536382f313034333038323033322f5f30000100000014000000080000000100660000005c2f")
-        // const ior = new IOR("IOR:010000000f00000049444c3a5365727665723a312e30000002000000000000002b000000010100000a0000003132372e302e312e3100659c130000002f323535312f313532343839353136382f5f30000100000024000000010000000100000001000000140000000100000001000100000000000901010000000000")
         const ior = new IOR("IOR:010000000f00000049444c3a5365727665723a312e30000002000000000000002f000000010100000e0000003139322e3136382e312e313035002823130000002f313039322f313632363830313131332f5f30000100000024000000010000000100000001000000140000000100000001000100000000000901010000000000")
 
         const client = new net.Socket()
@@ -418,71 +497,48 @@ describe("GIOP", () => {
 
             const encoder = new GIOPEncoder()
             encoder.skipGIOPHeader()
+
             encoder.dword(0) // serviceContextListLength
             const requestId = 1
             encoder.dword(requestId)
             const responseExpected = MessageType.REPLY
-            encoder.dword(responseExpected)
-            encoder.string(ior.objectKey!)
-            encoder.string("getPoint\0")
+            encoder.byte(responseExpected)
+            encoder.blob(ior.objectKey!)
+            encoder.string("getPoint")
             encoder.dword(0) // Requesting Principal length
-            // encoder.dword(0) // Requesting Principal length          
             encoder.setGIOPHeader(MessageType.REQUEST)
 
-            // console.log(">>>>>>>>>>>>>>")
-            // const decoder = new GIOPDecoder(encoder.bytes.subarray(0, encoder.offset))
-            // decoder.decode()
-            // console.log("<<<<<<<<<<<<<<")
-
             client.write(encoder.bytes.subarray(0, encoder.offset))
+            
             console.log(`wrote ${encoder.offset} bytes`)
             hexdump(encoder.bytes, 0, encoder.offset)
         })
 
-        client.on("data", function(data) {
+        client.on("data", function(data: Buffer) {
             console.log("received")
-            hexdump(new Uint8Array(data))
+            hexdump(data)
+
+            const decoder = new GIOPDecoder(data.buffer)
+            decoder.scanGIOPHeader(MessageType.REPLY)
+            console.log(`mico answered in ${decoder.littleEndian ? "little" : "big"} endian`)
+
+            // scanReplyHeader()
+            // offset should now be 16 ????
+
+            // dword serviceContextListLength should be 0
+            // dword requestId should be the 1 from the previous request
+            // dword replyStatus, 0 means no exception
+
+            // offset should now be 0x18
+            decoder.offset = 0x18
+            const pointOut = decoder.decode() as Point
+            console.log(`point out = ${pointOut.x}, ${pointOut.y}`)
+            // expect(pointOut.x).to.equal(3.1415)
+            // expect(pointOut.y).to.equal(2.7182)
+
+            client.destroy()
         })
 
-        // 0000 01 00 00 00 0f 00 00 00 49 44 4c 3a 53 65 72 76 ........IDL:Serv
-        //      ^           ^           ^
-        //      |           |           OID: IDL:Server:1.0
-        //      |           len
-        //      byte order
-        // 0010 65 72 3a 31 2e 30 00 00 02 00 00 00 00 00 00 00 er:1.0..........
-        //                              ^           ^
-        //                              |           tag id: TAG_INTERNET_IOP (9.7.2 IIOP IOR Profiles)
-        //                              sequence length
-        // 0020 2b 00 00 00 01 01 00 00 0a 00 00 00 31 32 37 2e +...........127.
-        //      ^           ^           ^           ^
-        //      |           |           |           host
-        //      |           |           len
-        //      |           iiop version major/minor
-        //      tag length
-        // 0030 30 2e 31 2e 31 00 65 9c 13 00 00 00 2f 32 35 35 0.1.1.e...../255
-        //                        ^     ^           ^
-        //                        |     |           object key
-        //                        |     len
-        //                        port
-        // 0040 31 2f 31 35 32 34 38 39 35 31 36 38 2f 5f 30 00 1/1524895168/_0.
-        //
-        // 0050 01 00 00 00 24 00 00 00 01 00 00 00 01 00 00 00 ....$...........
-        //      ^           ^           ^           ^
-        //      |           |           |           component TAG_CODE_SETS ?
-        //      |           |           seq length?
-        //      |           tag length
-        //      tag id: TAG_MULTIPLE_COMPONENTS
-        // 0060 01 00 00 00 14 00 00 00 01 00 00 00 01 00 01 00 ................
-        //      ^           ^
-        //      |           len?
-        //      native code set?
-        // 0070 00 00 00 00 09 01 01 00 00 00 00 00             ............
-
-        // step one: convert to binary
-        // step two: hexdump
-        // step three: annotate hexdump
-        // step four: decode IOR
-        // step five: connect to MICO
     })
 })
 
