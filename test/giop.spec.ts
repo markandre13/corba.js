@@ -218,25 +218,39 @@ class GIOPDecoder extends GIOPBase {
         if (magic !== 0x47494f50) {
             throw Error(`Missing GIOP Header Magic Number`)
         }
+        this.offset += 4
 
-        const giopMajorVersion = this.data.getUint8(4)
-        const giopMinorVersion = this.data.getUint8(5)
+        const giopMajorVersion = this.byte()
+        const giopMinorVersion = this.byte()
         if (giopMajorVersion !== GIOPBase.MAJOR_VERSION && giopMinorVersion !== GIOPBase.MINOR_VERSION) {
             throw Error(`Unsupported GIOP ${giopMajorVersion}.${giopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
         }
        
-        const byteOrder = this.data.getUint8(6)
+        const byteOrder = this.byte()
         this.littleEndian = byteOrder === GIOPBase.ENDIAN_LITTLE
 
-        const type = this.data.getUint8(7)
+        const type = this.byte()
         if (type !== expectType) {
             throw Error(`Expected GIOP message type ${expectType} but got ${type}`)
         }
 
-        const length = this.data.getUint32(8, GIOPEncoder.littleEndian)
+        const length = this.dword()
         if (this.buffer.byteLength !== length + 12) {
             throw Error(`GIOP message is ${length + 12} bytes but buffer only contains ${this.buffer.byteLength}.`)
         }
+    }
+
+    scanReplyHeader() {
+        const serviceContextListLength = this.dword()
+        if (serviceContextListLength !== 0)
+            throw Error(`serviceContextList is not supported`)
+        const requestId = this.dword()
+        const replyStatus = this.dword()
+        if (replyStatus !== 0)
+            throw Error(`replyState !0 is not supported`)
+        // dword serviceContextListLength should be 0
+        // dword requestId should be the 1 from the previous request
+        // dword replyStatus, 0 means no exception
     }
 
     decode(): any {
@@ -483,62 +497,77 @@ describe("GIOP", () => {
         expect(pointOut.y).to.equal(2.7182)
     })
 
-    it.only("decode IOR", () => {
+    it.only("decode IOR", async () => {
         // the idea is to test the GIOP encoding/decoding with MICO
         // for this we're going to use a IOR to connect to MICO
         // and hence we need to decode it
 
         // Spec: CORBA 3.3, 7.6.2 Interoperable Object References: IORs
-        const ior = new IOR("IOR:010000000f00000049444c3a5365727665723a312e30000002000000000000002f000000010100000e0000003139322e3136382e312e313035002823130000002f313039322f313632363830313131332f5f30000100000024000000010000000100000001000000140000000100000001000100000000000901010000000000")
+        const ior = new IOR("IOR:010000000f00000049444c3a5365727665723a312e30000002000000000000002f000000010100000e0000003139322e3136382e312e313035002823130000002f313130312f313632363838383434312f5f30000100000024000000010000000100000001000000140000000100000001000100000000000901010000000000")
 
-        const client = new net.Socket()
-        client.connect(ior.port!, ior.host!, function() {
-            console.log("connected")
+        class Socket {
+            socket = new net.Socket()
+            async connect(host: string, port: number) {
+                return new Promise<void>((resolve, reject) => {
+                    this.socket.on("error", reject)
+                    this.socket.connect(port, host, resolve)
+                })
+            }
+            write(data: string | Uint8Array) {
+                this.socket.write(data)
+            }
+            async read() {
+                return new Promise<Buffer>((resolve, reject) => {
+                    this.socket.on("error", reject)
+                    this.socket.on("data", resolve)
+                })
+            }
+            destroy() {
+                this.socket.destroy()
+            }
+        }
 
-            const encoder = new GIOPEncoder()
-            encoder.skipGIOPHeader()
+        const client = new Socket()
+        await client.connect(ior.host!, ior.port!)
 
-            encoder.dword(0) // serviceContextListLength
-            const requestId = 1
-            encoder.dword(requestId)
-            const responseExpected = MessageType.REPLY
-            encoder.byte(responseExpected)
-            encoder.blob(ior.objectKey!)
-            encoder.string("getPoint")
-            encoder.dword(0) // Requesting Principal length
-            encoder.setGIOPHeader(MessageType.REQUEST)
+        console.log("connected")
 
-            client.write(encoder.bytes.subarray(0, encoder.offset))
-            
-            console.log(`wrote ${encoder.offset} bytes`)
-            hexdump(encoder.bytes, 0, encoder.offset)
-        })
+        const encoder = new GIOPEncoder()
+        encoder.skipGIOPHeader()
 
-        client.on("data", function(data: Buffer) {
-            console.log("received")
-            hexdump(data)
+        encoder.dword(0) // serviceContextListLength
+        const requestId = 1
+        encoder.dword(requestId)
+        const responseExpected = MessageType.REPLY
+        encoder.byte(responseExpected)
+        encoder.blob(ior.objectKey!)
+        encoder.string("getPoint")
+        encoder.dword(0) // Requesting Principal length
+        encoder.setGIOPHeader(MessageType.REQUEST)
 
-            const decoder = new GIOPDecoder(data.buffer)
-            decoder.scanGIOPHeader(MessageType.REPLY)
-            console.log(`mico answered in ${decoder.littleEndian ? "little" : "big"} endian`)
+        client.write(encoder.bytes.subarray(0, encoder.offset))
+        
+        console.log(`wrote ${encoder.offset} bytes`)
+        hexdump(encoder.bytes, 0, encoder.offset)
 
-            // scanReplyHeader()
-            // offset should now be 16 ????
+        const data = await client.read()
+        console.log("received")
+        hexdump(data)
 
-            // dword serviceContextListLength should be 0
-            // dword requestId should be the 1 from the previous request
-            // dword replyStatus, 0 means no exception
+        const decoder = new GIOPDecoder(data.buffer)
 
-            // offset should now be 0x18
-            decoder.offset = 0x18
-            const pointOut = decoder.decode() as Point
-            console.log(`point out = ${pointOut.x}, ${pointOut.y}`)
-            // expect(pointOut.x).to.equal(3.1415)
-            // expect(pointOut.y).to.equal(2.7182)
+        decoder.scanGIOPHeader(MessageType.REPLY)
+        expect(decoder.offset).to.equal(0x0c)
 
-            client.destroy()
-        })
+        decoder.scanReplyHeader()
+        expect(decoder.offset).to.equal(0x18)
 
+        const pointOut = decoder.decode() as Point
+        console.log(`point out = ${pointOut.x}, ${pointOut.y}`)
+        // expect(pointOut.x).to.equal(3.1415)
+        // expect(pointOut.y).to.equal(2.7182)
+
+        client.destroy()
     })
 })
 
