@@ -281,12 +281,14 @@ export class GIOPDecoder extends GIOPBase {
         return value
     }
 
+    // char, octet
     byte() {
         const value = this.data.getUint8(this.offset)
         ++this.offset
         return value
     }
 
+    // short
     word() {
         this.align(2)
         const value = this.data.getUint16(this.offset, this.littleEndian)
@@ -294,6 +296,7 @@ export class GIOPDecoder extends GIOPBase {
         return value
     }
 
+    // long
     dword() {
         this.align(4)
         const value = this.data.getUint32(this.offset, this.littleEndian)

@@ -39,7 +39,7 @@ describe("GIOP", () => {
         expect(pointOut.y).to.equal(2.7182)
     })
 
-    it("get host, port and objectKey from IOR", () => {
+    it.only("get host, port and objectKey from IOR", () => {
         // Spec: CORBA 3.3, 7.6.2 Interoperable Object References: IORs
         const ior = new IOR("IOR:010000000f00000049444c3a5365727665723a312e30000002000000000000002f000000010100000e0000003139322e3136382e312e313035002823130000002f313130312f313632363838383434312f5f30000100000024000000010000000100000001000000140000000100000001000100000000000901010000000000")
         expect(ior.host).to.equal("192.168.1.105")
@@ -51,7 +51,7 @@ describe("GIOP", () => {
 
     describe("MICO ORB interaction", () => {
 
-        it.only("talk with MICO ORB", async () => {
+        it("talk with MICO ORB", async () => {
             // the idea is to test the GIOP encoding/decoding with MICO
             // for this we're going to use a IOR to connect to MICO
             // and hence we need to decode it
