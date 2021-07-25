@@ -79,7 +79,7 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     setGIOPHeader(type: MessageType) {
-        this.data.setUint32(0, 0x47494f50)
+        this.data.setUint32(0, 0x47494f50) // magic "GIOP"
 
         this.data.setUint8(4, GIOPEncoder.MAJOR_VERSION)
         this.data.setUint8(5, GIOPEncoder.MINOR_VERSION)
@@ -99,13 +99,48 @@ export class GIOPEncoder extends GIOPBase {
         this.blob(objectKey!)
         this.string(method)
         this.dword(0) // Requesting Principal length
-        this.setGIOPHeader(MessageType.REQUEST)
     }
 
-    type(name: string) {
-        this.dword(0x7fffff02)
-        const repositoryId = `IDL:${name}:1.0`
-        this.string(repositoryId)
+    protected repositoryIds = new Map<string, number>()
+
+    repositoryId(name: string) {
+        // * "IDL:" indicates that the type was defined in an IDL file
+        // * ":1.0" is the types version. 1.0 is used per default
+        // * in the IDL, #pragma version (CORBA 3.4 Part 1, 14.7.5.3 The Version Pragma) can be used to specify other versions
+        //   * TBD: describe how to use versioning
+        // * in the IDL, #pragma prefix can be used to add a prefix to the name.
+        // * See also: CORBA Part 2, 9.3.4.1 Partial Type Information and Versioning
+        const id = `IDL:${name}:1.0`
+
+        const position = this.repositoryIds.get(id)
+        if (position === undefined) {
+            console.log(`repositoryID '${id}' at 0x${this.offset.toString(16)}`)
+            this.repositoryIds.set(id, this.offset)
+            this.dword(0x7fffff02) // single repositoryId
+            this.string(id)
+        } else {
+            // 9.3.4.3
+            const indirection = position - this.offset - 2
+            console.log(`repositoryID '${id}' at 0x${this.offset.toString(16)} to reuse repositoryID at 0x${position.toString(16)}`)
+            this.dword(0xffffffff)
+            this.data.setInt32(this.offset, indirection, GIOPEncoder.littleEndian)
+            this.offset += 4
+        }   
+    }
+
+    protected objects = new Map<Object, number>()
+
+    encodeObject(object: Object) {
+        const position = this.objects.get(object)
+        if (position === undefined) {
+            this.objects.set(object, this.offset);
+            (object as any).encode(this)
+        } else {
+            const indirection = position - this.offset - 2
+            this.dword(0xffffffff)
+            this.data.setInt32(this.offset, indirection, GIOPEncoder.littleEndian)
+            this.offset += 4
+        }
     }
 
     blob(value: string) {
@@ -250,17 +285,69 @@ export class GIOPDecoder extends GIOPBase {
         }
     }
 
+    // ReplyStatusType
+    static NO_EXCEPTION = 0
+    static USER_EXCEPTION = 1
+    static SYSTEM_EXCEPTION = 2
+    static LOCATION_FORWARD = 3
+    // since GIOP 1.2
+    static LOCATION_FORWARD_PERM = 4
+    static NEEDS_ADDRESSING_MODE = 5
+
     scanReplyHeader() {
         const serviceContextListLength = this.dword()
         if (serviceContextListLength !== 0)
             throw Error(`serviceContextList is not supported`)
         const requestId = this.dword()
         const replyStatus = this.dword()
-        if (replyStatus !== 0)
-            throw Error(`replyState !0 is not supported`)
-        // dword serviceContextListLength should be 0
-        // dword requestId should be the 1 from the previous request
-        // dword replyStatus, 0 means no exception
+        switch(replyStatus) {
+            case GIOPDecoder.NO_EXCEPTION:
+                break
+            case GIOPDecoder.SYSTEM_EXCEPTION:
+                // 0.4.3.2 ReplyBody: SystemExceptionReplyBody
+                const exceptionId = this.string()
+                const minorCodeValue = this.dword()
+                // const vendorMinorCodeSetId = minorCodeValue & 0xFFF00000
+                const minorCode = minorCodeValue & 0x000FFFFF
+                // org.omg.CORBA.CompletionStatus
+                const completionStatus = this.dword()
+                let completionStatusName
+                switch(completionStatus) {
+                    case 0:
+                        completionStatusName = "yes"
+                        break
+                    case 1:
+                        completionStatusName = "no"
+                        break
+                    case 2:
+                        completionStatusName = "maybe"
+                        break
+                    default:
+                        completionStatusName = `${completionStatus}`
+                }
+                // A.5 Exception Codes
+                switch(exceptionId) {
+                    case "IDL:omg.org/CORBA/MARSHAL:1.0": {
+                        let minorCodeExplanation: { [index: number] : string }  = {
+                            1: "Unable to locate value factory.",
+                            2: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
+                            3: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
+                            4: "Attempt to marshal Local object.",
+                            5: "wchar or wstring data erroneosly sent by client over GIOP 1.0 connection",
+                            6: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
+                            7: "Unsupported RMI/IDL custom value type stream format.",
+                        }
+                        const explanation = minorCode in minorCodeExplanation ? ` (${minorCodeExplanation[minorCode]})` : ""
+                        throw Error(`Received CORBA System Exception ${exceptionId} (encoding/decoding failed): minor code ${minorCode}${explanation}, operation completed: ${completionStatusName}`)
+                    }
+                    default: {
+                        throw Error(`Received CORBA System Exception ${exceptionId}: minor code ${minorCode}, operation completed: ${completionStatusName}`)
+                    }
+                }
+                break
+            default:
+                throw Error(`ReplyStatusType ${replyStatus} is not supported`)
+        }
     }
 
     blob(length?: number) {

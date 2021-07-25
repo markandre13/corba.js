@@ -17,7 +17,7 @@
     "build": "tsc",
     "test": "bin/corba-idl --ts-all test/*.idl && karma start",
     "test:watch": "bin/corba-idl --ts-all test/*.idl && karma start --singleRun=false --autoWatch=true | grep -v '^Chrome Headless .* LOG:'",
-    "test:node": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'test/giop.spec.ts'",
+    "test:mico": "scp 192.168.1.105:mico-test/IOR.txt . && env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'test-mico/giop.spec.ts'",
     "update": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {

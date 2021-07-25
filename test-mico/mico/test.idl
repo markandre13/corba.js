@@ -1,0 +1,67 @@
+valuetype Point {
+	public double x, y;
+};
+
+// no inheritance for struct?
+struct SPoint {
+       double x, y;
+};
+
+valuetype Size {
+    public double width, height;
+};
+
+module space {
+  valuetype Box {
+    public Point p0, p1;
+  };
+};
+
+exception MyException { 
+  string reason; 
+};
+
+valuetype Figure {
+    string toString();
+    public unsigned long id;
+};
+
+valuetype Shape: Figure {
+    public Point origin;
+    public Size size;
+};
+
+valuetype Connection: Figure {
+    public Figure start, end;
+};
+
+valuetype Drawing {
+    public sequence<Figure> data;
+};
+
+interface BoardListener
+{
+	void translate(in sequence<unsigned short> ids, in Point delta);
+};
+
+interface Board {
+	void addListener(in BoardListener listener);
+	void translate(in sequence<unsigned short> ids, in Point delta);
+};
+
+interface Server {
+	Board getBoard(in unsigned short boardID);
+	Point getPoint();
+
+	void setPoint(in Point point);
+	void setSPoint(in SPoint point);
+
+	oneway void setPoint2(in Point point);
+	oneway void setSPoint2(in SPoint point);
+
+	oneway void setBox(in space::Box box);
+        void raise() raises (MyException);
+
+	Figure getFigure();
+	Drawing getDrawing();
+};
