@@ -1,29 +1,58 @@
 # corba.js
 
 Welcome to corba.js, an Object Request Broker (ORB) and Interface Definition
-Language (IDL) compiler in TypeScript/JavaScript based on the CORBA v3.0
-specification.
+Language (IDL) compiler for TypeScript lousily based on the CORBA specification.
 
-CORBA is a registered trademark by the Object Management Group.
-http://www.corba.org/
+_CORBA is a registered trademark by the Object Management Group. http://www.corba.org/_
 
-## Why? What?
+## What does it do?
 
-* CORBA is an object oriented RPC library, which allows remote
-  objects being treated as local objects and independent of the
-  programming languages being used.
-* After CORBA became more and more complicated through design by committee, CORBA was replaced by SOAP.
-* After SOAP became more and more complicated, SOAP was replaced by REST.
-* With the advent of WebApps and WebSockets, CORBA became feasible again.
+CORBA helps to hide the split of modern WebApps into frontend and backend by making
+remote objects appear like local objects.
 
-corba.js is currently being written to develop [workflow](https://github.com/markandre13/workflow#readme), which has so much communication
-happening between the server and it's clients, that I wanted as much of the network code being created automatically.
+For this objects, exceptions and data structures (aka DTOs), which need to bridge the
+network, are described in the Interface Definition Language (IDL), which is then
+compiled into code to be used in the application.
+
+Data structures can even be pointer based ones like trees or cyclic graphs.
+
+Frontend and backend can connect via WebSockets to carry CORBA's binary
+GIOP protocol. In the future there will be also support for WebRTC and/or HTTP/3's
+WebTransport, where the IDL's `oneway` keyword can make use of the unreliable
+transport provided by these UDP based protocols.
+
+_(Handling of exception and pointers is currently being added to corba.js.)_
+
+## What does it not do?
+
+CORBA's goal is to make frontend and backend look like one application, which implies
+tight coupling. Microservices on the other hand are intended to be loosely coupled.
+Here a protocol like REST can be a far better solution.
+
+See also: [REST, SOAP, and CORBA, i.e. How We Got Here](https://greglturnquist.com/2016/05/03/rest-soap-corba-e-got/).
+
+## Why?
+
+corba.js is written to be used in [workflow](https://github.com/markandre13/workflow#readme)
+where it handles
+
+* the communication between frontend and backend
+* persisting objects to the database (using the IDL, corba.js can convert between JSON and objects)
+* persisting objects to files (using CORBA's binary encoding GIOP)
+
+In the 90ties CORBA was quite the hype but design-by-committee made it bloated, slow
+and no fun to use.
+
+Still, stripped to it's core, one finds a fast and lightweight system, which made it ideal for
+modern WebApps. This might be in part attributed to CORBA's roots in the experimental object
+oriented [Spring](https://en.wikipedia.org/wiki/Spring_(operating_system)) operating system
+and some sole individuals undermining the design-by-committee with their expertise. 😁
 
 ## Interfaces
 
 In the following example, a server will provide an object of type _Server_ and
 the clients an object of type _Client_, which are to be defined in an IDL file:
-```
+```java
     interface Client {
         oneway printMessage(in string message);
     }
@@ -34,10 +63,14 @@ the clients an object of type _Client_, which are to be defined in an IDL file:
     }
 ```
 
-* 'oneway' is CORBA's version of 'void', meaning the method call will not
-  return a result.
-* 'in' specifies that the argument will not be written into to return data.
-  ('out' and 'inout' are not implemented by corba.js)
+* ~~`oneway` is CORBA's version of `void`, meaning the method call will not
+  return a result.~~
+  
+  _Correction: `void` is CORBA's version of `void`. `oneway`
+  means that the client expects no confirmation that the call has reached it's
+  destination. This will be reflected in the 0.1.x release of corba.js_
+* `in` specifies that the argument will not be written into to return data.
+  (`out` and `inout` are not implemented by corba.js)
 
 For each interface, the IDL compiler will generate stub and skeleton
 classes:
@@ -178,7 +211,7 @@ registered at different ORBs, valuetypes can be used to exchange data
 between them. When used as arguments in methods, CORBA will serialize
 and deserialize them based on their IDL description:
 
-```
+```java
     valuetype Point {
         public double x, y;
     };
@@ -237,7 +270,7 @@ instantiate the registered implementation of the class.
 Methods in valuetypes may also use types which are not to be meant to
 be exchanged between ORBs. These can be declared as 'native':
 
-```
+```java
     native Path;
 
     valuetype Figure {
