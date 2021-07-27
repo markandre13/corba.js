@@ -91,14 +91,14 @@ export class GIOPEncoder extends GIOPBase {
 
     encodeRequest(objectKey: string, method: string) {
         this.skipGIOPHeader()
-        this.dword(0) // serviceContextListLength
+        this.ulong(0) // serviceContextListLength
         const requestId = 1
-        this.dword(requestId)
+        this.ulong(requestId)
         const responseExpected = MessageType.REPLY
         this.byte(responseExpected)
         this.blob(objectKey!)
         this.string(method)
-        this.dword(0) // Requesting Principal length
+        this.ulong(0) // Requesting Principal length
     }
 
     protected repositoryIds = new Map<string, number>()
@@ -116,15 +116,15 @@ export class GIOPEncoder extends GIOPBase {
         if (position === undefined) {
             console.log(`repositoryID '${id}' at 0x${this.offset.toString(16)}`)
             this.repositoryIds.set(id, this.offset)
-            this.dword(0x7fffff02) // single repositoryId
+            this.ulong(0x7fffff02) // single repositoryId
             this.string(id)
         } else {
             // 9.3.4.3
             const indirection = position - this.offset - 2
             console.log(`repositoryID '${id}' at 0x${this.offset.toString(16)} to reuse repositoryID at 0x${position.toString(16)}`)
-            this.dword(0xffffffff)
-            this.data.setInt32(this.offset, indirection, GIOPEncoder.littleEndian)
-            this.offset += 4
+            this.ulong(0x7fffff02) // single repositoryId
+            this.ulong(0xffffffff) // sure? how the heck to we distinguish indirections to object and repositoryId?
+            this.long(indirection)
         }   
     }
 
@@ -137,21 +137,21 @@ export class GIOPEncoder extends GIOPBase {
             (object as any).encode(this)
         } else {
             const indirection = position - this.offset - 2
-            this.dword(0xffffffff)
-            this.data.setInt32(this.offset, indirection, GIOPEncoder.littleEndian)
-            this.offset += 4
+            this.ulong(0xffffffff)
+            // const indirection = position - this.offset - 4
+            this.long(indirection)
         }
     }
 
     blob(value: string) {
-        this.dword(value.length)
+        this.ulong(value.length)
         const rawString = GIOPEncoder.textEncoder.encode(value)
         this.bytes.set(rawString, this.offset)
         this.offset += value.length
     }
 
     string(value: string) {
-        this.dword(value.length + 1)
+        this.ulong(value.length + 1)
         this.bytes.set(GIOPEncoder.textEncoder.encode(value), this.offset)
         this.offset += value.length
         this.bytes[this.offset] = 0
@@ -163,15 +163,21 @@ export class GIOPEncoder extends GIOPBase {
         this.offset += 1
     }
 
-    word(value: number) {
+    ushort(value: number) {
         this.align(2)
         this.data.setUint16(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 2
     }
 
-    dword(value: number) {
+    ulong(value: number) {
         this.align(4)
         this.data.setUint32(this.offset, value, GIOPEncoder.littleEndian)
+        this.offset += 4
+    }
+
+    long(value: number) {
+        this.align(4)
+        this.data.setInt32(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 4
     }
 
@@ -237,8 +243,8 @@ export class GIOPEncoder extends GIOPBase {
             lo = mantLow
         }
         // ENDIAN!!!
-        this.dword(lo)
-        this.dword(hi)
+        this.ulong(lo)
+        this.ulong(hi)
     }
 }
 
@@ -279,7 +285,7 @@ export class GIOPDecoder extends GIOPBase {
             throw Error(`Expected GIOP message type ${expectType} but got ${type}`)
         }
 
-        const length = this.dword()
+        const length = this.ulong()
         if (this.buffer.byteLength !== length + 12) {
             throw Error(`GIOP message is ${length + 12} bytes but buffer only contains ${this.buffer.byteLength}.`)
         }
@@ -294,23 +300,37 @@ export class GIOPDecoder extends GIOPBase {
     static LOCATION_FORWARD_PERM = 4
     static NEEDS_ADDRESSING_MODE = 5
 
-    scanReplyHeader() {
-        const serviceContextListLength = this.dword()
+    scanRequestHeader() {
+        const serviceContextListLength = this.ulong()
         if (serviceContextListLength !== 0)
             throw Error(`serviceContextList is not supported`)
-        const requestId = this.dword()
-        const replyStatus = this.dword()
+
+        const requestId = this.ulong()
+        const responseExpected = this.byte()
+        const objectKey = this.blob()
+        const method = this.string()
+        const requestingPrincipalLength = this.short()
+
+        console.log(`requestId=${requestId}, responseExpected=${responseExpected}, objectKey=${objectKey}, method=${method}, requestingPrincipalLength=${requestingPrincipalLength}`)
+    }
+
+    scanReplyHeader() {
+        const serviceContextListLength = this.ulong()
+        if (serviceContextListLength !== 0)
+            throw Error(`serviceContextList is not supported`)
+        const requestId = this.ulong()
+        const replyStatus = this.ulong()
         switch(replyStatus) {
             case GIOPDecoder.NO_EXCEPTION:
                 break
             case GIOPDecoder.SYSTEM_EXCEPTION:
                 // 0.4.3.2 ReplyBody: SystemExceptionReplyBody
                 const exceptionId = this.string()
-                const minorCodeValue = this.dword()
+                const minorCodeValue = this.ulong()
                 // const vendorMinorCodeSetId = minorCodeValue & 0xFFF00000
                 const minorCode = minorCodeValue & 0x000FFFFF
                 // org.omg.CORBA.CompletionStatus
-                const completionStatus = this.dword()
+                const completionStatus = this.ulong()
                 let completionStatusName
                 switch(completionStatus) {
                     case 0:
@@ -352,7 +372,7 @@ export class GIOPDecoder extends GIOPBase {
 
     blob(length?: number) {
         if (length === undefined)
-            length = this.dword()
+            length = this.ulong()
         const rawString = this.bytes.subarray(this.offset, this.offset + length)
         const value = GIOPDecoder.textDecoder.decode(rawString)
         this.offset += length
@@ -361,7 +381,7 @@ export class GIOPDecoder extends GIOPBase {
 
     string(length?: number) {
         if (length === undefined)
-            length = this.dword()
+            length = this.ulong()
         const rawString = this.bytes.subarray(this.offset, this.offset + length - 1)
         const value = GIOPDecoder.textDecoder.decode(rawString)
         this.offset += length
@@ -375,18 +395,23 @@ export class GIOPDecoder extends GIOPBase {
         return value
     }
 
-    // short
-    word() {
+    short() {
         this.align(2)
         const value = this.data.getUint16(this.offset, this.littleEndian)
         this.offset += 2
         return value
     }
 
-    // long
-    dword() {
+    ulong() {
         this.align(4)
         const value = this.data.getUint32(this.offset, this.littleEndian)
+        this.offset += 4
+        return value
+    }
+
+    long() {
+        this.align(4)
+        const value = this.data.getInt32(this.offset, this.littleEndian)
         this.offset += 4
         return value
     }
@@ -401,8 +426,8 @@ export class GIOPDecoder extends GIOPBase {
     // just in case the host doesn't support IEEE 754
     slowDouble() {
         this.align(8)
-        const lo = this.dword()
-        const hi = this.dword()
+        const lo = this.ulong()
+        const hi = this.ulong()
 
         const sign = ((hi >> 31) * 2 + 1)
         const exp = (hi >>> 20) & 0x7FF

@@ -31,7 +31,7 @@ describe("CDR/GIOP", () => {
 
     let ior!: IOR
 
-    before( () => {
+    before(() => {
         const data = fs.readFileSync("IOR.txt").toString().trim()
         ior = new IOR(data)
     })
@@ -136,24 +136,79 @@ describe("CDR/GIOP", () => {
             client.destroy()
         })
 
-        it("setBox(p0, p1): encode repositoryID 'IDL:Point:1.0' only once", async () => {
+        it.only("setBox(p0, p1): encode repositoryID 'IDL:Point:1.0' only once", async () => {
             const client = new Socket()
             await client.connect(ior.host!, ior.port!)
             console.log("connected")
 
+            // SEND
             const encoder = new GIOPEncoder()
             encoder.encodeRequest(ior.objectKey!, "setBox")
             const p0 = new Point(1.1, 2.1)
             const p1 = new Point(2.1, 2.2)
             const box = new Box(p0, p1)
             encoder.encodeObject(box)
-            
+
             encoder.setGIOPHeader(MessageType.REQUEST)
             client.write(encoder.bytes.subarray(0, encoder.offset))
-            expect(encoder.offset).to.equal(0x00a0) // length when the point's repositoryID is reused
-
+            expect(encoder.offset).to.equal(0x00a8) // length when the point's repositoryID is reused
+            
             hexdump(encoder.bytes, 0, encoder.offset)
 
+            // 0000 47 49 4f 50 01 00 01 00 94 00 00 00 00 00 00 00 GIOP............
+            //      ^           ^     ^  ^  ^           ^
+            //      |           |     |  |  |           serviceContextListLength
+            //      |           |     |  |  size
+            //      |           |     |  message type: request(0)
+            //      |           |     byte order
+            //      |           GIOP version 1.0
+            //      GIOP magic number
+            // 0010 01 00 00 00 01 00 00 00 13 00 00 00 2f 31 30 39 ............/109
+            //      ^           ^           ^           ^
+            //      |           |           |           object key
+            //      |           |           length object key
+            //      |           expected response: reply(1)
+            //      request id
+            // 0020 30 2f 31 36 32 37 33 35 39 33 37 37 2f 5f 30 00 0/1627359377/_0.
+            //                                                   ^
+            //                                                   padding
+            // 0030 07 00 00 00 73 65 74 42 6f 78 00 00 00 00 00 00 ....setBox......
+            //      ^           ^                       ^
+            //      |           |                       requesting principal length
+            //      |           method name
+            //      length method name
+            // 0040 02 ff ff 7f 12 00 00 00 49 44 4c 3a 73 70 61 63 ........IDL:spac
+            //      ^           ^           ^
+            //      |           |           repository ID
+            //      |           repository ID length
+            //      value tag for Box
+            // 0050 65 2f 42 6f 78 3a 31 2e 30 00 00 00 02 ff ff 7f e/Box:1.0.......
+            //                                          ^
+            //                                          value tag for Point p0
+            // 0060 0e 00 00 00 49 44 4c 3a 50 6f 69 6e 74 3a 31 2e ....IDL:Point:1.
+            //      ^           ^
+            //      |           repository ID
+            //      repository ID length
+            // 0070 30 00 00 00 00 00 00 00 9a 99 99 99 99 99 f1 3f 0..............?
+            //         ^                    ^
+            //         |                    x
+            //         padding for 8 word double
+            // 0080 cd cc cc cc cc cc 00 40 02 ff ff 7f ff ff ff ff .......@........
+            //      ^                       ^           ^
+            //      |                       |           repository ID is an indirection
+            //      |                       value tag for Point p1
+            //      y
+            // 0090 d0 ff ff ff 00 00 00 00 cd cc cc cc cc cc 00 40 ...............@
+            //      ^           ^           ^
+            //      |           |           x
+            //      |           padding
+            //      indirection
+            // 00a0 9a 99 99 99 99 99 01 40 00 00 00 00 00 00 00 00 .......@........
+            //      ^                       ^
+            //      |                       HU? WHAT'S WITH THE TRAILING 0s?
+            //      y
+
+            // WAIT FOR ACK
             const data = await client.read()
             console.log("received")
             hexdump(data)
@@ -167,6 +222,17 @@ describe("CDR/GIOP", () => {
             expect(data.byteLength).to.equal(decoder.offset) // void, no further payload
 
             client.destroy()
+
+            // NOW TRY TO DECODE OURSELVES WHAT WE'VE SEND
+            const decoder0 = new GIOPDecoder(encoder.buffer.slice(0, encoder.offset))
+            expect(decoder0.buffer.byteLength).to.equal(encoder.offset)
+            decoder0.scanGIOPHeader(MessageType.REQUEST)
+
+            decoder0.scanRequestHeader()
+            expect(decoder0.offset).to.equal(0x3e)
+
+            const box0 = decode(decoder0)
+            console.log(box0)
         })
 
         it("setBox(p0, p0): encode point twice", async () => {
@@ -214,7 +280,7 @@ function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
         line = line.padEnd(4 + 16 * 3 + 1, " ")
         for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
             const b = bytes[j]
-            if (b >= 32 && b <= 127)
+            if (b >= 32 && b  < 127)
                 line += String.fromCharCode(b)
             else
                 line += "."
@@ -293,27 +359,53 @@ export class Box {
 }
 
 function decode(decoder: GIOPDecoder): any {
-    const code = decoder.dword()
-    if (code === 0x7fffff02) {
-        const len = decoder.dword()
-        // if len === 0xffffffff we have an indirection
-        let name = decoder.string(len)
-        if (name.length < 8 || name.substr(0, 4) !== "IDL:" || name.substr(name.length - 4) !== ":1.0")
-            throw Error(`Unsupported CORBA GIOP Repository ID '${name}'`)
+    console.log(`decode() at 0x${decoder.offset}`)
 
-        name = name.substr(4, name.length - 8)
-        switch(name) {
-            case "Point": {
-                const obj = new Point()
-                obj.decode(decoder)
-                return obj
+    const code = decoder.ulong()
+    switch (code) {
+        case 0x7fffff02: {
+            const memo = decoder.offset
+            let name
+            const len = decoder.ulong()
+            if (len !== 0xffffffff) {
+                name = decoder.string(len)
+            } else {
+                 const indirection = decoder.long()
+                 const savedOffset = decoder.offset
+                 decoder.offset = decoder.offset + indirection - 4
+                 console.log(`indirect repository ID should be at 0x${decoder.offset.toString(16)}`)
+                 name = decoder.string()
+                 decoder.offset = savedOffset
             }
-            case "space/Box": {
-                const obj = new Box()
-                obj.decode(decoder)
-                return obj
+            console.log(`repositoryID '${name}' at 0x${memo.toString(16)}`)
+            if (name.length < 8 || name.substr(0, 4) !== "IDL:" || name.substr(name.length - 4) !== ":1.0")
+                throw Error(`Unsupported CORBA GIOP Repository ID '${name}'`)
+
+            name = name.substr(4, name.length - 8)
+            switch (name) {
+                case "Point": {
+                    const obj = new Point()
+                    obj.decode(decoder)
+                    return obj
+                }
+                case "space/Box": {
+                    const obj = new Box()
+                    obj.decode(decoder)
+                    return obj
+                }
             }
+            throw Error(`Unregistered CORBA Value Type 'IDL:${name}:1.0'`)
         }
-        throw Error(`Unregistered CORBA Value Type 'IDL:${name}:1.0'`)
+        case 0xffffffff: {
+            throw Error("Not implemented yet: Object is an indirection")
+        //     const indirection = decoder.data.getInt32(this.offset, decoder.littleEndian)
+        //     const nextPosition = this.offset + 4
+
+        //     decoder.offset = indirection + this.offset + 4
+        //     const name = decoder.
+
+        }
+        default:
+            throw Error(`code 0x${code.toString(16)} not supported`)
     }
 }

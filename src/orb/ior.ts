@@ -92,11 +92,11 @@ export class IOR {
         }
 
         // struct IOR, field: TaggedProfileSeq profiles ???
-        const profileCount = decoder.dword()
+        const profileCount = decoder.ulong()
         // console.log(`oid: '${oid}', tag count=${tagCount}`)
         for (let i = 0; i < profileCount; ++i) {
-            const profileId = decoder.dword()
-            const profileLength = decoder.dword()
+            const profileId = decoder.ulong()
+            const profileLength = decoder.ulong()
             const profileStart = decoder.offset
 
             switch (profileId) {
@@ -110,7 +110,7 @@ export class IOR {
                         throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
                     }
                     this.host = decoder.string()
-                    this.port = decoder.word()
+                    this.port = decoder.short()
                     this.objectKey = decoder.blob()
 
                     // IIOP 1.1 and above
