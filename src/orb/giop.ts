@@ -255,6 +255,9 @@ export class GIOPDecoder extends GIOPBase {
 
     littleEndian = true;
 
+    // FIXME: make protected
+    public objects = new Map<number, Object>()
+
     protected static textDecoder = new TextDecoder();
 
     constructor(buffer: ArrayBuffer) {

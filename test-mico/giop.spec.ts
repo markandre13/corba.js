@@ -45,7 +45,7 @@ describe("CDR/GIOP", () => {
         // hexdump(encoder.bytes, 0, encoder.offset)
 
         const decoder = new GIOPDecoder(encoder.buf)
-        const pointIn = decode(decoder) as Point
+        const pointIn = decodeObject(decoder) as Point
 
         expect(pointIn.x).to.equal(3.1415)
         expect(pointIn.y).to.equal(2.7182)
@@ -84,7 +84,7 @@ describe("CDR/GIOP", () => {
             decoder.scanReplyHeader()
             expect(decoder.offset).to.equal(0x18)
 
-            const pointOut = decode(decoder) as Point
+            const pointOut = decodeObject(decoder) as Point
             console.log(pointOut)
             console.log(`point out = ${pointOut.x}, ${pointOut.y}`)
             expect(pointOut.x).to.equal(3.1415)
@@ -136,7 +136,7 @@ describe("CDR/GIOP", () => {
             client.destroy()
         })
 
-        it.only("setBox(p0, p1): encode repositoryID 'IDL:Point:1.0' only once", async () => {
+        it("setBox(p0, p1): encode repositoryID 'IDL:Point:1.0' only once", async () => {
             const client = new Socket()
             await client.connect(ior.host!, ior.port!)
             console.log("connected")
@@ -231,11 +231,11 @@ describe("CDR/GIOP", () => {
             decoder0.scanRequestHeader()
             expect(decoder0.offset).to.equal(0x3e)
 
-            const box0 = decode(decoder0)
+            const box0 = decodeObject(decoder0)
             console.log(box0)
         })
 
-        it("setBox(p0, p0): encode point twice", async () => {
+        it.only("setBox(p0, p0): encode point twice", async () => {
             const client = new Socket()
             await client.connect(ior.host!, ior.port!)
             console.log("connected")
@@ -265,6 +265,22 @@ describe("CDR/GIOP", () => {
             expect(data.byteLength).to.equal(decoder.offset) // void, no further payload
 
             client.destroy()
+
+            // NOW TRY TO DECODE OURSELVES WHAT WE'VE SEND
+            const decoder0 = new GIOPDecoder(encoder.buffer.slice(0, encoder.offset))
+            expect(decoder0.buffer.byteLength).to.equal(encoder.offset)
+            decoder0.scanGIOPHeader(MessageType.REQUEST)
+
+            decoder0.scanRequestHeader()
+            expect(decoder0.offset).to.equal(0x3e)
+
+            const box0 = decodeObject(decoder0)
+            console.log(box0)
+
+            console.log(decoder0.offset.toString(16))
+
+            expect(box.p0).to.equal(box.p1)
+            expect(decoder0.offset).to.equal(0x90)
         })
 
         it("getBox(): duplicate repositoryId")
@@ -353,13 +369,14 @@ export class Box {
     }
 
     decode(decoder: GIOPDecoder) {
-        this.p0 = decode(decoder)
-        this.p1 = decode(decoder)
+        this.p0 = decodeObject(decoder)
+        this.p1 = decodeObject(decoder)
     }
 }
 
-function decode(decoder: GIOPDecoder): any {
-    console.log(`decode() at 0x${decoder.offset}`)
+function decodeObject(decoder: GIOPDecoder): any {
+    console.log(`decode() at 0x${decoder.offset.toString(16)}`)
+    const objectOffset = decoder.offset + 6
 
     const code = decoder.ulong()
     switch (code) {
@@ -386,26 +403,30 @@ function decode(decoder: GIOPDecoder): any {
                 case "Point": {
                     const obj = new Point()
                     obj.decode(decoder)
+                    decoder.objects.set(objectOffset, obj)
                     return obj
                 }
                 case "space/Box": {
                     const obj = new Box()
                     obj.decode(decoder)
+                    decoder.objects.set(objectOffset, obj)
                     return obj
                 }
             }
             throw Error(`Unregistered CORBA Value Type 'IDL:${name}:1.0'`)
         }
         case 0xffffffff: {
-            throw Error("Not implemented yet: Object is an indirection")
-        //     const indirection = decoder.data.getInt32(this.offset, decoder.littleEndian)
-        //     const nextPosition = this.offset + 4
-
-        //     decoder.offset = indirection + this.offset + 4
-        //     const name = decoder.
-
+            const indirection = decoder.long()
+            const position = decoder.offset + indirection
+            console.log(`Need to find previously generated object at 0x${position.toString(16)}`)
+            const obj = decoder.objects.get(position)
+            if (obj === undefined) {
+                throw Error("IDL:omg.org/CORBA/MARSHAL:1.0")
+            }
+            // throw Error("Not implemented yet: Object is an indirection")
+            return obj
         }
         default:
-            throw Error(`code 0x${code.toString(16)} not supported`)
+            throw Error(`Unsupported value with CORBA tag 0x${code.toString(16)}`)
     }
 }
