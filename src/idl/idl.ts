@@ -17,7 +17,7 @@
  */
 
 import * as fs from "fs"
-import { Type, Node } from "./idl-node"
+import { Node } from "./idl-node"
 import { Lexer } from "./idl-lexer"
 import { specification } from "./idl-parser"
 import { writeTSInterface } from "./write-interface"
@@ -26,6 +26,7 @@ import { writeTSStub } from "./write-stub"
 import { writeTSValue } from "./write-value"
 import { writeTSValueType } from "./write-valuetype"
 import { writeTSValueImpl } from "./write-valueimpl"
+import { filenamePrefix, filename, setFilename, setFilenamePrefix, setFilenameLocal } from "./util"
 
 function printHelp() {
     console.log(
@@ -95,25 +96,21 @@ if (i === process.argv.length) {
     process.exit(1)
 }
 
-export let filename = ""
-export let filenamePrefix = ""
-export let filenameLocal = ""
-
 for(; i<process.argv.length; ++i) {
-    filename = process.argv[i]
+    setFilename(process.argv[i])
 
     let n = filename.lastIndexOf(".")
     if (n === -1) {
         console.log(`corba-idl: error: filename '${filename}' must at least contain one dot ('.')`)
         process.exit(1)
     }
-    filenamePrefix = filename.substr(0, n)
+    setFilenamePrefix(filename.substr(0, n))
     
     n = filenamePrefix.lastIndexOf("/")
     if (n === -1)
-        filenameLocal = filenamePrefix
+        setFilenameLocal(filenamePrefix)
     else
-        filenameLocal = filenamePrefix.substr(n+1)
+        setFilenameLocal(filenamePrefix.substr(n+1))
 
     let filedata: string
     try {
@@ -173,149 +170,4 @@ for(; i<process.argv.length; ++i) {
         }
         process.exit(1)
     }
-}
-
-export let classAttributes = new Map<string, Array<string>>()
-
-export function writeIndent(out: fs.WriteStream, indent: number) {
-    for(let i=0; i<indent; ++i)
-        out.write("    ")
-}
-
-export enum FileType {
-    NONE,
-    VALUE,
-    VALUETYPE,
-    VALUEIMPL,
-    INTERFACE,
-    SKELETON,
-    STUB
-}
-
-export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE): string {
-    if (type === undefined)
-        throw Error("internal error: parser delivered no type information")
-    switch(type!.type) {
-        case Type.TKN_IDENTIFIER: {
-            
-            let identifierType = type.child[type.child.length-1]!
-            let relativeName = ""
-            for(let x of type.child) {
-                relativeName = `${relativeName}.${x!.text!}`
-            }
-            relativeName = relativeName.substring(1)
-
-            let absolutePrefix=""
-            for(let x: Node|undefined=type.child[0]?.typeParent; x; x=x.typeParent) {
-                absolutePrefix=`.${x!.text}${absolutePrefix}`
-            }
-
-            if ( type.child.length>0 &&
-                type.child[0]!.type === Type.TKN_NATIVE &&
-                type.text!.length > 4 &&
-                type.text!.substring(type.text!.length-4)==="_ptr" )
-            {
-                return `${absolutePrefix.substring(1)} | undefined`
-            }
-
-            let name: string
-            switch(identifierType.type) {
-                case Type.TKN_VALUETYPE:
-                    if (filetype !== FileType.VALUETYPE)
-                        name = `valuetype${absolutePrefix}.${relativeName}`
-                    else
-                        name = relativeName
-                    break
-                case Type.SYN_INTERFACE:
-                    if (filetype !== FileType.INTERFACE)
-                        name = `_interface${absolutePrefix}.${relativeName}`
-                    else
-                        name = relativeName
-                    break
-                case Type.TKN_NATIVE:
-                    name = relativeName
-                    break
-                default:
-                    throw Error(`Internal Error in typeIDLtoTS(): not implemented identifierType ${identifierType.toString()}`)
-            }
-
-            return name
-
-        } break
-        case Type.TKN_VOID:
-            return "void"
-        case Type.TKN_BOOLEAN:
-            return "boolean"
-        case Type.TKN_STRING:
-            return "string"
-        case Type.TKN_SHORT:
-        case Type.TKN_LONG:
-        case Type.SYN_LONGLONG:
-        case Type.SYN_UNSIGNED_SHORT:
-        case Type.SYN_UNSIGNED_LONG:
-        case Type.SYN_UNSIGNED_LONGLONG:
-        case Type.TKN_FLOAT:
-        case Type.TKN_DOUBLE:
-        case Type.SYN_LONG_DOUBLE:
-            return "number"
-        case Type.TKN_SEQUENCE:
-            return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
-        default:
-            throw Error(`no mapping from IDL type to TS type for ${type.toString()}`)
-    }
-}
-
-export function defaultValueIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE): string {
-    if (type === undefined)
-        throw Error("internal error: parser delivered no type information")
-    switch(type!.type) {
-        case Type.TKN_IDENTIFIER:
-            return "new "+type.text!+"()"
-        case Type.TKN_BOOLEAN:
-            return "false"
-        case Type.TKN_STRING:
-            return "\"\""
-        case Type.TKN_SHORT:
-        case Type.TKN_LONG:
-        case Type.SYN_LONGLONG:
-        case Type.SYN_UNSIGNED_SHORT:
-        case Type.SYN_UNSIGNED_LONG:
-        case Type.SYN_UNSIGNED_LONGLONG:
-        case Type.TKN_FLOAT:
-        case Type.TKN_DOUBLE:
-        case Type.SYN_LONG_DOUBLE:
-            return "0"
-        case Type.TKN_SEQUENCE:
-            return `new Array<${typeIDLtoTS(type!.child[0], filetype)}>()`
-        default:
-            throw Error(`no default value for IDL type in TS for type ${type.toString()}`)
-    }
-}
-
-export function hasValueType(specification: Node): boolean {
-    for(let definition of specification.child) {
-        switch(definition!.type) {
-            case Type.TKN_VALUETYPE:
-                return true
-            case Type.TKN_MODULE:
-                if (hasValueType(definition!))
-                    return true
-
-        }
-    }
-    return false
-}
-
-export function hasNative(specification: Node): boolean {
-    for (let definition of specification.child) {
-        if (definition!.type === Type.TKN_NATIVE) {
-            let native = definition!
-            let nativeName = native.text!
-            if (nativeName.length <= 4 ||
-                nativeName.substring(nativeName.length - 4) !== "_ptr") {
-                return true
-            }
-        }
-    }
-    return false
 }

@@ -20,6 +20,6 @@
     "sourceMap": true
   },
   "include": [
-    "src"
+    "src/orb"
   ]
 }

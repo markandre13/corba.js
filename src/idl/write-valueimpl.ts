@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Node } from "./idl-node"
-import { filenamePrefix, filename, hasNative, hasValueType, filenameLocal, writeIndent, typeIDLtoTS, FileType } from "./idl"
+import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, typeIDLtoTS, FileType } from "./util"
 
 export function writeTSValueImpl(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + "_valueimpl.ts")

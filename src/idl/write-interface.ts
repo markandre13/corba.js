@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Node } from "./idl-node"
-import { filenamePrefix, filename, hasValueType, filenameLocal, typeIDLtoTS, FileType } from "./idl"
+import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoTS, FileType } from "./util"
 
 export function writeTSInterface(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + ".ts")
@@ -29,6 +29,7 @@ export function writeTSInterface(specification: Node): void {
     }
     writeTSInterfaceDefinitions(out, specification)
 }
+
 function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, prefix = "", indent = 0): void {
     for (let definition of specification.child) {
         switch (definition!.type) {

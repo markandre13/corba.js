@@ -1,2 +1,2 @@
-#!/usr/bin/env node
-require('../lib/idl/idl.js')
+#!/usr/bin/env node --enable-source-maps
+require('../lib/idl-compiler.js')
