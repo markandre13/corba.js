@@ -238,3 +238,60 @@ oneway setPoint with struct
 	0x0060:  2f5f 3000 0a00 0000 7365 7453 506f 696e  /_0.....setSPoin
 	0x0070:  7400 0000 0000 0000 0000 0000 6f12 83c0  t...........o...
 	0x0080:  ca21 0940 c9e5 3fa4 dfbe 0540            .!.@..?....@
+
+tweaking corba.js for GIOP
+
+corba.js creates:
+
+<name>.ts       interfaces for IDL interfaces
+<name>_skel.ts  abstract classes for the servers, need to be implemented by the user
+<name>_stub.ts  client side stubs to call the implementations of the skeletons on the server
+
+<name>_value.ts interfaces for IDL valuetypes
+                methods to initialize valuetype objects from JSON
+                  function initVTPoint(object: VTPoint, init?: Partial<VTPoint>)
+                lists of attributes defined in each valuetype
+                (this is used convert the valuetype into JSON)
+                  ORB.valueTypeByName.set("VTPoint", {attributes:["x", "y"]})
+<name>_valuetype.ts
+                interfaces for IDL valuetypes extended with methods
+
+what the user has to do:
+
+choose an implementation to be used for the valuetype:
+  ORB.registerValueType("VTPoint", VTPoint)
+in the valuetypes constructor, call the initialization method
+  class VTPoint implements value.VTPoint {
+      constructor(init: Partial<VTPoint>) {
+          value.initVTPoint(this, init)
+      }
+  }
+
+next steps:
+* don't register valuetypes globally but bind them to the ORB to avoid naming collisions.
+  instead of
+
+    ORB.registerValueType("Point", Point)
+
+  we could turn this into
+
+    orb.registerValueType(Point, value.spec.Point_1_0)
+
+  -> replaces ORB.registerValueType(...)
+  -> replaces ORB.valueTypeByName.set(...)
+
+  and later with the introduction of versioning this could become
+
+    orb.registerConverter(Point_1_0, value.spec.Point_1_0, Point_1_0_Converter)
+    orb.registerValueType(value.spec.Point_1_1, Point)
+
+    orb->register_value_factory("IDL:space/Box:1.0", new Box_Factory());
+
+  -> class Point implements value.Point {
+        constructor(init: Partial<Point> | GIOPDecoder) {
+          value.unmarshalPoint(this, init)
+        }
+     }
+
+   hmm, that would look nice in the initPoint function...
+   if we'd name it unmarshal* it would be a better fit with the CORBA terminology...

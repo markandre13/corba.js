@@ -137,6 +137,7 @@ class Client_impl extends skel.testVT.Client {
 describe("corba.js", function() {
 
     before(function(){
+        // value._init(orb)
         // this collides with basics.spec.ts
         ORB.registerValueType("VTPoint", VTPoint)
         ORB.registerValueType("testVT.Size", Size)
