@@ -61,9 +61,9 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                                 oneway = true
 
                             if (oneway && type.type !== Type.TKN_VOID)
-                                throw Error("corba.js currently requires every oneway function to return void")
+                                console.log("WARNING: corba.js currently requires every oneway function to return void")
                             if (!oneway && type.type === Type.TKN_VOID)
-                                throw Error("corba.js currently requires operations returning void to be oneway")
+                                console.log("WARNING: corba.js currently requires operations returning void to be oneway")
 
                             let identifier = op_dcl.child[2]!.text
                             let parameter_decls = op_dcl.child[3]!.child

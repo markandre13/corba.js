@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Node } from "./idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoTS, FileType } from "./util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoTS, FileType, writeIndent } from "./util"
 
 export function writeTSInterface(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + ".ts")
@@ -57,9 +57,9 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                                 oneway = true
 
                             if (oneway && type.type !== Type.TKN_VOID)
-                                throw Error("corba.js currently requires every oneway function to return void")
+                                console.log("WARNING: corba.js currently requires every oneway function to return void")
                             if (!oneway && type.type === Type.TKN_VOID)
-                                throw Error("corba.js currently requires operations returning void to be oneway")
+                                console.log("WARNING: corba.js currently requires operations returning void to be oneway")
 
                             let identifier = op_dcl.child[2]!.text
                             let parameter_decls = op_dcl.child[3]!.child
@@ -88,6 +88,24 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                             throw Error("fuck")
                     }
                 }
+                out.write("}\n\n")
+            } break
+
+            case Type.TKN_STRUCT: {
+                const identifier = definition!.text!
+                writeIndent(out, indent)
+                out.write(`interface ${identifier} {\n`)
+                const member_list = definition!.child!
+                for (const member of member_list) {
+                    const type_spec = member!.child[0]!
+                    const declarators = member!.child[1]!
+                    for (const declarator of declarators.child) {
+                        writeIndent(out, indent + 1)
+                        out.write(`${declarator!.text}: ${typeIDLtoTS(type_spec, FileType.INTERFACE)}\n`)
+                    }
+
+                }
+                writeIndent(out, indent)
                 out.write("}\n\n")
             } break
         }

@@ -130,7 +130,7 @@ export class GIOPEncoder extends GIOPBase {
 
     protected objects = new Map<Object, number>()
 
-    encodeObject(object: Object) {
+    object(object: Object) {
         const position = this.objects.get(object)
         if (position === undefined) {
             this.objects.set(object, this.offset);
@@ -163,10 +163,22 @@ export class GIOPEncoder extends GIOPBase {
         this.offset += 1
     }
 
+    short(value: number) {
+        this.align(2)
+        this.data.setInt16(this.offset, value, GIOPEncoder.littleEndian)
+        this.offset += 2
+    }
+
     ushort(value: number) {
         this.align(2)
         this.data.setUint16(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 2
+    }
+
+    long(value: number) {
+        this.align(4)
+        this.data.setInt32(this.offset, value, GIOPEncoder.littleEndian)
+        this.offset += 4
     }
 
     ulong(value: number) {
@@ -175,9 +187,9 @@ export class GIOPEncoder extends GIOPBase {
         this.offset += 4
     }
 
-    long(value: number) {
+    float(value: number) {
         this.align(4)
-        this.data.setInt32(this.offset, value, GIOPEncoder.littleEndian)
+        this.data.setFloat32(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 4
     }
 
@@ -373,6 +385,10 @@ export class GIOPDecoder extends GIOPBase {
         }
     }
 
+    object(): any {
+        throw Error(`GIOPDecoder.object() is not implemented yet`)
+    }
+
     blob(length?: number) {
         if (length === undefined)
             length = this.ulong()
@@ -400,8 +416,22 @@ export class GIOPDecoder extends GIOPBase {
 
     short() {
         this.align(2)
+        const value = this.data.getInt16(this.offset, this.littleEndian)
+        this.offset += 2
+        return value
+    }
+
+    ushort() {
+        this.align(2)
         const value = this.data.getUint16(this.offset, this.littleEndian)
         this.offset += 2
+        return value
+    }
+
+    long() {
+        this.align(4)
+        const value = this.data.getInt32(this.offset, this.littleEndian)
+        this.offset += 4
         return value
     }
 
@@ -412,9 +442,9 @@ export class GIOPDecoder extends GIOPBase {
         return value
     }
 
-    long() {
+    float() {
         this.align(4)
-        const value = this.data.getInt32(this.offset, this.littleEndian)
+        const value = this.data.getFloat32(this.offset, this.littleEndian)
         this.offset += 4
         return value
     }

@@ -4,8 +4,8 @@
   "description": "Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
   "author": "Mark-André Hopf <mhopf@mark13.org>",
   "license": "GPL-3.0",
-  "main": "lib/orb/orb.js",
-  "types": "lib/orb/orb.d.ts",
+  "main": "lib/orb.js",
+  "types": "lib/orb.d.ts",
   "bin": {
     "corba-idl": "./bin/corba-idl"
   },
@@ -19,7 +19,13 @@
     "build:idl": "rollup --config rollup.config.js",
     "test": "bin/corba-idl --ts-all test/*.idl && karma start",
     "test:watch": "bin/corba-idl --ts-all test/*.idl && karma start --singleRun=false --autoWatch=true | grep -v '^Chrome Headless .* LOG:'",
-    "test:mico": "scp 192.168.1.105:mico-test/IOR.txt . && env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'test-mico/giop.spec.ts'",
+
+    "test:mico": "npm run test:mico:link && npm run test:mico:ior && npm run test:mico:idl && npm run test:mico:run",
+    "test:mico:link": "ln -sf `pwd` node_modules/corba.js",
+    "test:mico:ior": "scp 192.168.1.105:mico-test/IOR.txt .",
+    "test:mico:idl": "bin/corba-idl --ts-all test-mico/mico/test.idl",
+    "test:mico:run": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'test-mico/giop.spec.ts'",
+
     "test:micoless": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'test-mico/giop.spec.ts'",
     "update": "npx npm-check-updates -u && npm install"
   },

@@ -121,17 +121,18 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
 
                 writeIndent(out, indent)
                 out.write(`export function init${identifier}(object: ${identifier}, init?: Partial<${identifier}> | GIOPDecoder) {\n`)
-                writeIndent(out, indent)
-                out.write(`  if (init instanceof GIOPDecoder) {`)
-                writeIndent(out, indent)
-                out.write(`  } else {`)
                 ++indent
-                writeTSValueInitFromJSON(value_dcl, out, indent)
                 writeIndent(out, indent)
-                out.write("}")
+                out.write(`if (init instanceof GIOPDecoder) {\n`)
+                writeTSValueInitFromGIOP(value_dcl, out, indent + 1)
+                writeIndent(out, indent)
+                out.write(`} else {\n`)
+                writeTSValueInitFromJSON(value_dcl, out, indent + 1)
+                writeIndent(out, indent)
+                out.write("}\n")
                 --indent
                 writeIndent(out, indent)
-                out.write("}\n\n")
+                out.write("}\n")
 
                 initCalls += `    ORB.valueTypeByName.set("${prefix}${identifier}", {attributes:[`
                 let comma = false
@@ -145,6 +146,128 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                 }
                 initCalls += "]})\n"
             } break
+        }
+    }
+}
+
+export function typeIDLtoGIOP(prefix: string, type: Node | undefined): string {
+    if (type === undefined)
+        throw Error("internal error: parser delivered no type information")
+    switch (type!.type) {
+        case Type.TKN_IDENTIFIER:
+            let identifierType = type.child[type.child.length - 1]!
+            let relativeName = ""
+            for (let x of type.child) {
+                relativeName = `${relativeName}.${x!.text!}`
+            }
+            relativeName = relativeName.substring(1)
+
+            let absolutePrefix = ""
+            for (let x: Node | undefined = type.child[0]?.typeParent; x; x = x.typeParent) {
+                absolutePrefix = `.${x!.text}${absolutePrefix}`
+            }
+
+            if (type.child.length > 0 &&
+                type.child[0]!.type === Type.TKN_NATIVE &&
+                type.text!.length > 4 &&
+                type.text!.substring(type.text!.length - 4) === "_ptr") {
+                // FIXME: enforce type check instead of using just 'as'
+                return `${prefix}object() as ${absolutePrefix.substring(1)}`
+            }
+
+            // let name: string
+            // switch (identifierType.type) {
+            //     case Type.TKN_VALUETYPE:
+            //         name = relativeName
+            //         break
+            //     case Type.SYN_INTERFACE:
+            //         name = relativeName
+            //         break
+            //     case Type.TKN_NATIVE:
+            //         name = relativeName
+            //         break
+            //     default:
+            //         throw Error(`Internal Error in typeIDLtoTS(): not implemented identifierType ${identifierType.toString()}`)
+            // }
+
+            return `${prefix}object() as ${relativeName}` // FIXME: enforce type check instead of using just 'as'
+
+        //     return name
+
+        // } break
+        case Type.TKN_VOID:
+            return `${prefix}void()`
+        case Type.TKN_BOOLEAN:
+            return `${prefix}boolean()`
+        case Type.TKN_STRING:
+            return `${prefix}string()`
+        case Type.TKN_SHORT:
+            return `${prefix}short()`
+        case Type.TKN_LONG:
+            return `${prefix}long()`
+        case Type.SYN_LONGLONG:
+            return `${prefix}longlong()`
+        case Type.SYN_UNSIGNED_SHORT:
+            return `${prefix}ushort()`
+        case Type.SYN_UNSIGNED_LONG:
+            return `${prefix}ulong()`
+        case Type.SYN_UNSIGNED_LONGLONG:
+            return `${prefix}ulonglong()`
+        case Type.TKN_FLOAT:
+            return `${prefix}float()`
+        case Type.TKN_DOUBLE:
+            return `${prefix}double()`
+        case Type.SYN_LONG_DOUBLE:
+            return `${prefix}longdouble()`
+        case Type.TKN_SEQUENCE: {
+            // FIXME: enforce type check
+            return `(function(){ const l = init.ulong(); const a = new Array(l); for (let i=0 ; i<l; ++i) a[i] = ${typeIDLtoGIOP(prefix, type!.child[0])}; return a })()`
+        }
+        default:
+            throw Error(`no mapping from IDL type to TS type for ${type.toString()}`)
+    }
+}
+
+function writeTSValueInitFromGIOP(value_dcl: Node, out: fs.WriteStream, indent: number) {
+    for (let i = 1; i < value_dcl.child.length; ++i) {
+        let value_element = value_dcl.child[i]!
+        if (value_element.type === Type.SYN_STATE_MEMBER) {
+            let state_member = value_element
+            let attribute = state_member.child[0]!
+            let type = state_member.child[1]!
+            let declarators = state_member.child[2]!
+            for (let declarator of declarators.child) {
+                let decl_identifier = declarator!.text
+                writeIndent(out, indent + 1)
+                out.write(`object.${decl_identifier} = ${typeIDLtoGIOP("init.", type)}\n`)
+                
+                // switch (type.type) {
+                //     case Type.TKN_IDENTIFIER:
+                //         // custom types
+                //         // FIXME: doesn't work for Array<Layer>()
+                //         // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?
+                //         //                                out.write(") ? new "+type.text+"() : new "+type.text+"(init."+decl_identifier+")\n")
+                //         // console.log(`writeTSValueDefinitions`, type, typeIDLtoTS(type))
+                //         if (type.child[0]?.type == Type.TKN_NATIVE &&
+                //             type.text!.length > 4 &&
+                //             type.text!.substring(type.text!.length - 4) === "_ptr") {
+                //             let name = typeIDLtoTS(type)
+                //             out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init.${decl_identifier})\n`)
+                //         } else {
+                //             out.write(`object.${decl_identifier} = ${typeIDLtoTS(type)}.narrow(init.readObject())\n`) // enforce type check
+                //         }
+                //         break
+                //     case Type.TKN_SEQUENCE:
+                //         // make the loop code a utility function
+                //         out.write(`const length = init.ulong()\n`)
+                //         writeIndent(out, indent + 1)
+                //         out.write(`for(let i<length; ++i) {}\n`)
+                //         break
+                //     default:
+                //         // doesn't work for 'unsigned long' yet
+                //         out.write(`object.${decl_identifier} = init.${type.toString()}()\n`)
+                // }
+            }
         }
     }
 }

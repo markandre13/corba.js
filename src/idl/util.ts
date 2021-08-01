@@ -64,22 +64,27 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                 case Type.TKN_VALUETYPE:
                     if (filetype !== FileType.VALUETYPE)
                         name = `valuetype${absolutePrefix}.${relativeName}`
-
                     else
                         name = relativeName
                     break
                 case Type.SYN_INTERFACE:
                     if (filetype !== FileType.INTERFACE)
                         name = `_interface${absolutePrefix}.${relativeName}`
-
                     else
                         name = relativeName
+                    console.log()
+                    break
+                case Type.TKN_STRUCT:
+                    // FIXME: struct uses a wrong identifier node structure
+                    name = type!.text!
+                    if (filetype !== FileType.INTERFACE)
+                        name = `_interface${absolutePrefix}.${name}}`
                     break
                 case Type.TKN_NATIVE:
                     name = relativeName
                     break
                 default:
-                    throw Error(`Internal Error in typeIDLtoTS(): not implemented identifierType ${identifierType.toString()}`)
+                    throw Error(`Internal Error in typeIDLtoTS(): type ${identifierType.toString()} is not implemented`)
             }
 
             return name
