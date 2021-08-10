@@ -30,7 +30,7 @@ import { filenamePrefix, filename, setFilename, setFilenamePrefix, setFilenameLo
 
 function printHelp() {
     console.log(
-`corba.js IDL compiler
+        `corba.js IDL compiler
 Copyright (C) 2018, 2020 Mark-André Hopf <mhopf@mark13.org>
 This is free software; see the source for copying conditions.  There is
 ABSOLUTELY NO WARRANTY; not even for MERCHANTABILITY or FITNESS FOR A
@@ -44,81 +44,132 @@ Options:
   --ts-skeleton   create TypeScript skeleton file
   --ts-valuetype  create TypeScript valuetype file
   --debug|-d      increase debug level
+  --output-directory|-o <dir>
+                  create files in <dir>
   --help|-h       this page
 `)
 }
 
-let debug = 0, tsInterface = false, tsStub = false, tsSkeleton = false, tsValueType = false, tsValueImpl = false
-let i
+let debug = 0,
+    outputDirectory: string | undefined,
+    tsInterface = false,
+    tsStub = false,
+    tsSkeleton = false,
+    tsValueType = false,
+    tsValueImpl = false
 
-argloop:
-for(i=2; i<process.argv.length; ++i) {
-    switch(process.argv[i]) {
-        case "--":
-            ++i
-            break argloop
-        case "--ts-all":
-            tsInterface = tsStub = tsSkeleton = tsValueType = true
-            break
-        case "--ts-interface":
-            tsInterface = true
-            break
-        case "--ts-stub":
-            tsStub = true
-            break
-        case "--ts-skeleton":
-            tsSkeleton = true
-            break
-        case "--ts-valuetype":
-            tsValueType = true
-            break
-        // case "--ts-valueimpl":
-        //     tsValueImpl = true
-        //     break
-        case "--debug":
-        case "-d":
-            ++debug
-            break
-        case "--help":
-        case "-h":
-            printHelp()
-            process.exit(0)
-        default:
-            if (process.argv[i].length>0 && process.argv[i].charAt(0)=="-") {
-                console.log(`corba-idl: error: unrecognized command line option '${process.argv[i]}'`)
-                process.exit(1)
-            }
-            break argloop
+function main() {
+    let i = parseArguments()
+    for (; i < process.argv.length; ++i) {
+        setupFilenameVars(process.argv[i])
+        let syntaxTree = parseIDLFile()
+        if (debug > 1)
+            syntaxTree.printTree()
+        createOutputFiles(syntaxTree)
     }
 }
-if (i === process.argv.length) {
-    console.log("corba-idl: no input files")
-    process.exit(1)
+
+main()
+
+function parseArguments(): number {
+    let i
+    argloop: for (i = 2; i < process.argv.length; ++i) {
+        switch (process.argv[i]) {
+            case "--":
+                ++i
+                break argloop
+            case "--ts-all":
+                tsInterface = tsStub = tsSkeleton = tsValueType = true
+                break
+            case "--ts-interface":
+                tsInterface = true
+                break
+            case "--ts-stub":
+                tsStub = true
+                break
+            case "--ts-skeleton":
+                tsSkeleton = true
+                break
+            case "--ts-valuetype":
+                tsValueType = true
+                break
+            // case "--ts-valueimpl":
+            //     tsValueImpl = true
+            //     break
+            case "--output-directory":
+            case "-o":
+                outputDirectory = process.argv[++i]
+                break
+            case "--debug":
+            case "-d":
+                ++debug
+                break
+            case "--help":
+            case "-h":
+                printHelp()
+                process.exit(0)
+            default:
+                if (process.argv[i].length > 0 && process.argv[i].charAt(0) == "-") {
+                    console.log(`corba-idl: error: unrecognized command line option '${process.argv[i]}'`)
+                    process.exit(1)
+                }
+                break argloop
+        }
+    }
+    if (i === process.argv.length) {
+        console.log("corba-idl: no input files")
+        process.exit(1)
+    }
+    return i
 }
 
-for(; i<process.argv.length; ++i) {
-    setFilename(process.argv[i])
+function setupFilenameVars(idlFilename: string): void {
+    // a/b/c.idl
+    // filename = a/b/c.idl
+    // used in comment from which idl the output was created
+    setFilename(idlFilename)
+    let n
 
-    let n = filename.lastIndexOf(".")
+    // filenamePrefix = a/b/c
+    // use to create the output file
+    n = filename.lastIndexOf(".")
     if (n === -1) {
         console.log(`corba-idl: error: filename '${filename}' must at least contain one dot ('.')`)
         process.exit(1)
     }
-    setFilenamePrefix(filename.substr(0, n))
-    
+    if (outputDirectory) {
+        if (outputDirectory.charAt(outputDirectory.length - 1) !== "/")
+            outputDirectory += "/"
+        let noSuffix = filename.substr(0, n)
+        n = noSuffix.lastIndexOf("/")
+        if (n === -1)
+            setFilenamePrefix(outputDirectory + noSuffix)
+
+        else
+            setFilenamePrefix(outputDirectory + noSuffix.substr(n + 1))
+    } else {
+        setFilenamePrefix(filename.substr(0, n))
+    }
+
+    // filenameLocal = a/b
+    // used in the output file to inclue another output file
     n = filenamePrefix.lastIndexOf("/")
     if (n === -1)
         setFilenameLocal(filenamePrefix)
-    else
-        setFilenameLocal(filenamePrefix.substr(n+1))
 
+    else
+        setFilenameLocal(filenamePrefix.substr(n + 1))
+}
+
+function parseIDLFile(): Node {
     let filedata: string
     try {
         filedata = fs.readFileSync(filename, "utf8")
     }
-    catch(error) {
+    catch (error) {
         if (error instanceof Error)
             console.log(`corba-idl: error: failed to read file '${filename}': ${error.message}`)
+
         else
             console.log(error)
         process.exit(1)
@@ -129,7 +180,7 @@ for(; i<process.argv.length; ++i) {
     try {
         syntaxTree = specification(lexer)
     }
-    catch(error) {
+    catch (error) {
         if (error instanceof Error) {
             console.log(`corba-idl: error: ${error.message} in file '${filename}' at line ${lexer.line}, column ${lexer.column}`)
             if (debug)
@@ -143,9 +194,10 @@ for(; i<process.argv.length; ++i) {
         console.log("corba-idl: error: empty file or unexpected internal failure")
         process.exit(1)
     }
-    if (debug>1)
-        syntaxTree.printTree()
+    return syntaxTree
+}
 
+function createOutputFiles(syntaxTree: Node): void {
     try {
         if (tsInterface)
             writeTSInterface(syntaxTree!)
@@ -160,7 +212,7 @@ for(; i<process.argv.length; ++i) {
         if (tsValueImpl)
             writeTSValueImpl(syntaxTree!)
     }
-    catch(error) {
+    catch (error) {
         if (error instanceof Error) {
             console.log(`corba-idl: error: ${error.message} in file '${filename}'`)
             if (debug)

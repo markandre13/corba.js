@@ -1,25 +1,42 @@
 {
   "compilerOptions": {
     "target": "es6",
-    "module": "commonjs",
+    "module": "es6",
     "moduleResolution": "node",
     "traceResolution": false,
-    "lib": ["dom", "esnext"],
+    "esModuleInterop": true,
+    // "composite": true,
+    "incremental": true,
+
+    // "lib": ["dom", "esnext"],
+    "outDir": "lib",
     "baseUrl": ".",
     "paths": {
-      "corba.js": [ "src/orb/orb.ts" ]
+      "corba.js": [ "src/orb/index" ],
+      "corba.js/*": [ "src/orb/*" ],
+      "src/*": [ "src/*" ]
     },
-    "outDir": "lib",
-    "declaration": true,
+    "plugins": [
+      { "transform": "@zerollup/ts-transform-paths" },
+      {
+				"transform": "@zoltu/typescript-transformer-append-js-extension/output/index.js",
+				"after": true,
+			}
+    ],
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "removeComments": true,
+    "experimentalDecorators": true,
+    "noImplicitOverride": true,
     "strict": true,
     "strictNullChecks": true,
-    "noImplicitOverride": true,
     "allowJs": false,
     "noImplicitAny": true,
-    "inlineSourceMap": false,
     "sourceMap": true
   },
   "include": [
-    "src/orb"
+    "src/orb",
+    "test",
+    "test-mico"
   ]
 }

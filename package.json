@@ -3,8 +3,9 @@
   "version": "0.0.12",
   "description": "Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
   "author": "Mark-André Hopf <mhopf@mark13.org>",
-  "license": "GPL-3.0",
-  "main": "lib/orb.js",
+  "license": "AGPL-3.0",
+  "type": "module",
+  "main": "lib/index.js",
   "types": "lib/orb.d.ts",
   "bin": {
     "corba-idl": "./bin/corba-idl"
@@ -14,29 +15,30 @@
     "url": "git+https://github.com/markandre13/corba.js.git"
   },
   "scripts": {
-    "build": "npm run build:lib && npm run build:idl",
-    "build:lib": "tsc",
-    "build:idl": "rollup --config rollup.config.js",
+    "build": "npm run build:idl:build && npm run build:idl:compile && npm run build:src:compile",
+    "build:idl:build": "rollup --config rollup.config.js",
+    "build:idl:compile": "bin/corba-idl --ts-all test/*.idl test-mico/mico/test.idl",
+    "build:src:compile": "ttsc",
+
     "test": "bin/corba-idl --ts-all test/*.idl && karma start",
-    "test:watch": "bin/corba-idl --ts-all test/*.idl && karma start --singleRun=false --autoWatch=true | grep -v '^Chrome Headless .* LOG:'",
+    "test:watch": "karma start --singleRun=false --autoWatch=true | grep -v '^Chrome Headless .* LOG:'",
 
-    "test:mico": "npm run test:mico:link && npm run test:mico:ior && npm run test:mico:idl && npm run test:mico:run",
-    "test:mico:link": "ln -sf `pwd` node_modules/corba.js",
+    "test:mico": "npm run test:mico:ior && npm run test:mico:run",
     "test:mico:ior": "scp 192.168.1.105:mico-test/IOR.txt .",
-    "test:mico:idl": "bin/corba-idl --ts-all test-mico/mico/test.idl",
-    "test:mico:run": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'test-mico/giop.spec.ts'",
-
-    "test:micoless": "env TS_NODE_COMPILER_OPTIONS='{\"module\": \"commonjs\" }' mocha -r ts-node/register 'test-mico/giop.spec.ts'",
+    "test:mico:run": "ttsc --watch & sleep 2; nodemon -q -w lib/test-mico ./node_modules/.bin/mocha lib/test-mico/giop.spec.js",
+    
     "update": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^19.0.2",
+    "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
     "@types/chai": "^4.2.21",
     "@types/chai-as-promised": "^7.1.4",
-    "@types/mocha": "^8.2.3",
-    "@types/node": "^16.3.3",
-    "@types/ws": "^7.4.6",
+    "@types/mocha": "^9.0.0",
+    "@types/node": "^16.6.1",
+    "@types/ws": "^7.4.7",
+    "@zerollup/ts-transform-paths": "^1.7.18",
+    "@zoltu/typescript-transformer-append-js-extension": "^1.0.1",
     "bufferutil": "^4.0.3",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
@@ -47,14 +49,15 @@
     "karma-mocha-reporter": "^2.2.5",
     "karma-source-map-support": "^1.4.0",
     "karma-typescript": "^5.5.1",
-    "mocha": "^9.0.2",
-    "rollup": "^2.55.0",
+    "mocha": "^9.0.3",
+    "nodemon": "^2.0.12",
+    "rollup": "^2.56.2",
     "rollup-plugin-typescript2": "^0.30.0",
-    "ts-node": "^10.1.0",
+    "ttypescript": "^1.5.12",
     "typescript": "^4.3.5",
     "utf-8-validate": "^5.0.5"
   },
   "dependencies": {
-    "ws": "^7.5.3"
+    "ws": "^8.1.0"
   }
 }

@@ -18,7 +18,7 @@
 
  import { expect } from "chai"
 
-import { ORB } from "../src/orb/orb-nodejs"
+import { ORB } from "corba.js"
 import * as value from "./basics_value"
 import * as valuetype from "./basics_valuetype"
 import * as skel from "./basics_skel"

@@ -295,7 +295,11 @@ function writeTSValueInitFromJSON(value_dcl: Node, out: fs.WriteStream, indent: 
                         out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init.${decl_identifier})\n`)
                     } else {
                         let name = typeIDLtoTS(type).substring(10) // hack: strip "valuetype."
-                        out.write(`object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init === undefined ? undefined : init.${decl_identifier})\n`)
+                        // FIXME: this always creates a copy
+                        // out.write(`object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init === undefined ? undefined : init.${decl_identifier})\n`)
+                        // this works better but not in all situations
+                        // out.write(`object.${decl_identifier} = ORB.lookupValueType("${name}").prototype.isPrototypeOf(init?.${decl_identifier}) ? init!.${decl_identifier} : ORB.lookupValueType("${name}")(init?.${decl_identifier})\n`)
+                        out.write(`object.${decl_identifier} = ORB.lookupValueType("${name}").prototype.isPrototypeOf(init?.${decl_identifier}) ? init!.${decl_identifier} : ORB.lookupValueType("${name}")(init?.${decl_identifier})\n`)
                     }
                 } else {
                     out.write(`object.${decl_identifier} = (init === undefined || init.${decl_identifier} === undefined) ? `)

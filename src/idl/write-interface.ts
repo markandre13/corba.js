@@ -94,7 +94,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
             case Type.TKN_STRUCT: {
                 const identifier = definition!.text!
                 writeIndent(out, indent)
-                out.write(`interface ${identifier} {\n`)
+                out.write(`export interface ${identifier} {\n`)
                 const member_list = definition!.child!
                 for (const member of member_list) {
                     const type_spec = member!.child[0]!

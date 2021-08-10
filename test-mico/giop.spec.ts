@@ -240,20 +240,38 @@ describe("CDR/GIOP", () => {
             ORB.registerValueType("Point", Point)
             ORB.registerValueType("space.Box", Box)
 
-            const client = new Socket()
-            await client.connect(ior.host!, ior.port!)
-            console.log("connected")
-
             const encoder = new GIOPEncoder()
             encoder.encodeRequest(ior.objectKey!, "setBox")
             const p0 = new Point({x: 1.1, y: 2.1})
+
+            console.log(`original p0.prototype`)
+            console.log(Point.prototype.isPrototypeOf(p0))
+            console.log((Point as Object).isPrototypeOf(p0))
+
             const box = new Box({p0, p1: p0})
+
+            expect(box.p0 === box.p1).to.be.true
+
             encoder.object(box)
 
             encoder.setGIOPHeader(MessageType.REQUEST)
+            const client = new Socket()
+            await client.connect(ior.host!, ior.port!)
+            console.log("connected")
             client.write(encoder.bytes.subarray(0, encoder.offset))
             hexdump(encoder.bytes, 0, encoder.offset)
             expect(encoder.offset).to.equal(0x0090) // length when the point's repositoryID is reused
+
+            // 0000 47 49 4f 50 01 00 01 00 84 00 00 00 00 00 00 00 GIOP............
+            // 0010 01 00 00 00 01 00 00 00 13 00 00 00 2f 31 32 30 ............/120
+            // 0020 35 2f 31 36 32 37 38 32 38 32 35 39 2f 5f 30 00 5/1627828259/_0.
+            // 0030 07 00 00 00 73 65 74 42 6f 78 00 00 00 00 00 00 ....setBox......
+            // 0040 02 ff ff 7f 12 00 00 00 49 44 4c 3a 73 70 61 63 ........IDL:spac
+            // 0050 65 2f 42 6f 78 3a 31 2e 30 00 00 00 02 ff ff 7f e/Box:1.0.......
+            // 0060 0e 00 00 00 49 44 4c 3a 50 6f 69 6e 74 3a 31 2e ....IDL:Point:1.
+            // 0070 30 00 00 00 00 00 00 00 9a 99 99 99 99 99 f1 3f 0..............?
+            // 0080 cd cc cc cc cc cc 00 40 ff ff ff ff d0 ff ff ff .......@........
+            
 
             const data = await client.read()
             console.log("received")

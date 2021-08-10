@@ -72,13 +72,12 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                         name = `_interface${absolutePrefix}.${relativeName}`
                     else
                         name = relativeName
-                    console.log()
                     break
                 case Type.TKN_STRUCT:
                     // FIXME: struct uses a wrong identifier node structure
                     name = type!.text!
                     if (filetype !== FileType.INTERFACE)
-                        name = `_interface${absolutePrefix}.${name}}`
+                        name = `_interface${absolutePrefix}.${name}`
                     break
                 case Type.TKN_NATIVE:
                     name = relativeName

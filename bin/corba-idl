@@ -1,2 +1,2 @@
-#!/usr/bin/env node --enable-source-maps
-require('../lib/idl-compiler.js')
+#!/bin/sh
+exec node --enable-source-maps "${0%/*}/../lib/idl/idl.cjs" $*

@@ -16,9 +16,6 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export * from './ior'
-export * from './giop'
-
 export interface valueTypeInformation {
     attributes: Array<string>
     name?: string
@@ -152,6 +149,8 @@ export class ORB implements EventTarget {
     static registerValueType(name: string, valuetypeConstructor: Function): void {
         let information = ORB.valueTypeByName.get(name)
         if (information === undefined) {
+            console.log(`registerValueType: number of known types: ${ORB.valueTypeByName.size}`)
+            ORB.valueTypeByName.forEach( (value, key) => console.log(key))
             throw Error(`ORB.registerValueType: valuetype '${name}' not defined in IDL`)
         }
         if (information.construct !== undefined) {

@@ -6,7 +6,7 @@ export default [{
     input: 'src/idl/idl.ts',
     output: {
         name: 'idl',
-        file: 'lib/idl-compiler.js',
+        file: 'lib/idl/idl.cjs',
         format: 'commonjs',
         sourcemap: true,
         extend: true

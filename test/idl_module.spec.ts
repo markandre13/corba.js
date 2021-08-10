@@ -18,7 +18,7 @@
 
 import * as chai from "chai"
 import * as chaiAsPromised from "chai-as-promised"
-chai.use(chaiAsPromised)
+chai.use(chaiAsPromised as any)
 const expect = chai.expect
 
 import { ORB } from "../src/orb/orb-nodejs"
