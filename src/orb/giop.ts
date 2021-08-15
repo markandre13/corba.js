@@ -125,15 +125,15 @@ export class GIOPEncoder extends GIOPBase {
             this.ulong(0x7fffff02) // single repositoryId
             this.ulong(0xffffffff) // sure? how the heck to we distinguish indirections to object and repositoryId?
             this.long(indirection)
-        }   
+        }
     }
 
-    protected objects = new Map<Object, number>()
+    protected objectPosition = new Map<Object, number>()
 
     object(object: Object) {
-        const position = this.objects.get(object)
+        const position = this.objectPosition.get(object)
         if (position === undefined) {
-            this.objects.set(object, this.offset);
+            this.objectPosition.set(object, this.offset);
             (object as any).encode(this)
         } else {
             const indirection = position - this.offset - 2
@@ -335,7 +335,7 @@ export class GIOPDecoder extends GIOPBase {
             throw Error(`serviceContextList is not supported`)
         const requestId = this.ulong()
         const replyStatus = this.ulong()
-        switch(replyStatus) {
+        switch (replyStatus) {
             case GIOPDecoder.NO_EXCEPTION:
                 break
             case GIOPDecoder.SYSTEM_EXCEPTION:
@@ -347,7 +347,7 @@ export class GIOPDecoder extends GIOPBase {
                 // org.omg.CORBA.CompletionStatus
                 const completionStatus = this.ulong()
                 let completionStatusName
-                switch(completionStatus) {
+                switch (completionStatus) {
                     case 0:
                         completionStatusName = "yes"
                         break
@@ -361,9 +361,9 @@ export class GIOPDecoder extends GIOPBase {
                         completionStatusName = `${completionStatus}`
                 }
                 // A.5 Exception Codes
-                switch(exceptionId) {
+                switch (exceptionId) {
                     case "IDL:omg.org/CORBA/MARSHAL:1.0": {
-                        let minorCodeExplanation: { [index: number] : string }  = {
+                        let minorCodeExplanation: { [index: number]: string } = {
                             1: "Unable to locate value factory.",
                             2: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
                             3: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
@@ -386,7 +386,72 @@ export class GIOPDecoder extends GIOPBase {
     }
 
     object(): any {
-        throw Error(`GIOPDecoder.object() is not implemented yet`)
+        // throw Error(`GIOPDecoder.object() is not implemented yet`)
+
+        console.log(`decode() at 0x${this.offset.toString(16)}`)
+        const objectOffset = this.offset + 6
+
+        const code = this.ulong()
+        switch (code) {
+            case 0x7fffff02: {
+                const memo = this.offset
+                let name
+                const len = this.ulong()
+                if (len !== 0xffffffff) {
+                    name = this.string(len)
+                } else {
+                    const indirection = this.long()
+                    const savedOffset = this.offset
+                    this.offset = this.offset + indirection - 4
+                    console.log(`indirect repository ID should be at 0x${this.offset.toString(16)}`)
+                    name = this.string()
+                    this.offset = savedOffset
+                }
+                console.log(`repositoryID '${name}' at 0x${memo.toString(16)}`)
+                if (name.length < 8 || name.substr(0, 4) !== "IDL:" || name.substr(name.length - 4) !== ":1.0")
+                    throw Error(`Unsupported CORBA GIOP Repository ID '${name}'`)
+
+                const c = this.valueTypes.get(name)
+                if (c === undefined)
+                    throw Error(`Unregistered Repository ID '${name}'`)
+                const obj = new (c as any)(this)
+                this.objects.set(objectOffset, obj)
+                return obj
+                // name = name.substr(4, name.length - 8)
+                // switch (name) {
+                //     case "Point": {
+                //         const obj = new Point(this)
+                //         this.objects.set(objectOffset, obj)
+                //         return obj
+                //     }
+                //     case "space/Box": {
+                //         const obj = new Box(this)
+                //         this.objects.set(objectOffset, obj)
+                //         return obj
+                //     }
+                // }
+                // throw Error(`Unregistered CORBA Value Type 'IDL:${name}:1.0'`)
+            }
+            case 0xffffffff: {
+                const indirection = this.long()
+                const position = this.offset + indirection
+                console.log(`Need to find previously generated object at 0x${position.toString(16)}`)
+                const obj = this.objects.get(position)
+                if (obj === undefined) {
+                    throw Error("IDL:omg.org/CORBA/MARSHAL:1.0")
+                }
+                return obj
+            }
+            default:
+                throw Error(`Unsupported value with CORBA tag 0x${code.toString(16)}`)
+        }
+
+    }
+
+    protected valueTypes = new Map<string, Function>()
+
+    registerValueType(valuetypeConstructor: Function, spec: string) {
+        this.valueTypes.set(spec, valuetypeConstructor)
     }
 
     blob(length?: number) {

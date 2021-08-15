@@ -27,7 +27,7 @@
 
     "test:mico": "npm run test:mico:ior && npm run test:mico:run",
     "test:mico:ior": "scp 192.168.1.105:mico-test/IOR.txt .",
-    "test:mico:run": "ttsc --watch & sleep 2; nodemon -q -w lib/test-mico ./node_modules/.bin/mocha lib/test-mico/giop.spec.js",
+    "test:mico:run": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test-mico ./node_modules/.bin/mocha lib/test-mico/giop.spec.js",
     
     "update": "npx npm-check-updates -u && npm install"
   },
