@@ -19,8 +19,8 @@
  import { expect } from "chai"
 
 import { ORB } from "../src/orb/orb-nodejs"
-import * as skel from "./stub_skel"
-import * as stub from "./stub_stub"
+import * as skel from "./generated/stub_skel"
+import * as stub from "./generated/stub_stub"
 
 class Data_impl extends skel.Data {
     static numberOfInstances = 0

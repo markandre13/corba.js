@@ -4,5 +4,5 @@ DEADJOE
 node_modules
 lib
 coverage
-test/*.ts
-!test/*.spec.ts
+test/generated
+test-mico/mico/*.ts

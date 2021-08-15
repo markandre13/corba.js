@@ -17,7 +17,9 @@
   "scripts": {
     "build": "npm run build:idl:build && npm run build:idl:compile && npm run build:src:compile",
     "build:idl:build": "rollup --config rollup.config.js",
-    "build:idl:compile": "bin/corba-idl --ts-all test/*.idl test-mico/mico/test.idl",
+    "build:idl:compile": "npm run build:idl:compile:test && npm run build:idl:compile:test-mico",
+    "build:idl:compile:test": "bin/corba-idl --ts-all --output-directory test/generated test/*.idl",
+    "build:idl:compile:test-mico": "bin/corba-idl --ts-all test-mico/mico/test.idl",
     "build:src:compile": "ttsc",
 
     "test": "bin/corba-idl --ts-all test/*.idl && karma start",

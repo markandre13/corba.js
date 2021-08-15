@@ -19,9 +19,9 @@
  import { expect } from "chai"
 
 import { ORB } from "../src/orb/orb-nodejs"
-import * as value from "./valuetype_value"
-import * as skel from "./valuetype_skel"
-import * as stub from "./valuetype_stub"
+import * as value from "./generated/valuetype_value"
+import * as skel from "./generated/valuetype_skel"
+import * as stub from "./generated/valuetype_stub"
 import { mockConnection } from "./util"
 
 class VTPoint implements value.VTPoint

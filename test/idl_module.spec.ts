@@ -22,12 +22,12 @@ chai.use(chaiAsPromised as any)
 const expect = chai.expect
 
 import { ORB } from "../src/orb/orb-nodejs"
-import * as _interface from "./idl_module"
-import * as value from "./idl_module_value"
+import * as _interface from "./generated/idl_module"
+import * as value from "./generated/idl_module_value"
 //import * as valueimpl from "./idl_module_valueimpl"
-import * as valuetype from "./idl_module_valuetype"
-import * as skel from "./idl_module_skel"
-import * as stub from "./idl_module_stub"
+import * as valuetype from "./generated/idl_module_valuetype"
+import * as skel from "./generated/idl_module_skel"
+import * as stub from "./generated/idl_module_stub"
 import { mockConnection } from "./util"
 
 // o In TypeScript, just as in ECMAScript 2015, any file containing a top-level import or export is considered a module.

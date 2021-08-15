@@ -19,10 +19,10 @@
  import { expect } from "chai"
 
 import { ORB } from "corba.js"
-import * as value from "./basics_value"
-import * as valuetype from "./basics_valuetype"
-import * as skel from "./basics_skel"
-import * as stub from "./basics_stub"
+import * as value from "./generated/basics_value"
+import * as valuetype from "./generated/basics_valuetype"
+import * as skel from "./generated/basics_skel"
+import * as stub from "./generated/basics_stub"
 import { mockConnection } from "./util"
 
 class Origin implements value.Origin

@@ -21,8 +21,8 @@
 import { Skeleton, Stub } from "../src/orb/orb"
 import * as server from "../src/orb/orb-nodejs"
 import * as client from "../src/orb/orb"
-import * as skel from "./initialreferences_skel"
-import * as stub from "./initialreferences_stub"
+import * as skel from "./generated/initialreferences_skel"
+import * as stub from "./generated/initialreferences_stub"
 import { mockConnection } from "./util"
 
 class Server_impl extends skel.Server {

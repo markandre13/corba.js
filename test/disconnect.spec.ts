@@ -20,9 +20,9 @@ import { expect } from "chai"
 
 import * as server from "../src/orb/orb-nodejs"
 import * as client from "../src/orb/orb"
-import * as iface from "./disconnect"
-import * as skel from "./disconnect_skel"
-import * as stub from "./disconnect_stub"
+import * as iface from "./generated/disconnect"
+import * as skel from "./generated/disconnect_skel"
+import * as stub from "./generated/disconnect_stub"
 import { mockConnection } from "./util"
 
 class Server_impl extends skel.Server {

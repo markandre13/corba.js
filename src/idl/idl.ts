@@ -138,6 +138,8 @@ function setupFilenameVars(idlFilename: string): void {
         process.exit(1)
     }
     if (outputDirectory) {
+        fs.mkdirSync(outputDirectory, { recursive: true });
+
         if (outputDirectory.charAt(outputDirectory.length - 1) !== "/")
             outputDirectory += "/"
         let noSuffix = filename.substr(0, n)
