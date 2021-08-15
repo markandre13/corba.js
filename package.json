@@ -22,8 +22,8 @@
     "build:idl:compile:test-mico": "bin/corba-idl --ts-all test-mico/mico/test.idl",
     "build:src:compile": "ttsc",
 
-    "test": "bin/corba-idl --ts-all test/*.idl && karma start",
-    "test:watch": "karma start --singleRun=false --autoWatch=true | grep -v '^Chrome Headless .* LOG:'",
+    "test": "karma start karma.conf.cjs",
+    "test:watch": "karma start --singleRun=false --autoWatch=true karma.conf.cjs | grep -v '^Chrome Headless .* LOG:'",
 
     "test:mico": "npm run test:mico:ior && npm run test:mico:run",
     "test:mico:ior": "scp 192.168.1.105:mico-test/IOR.txt .",
