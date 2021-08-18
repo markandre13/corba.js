@@ -21,16 +21,12 @@
     "build:idl:compile:test": "bin/corba-idl --ts-all --output-directory test/generated test/*.idl",
     "build:idl:compile:test-mico": "bin/corba-idl --ts-all test-mico/mico/test.idl",
     "build:src:compile": "ttsc",
-    
     "test": "karma start karma.conf.cjs",
     "test:watch": "karma start --singleRun=false --autoWatch=true karma.conf.cjs | grep -v '^Chrome Headless .* LOG:'",
-
     "test:mico": "npm run test:mico:ior && npm run test:mico:run:watch",
     "test:mico:ior": "scp 192.168.1.105:mico-test/IOR.txt .",
     "test:mico:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test-mico ./node_modules/.bin/mocha lib/test-mico",
-
-    "test:mico:run": "node --enable-source-maps ./node_modules/.bin/mocha lib/test-mico",
-
+    "test:demux:run": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test-mico ./node_modules/.bin/mocha lib/test-mico/demux.spec.js",
     "update": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {
@@ -40,6 +36,7 @@
     "@types/chai-as-promised": "^7.1.4",
     "@types/mocha": "^9.0.0",
     "@types/node": "^16.6.1",
+    "@types/websocket": "^1.0.4",
     "@types/ws": "^7.4.7",
     "@zerollup/ts-transform-paths": "^1.7.18",
     "@zoltu/typescript-transformer-append-js-extension": "^1.0.1",
@@ -59,9 +56,11 @@
     "rollup-plugin-typescript2": "^0.30.0",
     "ttypescript": "^1.5.12",
     "typescript": "^4.3.5",
-    "utf-8-validate": "^5.0.5"
+    "utf-8-validate": "^5.0.5",
+    "websocket": "^1.0.34",
+    "ws": "^8.2.0"
   },
   "dependencies": {
-    "ws": "^8.1.0"
+    "install": "^0.13.0"
   }
 }

@@ -16,62 +16,167 @@
 *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { IncomingMessage } from "http"
-import WebSocket, { Server as WebSocketServer } from "ws"
-import * as ws from 'ws'
+import { ORB, IOR, GIOPEncoder, GIOPDecoder, MessageType } from "corba.js"
+import * as http from "http"
+// import WebSocket, { Server as WebSocketServer } from "ws"
+// import * as ws from 'ws'
+import { 
+    server as WebSocketServer,
+    client as WebSocketClient,
+    request as WebSocketRequest,
+    connection as Connection,
+    Message
+} from "websocket"
+import * as ws from "websocket"
+// var x = require("websocket")
 
-function listen(port: number): Promise<WebSocketServer> {
+// WebSocket close codes
+enum CloseCode {
+    CLOSE_NORMAL = 1000,
+    CLOSE_GOING_AWAY,
+    CLOSE_PROTOCOL_ERROR,
+    CLOSE_UNSUPPORTED,
+    CLOSE_1004,
+    CLOSED_NO_STATUS,
+    CLOSE_ABNORMAL,
+    CLOSE_UNSUPPORTED_PAYLOAD,
+    CLOSE_POLICY_VIOLATION,
+    CLOSE_TOO_LARGE,
+    CLOSE_MANDATORY_EXTENSION,
+    CLOSE_SERVER_ERROR,
+    CLOSE_SERVICE_RESTART,
+    CLOSE_TRY_AGAIN_LATER,
+    CLOSE_BAD_GATEWAY,
+    CLOSE_TLS_HANDSHAKE_FAIL,
+    CLOSE_EXTENSION = 2000,
+    CLOSE_IANA = 3000,
+    CLOSE_CUSTOM = 4000
+}
+
+
+function createServer(port: number): Promise<WebSocketServer> {
     return new Promise<WebSocketServer>((resolve, reject) => {
-        // kludge: 'new WebSocketServer(...)' doesn't work but the following workaround
-        const wss: WebSocketServer = new (ws as any).WebSocketServer({ port }, () => resolve(wss))
-        wss.on("error", (error: any) => {
-            switch (error.code) {
-                case "EADDRINUSE":
-                    reject(new Error(`another server is already running at ${error.address}:${error.port}`))
-                    break
-                default:
-                    console.log(`ERROR CODE: ${error.code}`)
-                    reject(error)
-            }
+        const httpServer = http.createServer()
+        const wss = new (ws as any).default.server({httpServer, autoAcceptConnections: true}) as WebSocketServer
+        wss.on("request", (request: WebSocketRequest) => {
+            console.log('server: request')
+            request.accept()
         })
-        wss.on("connection", (socket: WebSocket, request: IncomingMessage) => {
-            console.log("new client")
-            // console.log(request)
-            // let orb = new ORB(this)
-            // orb.socket = socket
-            // orb.accept()
+        wss.on("connect", (connection: Connection) => {
+            console.log("server: connection")
+            const orb = new ServerORB()
+            connection.on("message", (m: Message) => {
+                console.log("server: message")
+                switch(m.type) {
+                    case "binary":
+                        const b = m.binaryData
+                        const ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+                        orb.message(ab)
+                        break
+                    case "utf8":
+                        console.log(m.utf8Data)
+                        break
+                }
+            })
         })
-        // wss.on("close", ...)
+        wss.on("close", (connection: Connection, reason: number, desc: string) => {
+            const reasonText = CloseCode[reason] || `${reason}`
+            console.log(`server: close ${reasonText} '${desc}'`)
+        })
+        httpServer.listen(port, () => {
+            console.log(`server is listening on port ${port}`)
+            resolve(wss)
+        })
     })
+}
+
+function createClient(url: string): Promise<Connection> {
+    return new Promise<Connection>((resolve, reject) => {
+        const client = new (ws as any).default.client() as WebSocketClient
+        client.once("connect", (conn: Connection) => resolve(conn) )
+        client.once("connectFailed", (error: Error) => reject(error))
+        client.connect(url)
+    })
+}
+
+class ServerORB {
+    constructor() {
+        this.message = this.message.bind(this)
+        this.error = this.error.bind(this)
+        this.close = this.close.bind(this)
+    }
+    message(buffer: ArrayBuffer) {
+        const decoder = new GIOPDecoder(buffer)
+        decoder.scanGIOPHeader(MessageType.REQUEST)
+        decoder.scanRequestHeader()
+    }
+    error(error: Error) {
+        console.log(`ORB: error ${error}`)
+    }
+    close(code: number, reason: string) {
+        console.log(`ORB client closed. code ${code}, reason '${reason}'`)
+    }
 }
 
 describe("multiplexer/demultiplexer", function () {
     it.only("", async function () {
-        const server = await listen(8080)
+        const server = await createServer(8080)
 
-        // server.on('connection', function connection(ws) {
-        //   ws.on('message', function incoming(message) {
-        //     console.log('received: %s', message);
-        //   });
+        // const client = new WebSocketClient()
+        // client.connect('ws://localhost:8080')
 
-        //   ws.send('something');
-        // });
+        const client = await createClient('ws://localhost:8080/')
+        console.log("client: open")
 
-        const client = new WebSocket('ws://localhost:8080')
-        client.on("open", () => {
-            console.log("client: client is open")
-            server.close()
-            client.close()
+        client.on("message", (m: Message) => {
+            console.log("client: message")
+            switch(m.type) {
+                case "binary":
+                    const b = m.binaryData
+                    const ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+                    // orb.message(ab)
+                    break
+                case "utf8":
+                    console.log(m.utf8Data)
+                    break
+            }
         })
+
+        const encoder0 = new GIOPEncoder()
+        encoder0.encodeRequest("DUMMY", "callA", 1, MessageType.REPLY)
+        encoder0.setGIOPHeader(MessageType.REQUEST)
+        client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
+
+        const encoder1 = new GIOPEncoder()
+        encoder1.encodeRequest("DUMMY", "callB", 2, MessageType.REPLY)
+        encoder1.setGIOPHeader(MessageType.REQUEST)
+        client.sendBytes(Buffer.from(encoder1.bytes.subarray(0, encoder1.offset)))
+
+        // client.sendUTF("Hello again!")
+        // client.close(CloseCode.CLOSE_CUSTOM + 711, "Cologne")
         // server.close()
+        // server.closeAllConnections()
+/*
+        const serverORB = new ORB()
+        serverORB.name = "serverORB"
+        //serverORB.debug = 1
+        serverORB.bind("Server", new Server_impl(serverORB))     
 
-        // client.on('open', function open() {
-        //   client.send('something');
-        // });
+        const clientORB = new ORB()
+        clientORB.name = "clientORB"
+        //clientORB.debug = 1
+        clientORB.registerStubClass(stub.Server)
+        
+        mockConnection(serverORB, clientORB).name = "acceptedORB"
 
-        // client.on('message', function incoming(message) {
-        //   console.log('received: %s', message);
-        // });
+        const server = stub.Server.narrow(await clientORB.resolve("Server"))
+
+        // the idea is that the server has delays and we'll get the reponses in a different order
+        // eg. C, A, B
+        client.callA().then ...
+        client.callB().then ...
+        client.callC().then ...
+*/
 
     })
 

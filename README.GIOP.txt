@@ -20,6 +20,21 @@ CORBA TERMS
 
 CORBA 3.3, 9.3.4 Value Types
 
+CORBA 3.3, Part II: 9.4.9 Fragment Message, 9.3.4.5 Fragmentation
+* added in GIOP 1.1
+* when a Request or Reply Message had the 'more fragments bit' set to true,
+  it fill be followed by one or more Fragment messages, with the last one
+  having it's 'more frament bit' set to false.
+* a CancelRequest can tell the peer to stop sending fragments
+* data in the fragment is aligned to its position within the fragment,
+  no the whole message
+
+fair enough, now the sucky Part: 9.3.4.5 Fragmentation
+it seems that the 'more fragments bit' is neither in the GIOP nor the
+Request or Reply header but instead in the value_tag & 0x08
+
+if set, there's an ulong for the length of the chunk...
+
 From observing MICO with tcpdump:
 
 getPoint() call

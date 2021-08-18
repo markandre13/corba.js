@@ -86,15 +86,14 @@ export class GIOPEncoder extends GIOPBase {
         this.data.setUint8(6, GIOPEncoder.littleEndian ? GIOPEncoder.ENDIAN_LITTLE : GIOPEncoder.ENDIAN_BIG)
         this.data.setUint8(7, type)
 
+        // message size
         this.data.setUint32(8, this.offset - 12, GIOPEncoder.littleEndian)
     }
 
-    encodeRequest(objectKey: string, method: string) {
+    encodeRequest(objectKey: string, method: string, requestId = 1, responseExpected = MessageType.REPLY) {
         this.skipGIOPHeader()
         this.ulong(0) // serviceContextListLength
-        const requestId = 1
         this.ulong(requestId)
-        const responseExpected = MessageType.REPLY
         this.byte(responseExpected)
         this.blob(objectKey!)
         this.string(method)
@@ -276,13 +275,13 @@ export class GIOPDecoder extends GIOPBase {
         super()
         this.buffer = buffer
         this.data = new DataView(buffer)
-        this.bytes = new Uint8Array(this.buffer)
+        this.bytes = new Uint8Array(buffer)
     }
 
     scanGIOPHeader(expectType: MessageType) {
         const magic = this.data.getUint32(0)
         if (magic !== 0x47494f50) {
-            throw Error(`Missing GIOP Header Magic Number`)
+            throw Error(`Missing GIOP Header Magic Number (got 0x${magic.toString(16)}, expected 0x47494f50`)
         }
         this.offset += 4
 
