@@ -277,7 +277,6 @@ describe("CDR/GIOP", () => {
             // 0060 0e 00 00 00 49 44 4c 3a 50 6f 69 6e 74 3a 31 2e ....IDL:Point:1.
             // 0070 30 00 00 00 00 00 00 00 9a 99 99 99 99 99 f1 3f 0..............?
             // 0080 cd cc cc cc cc cc 00 40 ff ff ff ff d0 ff ff ff .......@........
-            
 
             const data = await client.read()
             console.log("received")

@@ -100,6 +100,13 @@ export class GIOPEncoder extends GIOPBase {
         this.ulong(0) // Requesting Principal length
     }
 
+    encodeReply(requestId: number, replyStatus: number = GIOPDecoder.NO_EXCEPTION) {
+        this.skipGIOPHeader()
+        this.ulong(0) // serviceContextListLength
+        this.ulong(requestId)
+        this.ulong(replyStatus)
+    }
+
     protected repositoryIds = new Map<string, number>()
 
     repositoryId(name: string) {
@@ -259,6 +266,13 @@ export class GIOPEncoder extends GIOPBase {
     }
 }
 
+class RequestData {
+    requestId!: number
+    responseExpected!: boolean
+    objectKey!: string
+    method!: string
+}
+
 export class GIOPDecoder extends GIOPBase {
     buffer: ArrayBuffer
     data: DataView
@@ -319,13 +333,15 @@ export class GIOPDecoder extends GIOPBase {
         if (serviceContextListLength !== 0)
             throw Error(`serviceContextList is not supported`)
 
-        const requestId = this.ulong()
-        const responseExpected = this.byte()
-        const objectKey = this.blob()
-        const method = this.string()
+        const data = new RequestData()
+        data.requestId = this.ulong()
+        data.responseExpected = this.byte() != 0
+        data.objectKey = this.blob()
+        data.method = this.string()
         const requestingPrincipalLength = this.short()
 
-        console.log(`requestId=${requestId}, responseExpected=${responseExpected}, objectKey=${objectKey}, method=${method}, requestingPrincipalLength=${requestingPrincipalLength}`)
+        console.log(`requestId=${data.requestId}, responseExpected=${data.responseExpected}, objectKey=${data.objectKey}, method=${data.method}, requestingPrincipalLength=${requestingPrincipalLength}`)
+        return data
     }
 
     scanReplyHeader() {
@@ -382,6 +398,7 @@ export class GIOPDecoder extends GIOPBase {
             default:
                 throw Error(`ReplyStatusType ${replyStatus} is not supported`)
         }
+        return requestId
     }
 
     object(): any {

@@ -18,8 +18,6 @@
 
 import { ORB, IOR, GIOPEncoder, GIOPDecoder, MessageType } from "corba.js"
 import * as http from "http"
-// import WebSocket, { Server as WebSocketServer } from "ws"
-// import * as ws from 'ws'
 import { 
     server as WebSocketServer,
     client as WebSocketClient,
@@ -28,7 +26,6 @@ import {
     Message
 } from "websocket"
 import * as ws from "websocket"
-// var x = require("websocket")
 
 // WebSocket close codes
 enum CloseCode {
@@ -64,7 +61,7 @@ function createServer(port: number): Promise<WebSocketServer> {
         })
         wss.on("connect", (connection: Connection) => {
             console.log("server: connection")
-            const orb = new ServerORB()
+            const orb = new ServerORB(connection)
             connection.on("message", (m: Message) => {
                 console.log("server: message")
                 switch(m.type) {
@@ -100,7 +97,9 @@ function createClient(url: string): Promise<Connection> {
 }
 
 class ServerORB {
-    constructor() {
+    connection: Connection
+    constructor(connection: Connection) {
+        this.connection = connection
         this.message = this.message.bind(this)
         this.error = this.error.bind(this)
         this.close = this.close.bind(this)
@@ -108,7 +107,26 @@ class ServerORB {
     message(buffer: ArrayBuffer) {
         const decoder = new GIOPDecoder(buffer)
         decoder.scanGIOPHeader(MessageType.REQUEST)
-        decoder.scanRequestHeader()
+        const request = decoder.scanRequestHeader()
+
+        if (request.responseExpected) {}
+
+        if (request.requestId === 2) {
+            const encoder0 = new GIOPEncoder()
+            encoder0.encodeReply(2)
+            encoder0.setGIOPHeader(MessageType.REPLY)
+            this.connection.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
+
+            const encoder1 = new GIOPEncoder()
+            encoder1.encodeReply(1)
+            encoder1.setGIOPHeader(MessageType.REPLY)
+            this.connection.sendBytes(Buffer.from(encoder1.bytes.subarray(0, encoder1.offset)))
+        }
+
+        // const encoder = new GIOPEncoder()
+        // encoder.encodeReply(request.requestId)
+        // encoder.setGIOPHeader(MessageType.REPLY)
+        // this.connection.sendBytes(Buffer.from(encoder.bytes.subarray(0, encoder.offset)))
     }
     error(error: Error) {
         console.log(`ORB: error ${error}`)
@@ -116,6 +134,21 @@ class ServerORB {
     close(code: number, reason: string) {
         console.log(`ORB client closed. code ${code}, reason '${reason}'`)
     }
+}
+
+const map = new Map<number, ()=>void>()
+
+function handle(resolve: () => void, reject: (reason?: any) => void, requestId: number) {
+    map.set(requestId, resolve)
+}
+
+function call(client: Connection, objectId: string, method: string, requestId: number) {
+    console.log(`client: send request ${requestId}`)
+    const encoder0 = new GIOPEncoder()
+    encoder0.encodeRequest(objectId, method, requestId, MessageType.REPLY)
+    encoder0.setGIOPHeader(MessageType.REQUEST)
+    client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
+    return new Promise<void>( (resolve, reject) => { handle(resolve, reject, requestId)} )
 }
 
 describe("multiplexer/demultiplexer", function () {
@@ -134,6 +167,11 @@ describe("multiplexer/demultiplexer", function () {
                 case "binary":
                     const b = m.binaryData
                     const ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+                    const decoder = new GIOPDecoder(ab)
+                    decoder.scanGIOPHeader(MessageType.REPLY)
+                    const requestId = decoder.scanReplyHeader()
+                    console.log(`client: got reply for request ${requestId}`)
+                    map.get(requestId)!()
                     // orb.message(ab)
                     break
                 case "utf8":
@@ -142,16 +180,15 @@ describe("multiplexer/demultiplexer", function () {
             }
         })
 
-        const encoder0 = new GIOPEncoder()
-        encoder0.encodeRequest("DUMMY", "callA", 1, MessageType.REPLY)
-        encoder0.setGIOPHeader(MessageType.REQUEST)
-        client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
+        call(client, "DUMMY", "callA", 1)
+            .then( () => {
+                console.log("got reply for callA")
+            })
 
-        const encoder1 = new GIOPEncoder()
-        encoder1.encodeRequest("DUMMY", "callB", 2, MessageType.REPLY)
-        encoder1.setGIOPHeader(MessageType.REQUEST)
-        client.sendBytes(Buffer.from(encoder1.bytes.subarray(0, encoder1.offset)))
-
+        call(client, "DUMMY", "callB", 2)
+            .then( () => {
+                console.log("got reply for callB")
+            })
         // client.sendUTF("Hello again!")
         // client.close(CloseCode.CLOSE_CUSTOM + 711, "Cologne")
         // server.close()
