@@ -273,6 +273,11 @@ class RequestData {
     method!: string
 }
 
+class ReplyData {
+    requestId!: number
+    replyStatus!: number
+}
+
 export class GIOPDecoder extends GIOPBase {
     buffer: ArrayBuffer
     data: DataView
@@ -348,10 +353,15 @@ export class GIOPDecoder extends GIOPBase {
         const serviceContextListLength = this.ulong()
         if (serviceContextListLength !== 0)
             throw Error(`serviceContextList is not supported`)
-        const requestId = this.ulong()
-        const replyStatus = this.ulong()
-        switch (replyStatus) {
+
+        const data = new ReplyData()
+
+        data.requestId = this.ulong()
+        data.replyStatus = this.ulong()
+        switch (data.replyStatus) {
             case GIOPDecoder.NO_EXCEPTION:
+                break
+            case GIOPDecoder.USER_EXCEPTION:
                 break
             case GIOPDecoder.SYSTEM_EXCEPTION:
                 // 0.4.3.2 ReplyBody: SystemExceptionReplyBody
@@ -396,9 +406,9 @@ export class GIOPDecoder extends GIOPBase {
                 }
                 break
             default:
-                throw Error(`ReplyStatusType ${replyStatus} is not supported`)
+                throw Error(`ReplyStatusType ${data.replyStatus} is not supported`)
         }
-        return requestId
+        return data
     }
 
     object(): any {

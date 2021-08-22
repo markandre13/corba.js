@@ -27,6 +27,18 @@ import {
 } from "websocket"
 import * as ws from "websocket"
 
+import { use, expect } from "chai"
+import * as chai from "chai"
+import * as chaiAsPromised from "chai-as-promised"
+
+console.log(use)
+console.log(chaiAsPromised)
+use(chaiAsPromised.default)
+
+// chai.use(chaiAsPromised as any)
+
+// import { expect } from "chai"
+
 // WebSocket close codes
 enum CloseCode {
     CLOSE_NORMAL = 1000,
@@ -122,6 +134,12 @@ class ServerORB {
             encoder1.setGIOPHeader(MessageType.REPLY)
             this.connection.sendBytes(Buffer.from(encoder1.bytes.subarray(0, encoder1.offset)))
         }
+        if (request.requestId === 3) {
+            const encoder = new GIOPEncoder()
+            encoder.encodeReply(3, GIOPDecoder.USER_EXCEPTION)
+            encoder.setGIOPHeader(MessageType.REPLY)
+            this.connection.sendBytes(Buffer.from(encoder.bytes.subarray(0, encoder.offset)))
+        }
 
         // const encoder = new GIOPEncoder()
         // encoder.encodeReply(request.requestId)
@@ -136,11 +154,16 @@ class ServerORB {
     }
 }
 
-const map = new Map<number, ()=>void>()
-
-function handle(resolve: () => void, reject: (reason?: any) => void, requestId: number) {
-    map.set(requestId, resolve)
+class PromiseHandler {
+    constructor(resolve: () => void, reject: (reason?: any) => void) {
+        this.resolve = resolve
+        this.reject = reject
+    }
+    resolve: () => void
+    reject: (reason?: any) => void
 }
+
+const map = new Map<number, PromiseHandler>()
 
 function call(client: Connection, objectId: string, method: string, requestId: number) {
     console.log(`client: send request ${requestId}`)
@@ -148,7 +171,7 @@ function call(client: Connection, objectId: string, method: string, requestId: n
     encoder0.encodeRequest(objectId, method, requestId, MessageType.REPLY)
     encoder0.setGIOPHeader(MessageType.REQUEST)
     client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
-    return new Promise<void>( (resolve, reject) => { handle(resolve, reject, requestId)} )
+    return new Promise<void>( (resolve, reject) => map.set(requestId, new PromiseHandler(resolve, reject)))
 }
 
 describe("multiplexer/demultiplexer", function () {
@@ -169,10 +192,21 @@ describe("multiplexer/demultiplexer", function () {
                     const ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
                     const decoder = new GIOPDecoder(ab)
                     decoder.scanGIOPHeader(MessageType.REPLY)
-                    const requestId = decoder.scanReplyHeader()
-                    console.log(`client: got reply for request ${requestId}`)
-                    map.get(requestId)!()
-                    // orb.message(ab)
+                    const data = decoder.scanReplyHeader()
+                    console.log(`client: got reply for request ${data.requestId}`)
+                    const handler = map.get(data.requestId)
+                    if (handler === undefined) {
+                        console.log(`Unexpected reply to request ${data.requestId}`)
+                        break
+                    }
+                    switch(data.replyStatus) {
+                        case GIOPDecoder.NO_EXCEPTION:
+                            handler.resolve()
+                            break
+                        case GIOPDecoder.USER_EXCEPTION:
+                            handler.reject(new Error(`User Exception`))
+                            break
+                    }
                     break
                 case "utf8":
                     console.log(m.utf8Data)
@@ -189,10 +223,13 @@ describe("multiplexer/demultiplexer", function () {
             .then( () => {
                 console.log("got reply for callB")
             })
+
+        await expect(call(client, "DUMMY", "callC", 3)).to.be.rejectedWith(Error,
+            "User Exception", "b")
         // client.sendUTF("Hello again!")
-        // client.close(CloseCode.CLOSE_CUSTOM + 711, "Cologne")
+        client.close(CloseCode.CLOSE_CUSTOM + 711, "Cologne")
         // server.close()
-        // server.closeAllConnections()
+        server.closeAllConnections()
 /*
         const serverORB = new ORB()
         serverORB.name = "serverORB"
