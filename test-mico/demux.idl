@@ -1,0 +1,4 @@
+interface Server {
+    oneway void onewayCall(in unsigned short a);
+    unsigned short twowayCall(in unsigned short a);
+};

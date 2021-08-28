@@ -22,7 +22,14 @@ export interface valueTypeInformation {
     construct?: Function
 }
 
-export class ORB implements EventTarget {
+interface SocketUser {
+    socketSend: (buffer: ArrayBuffer) => void
+    socketRcvd(buffer:ArrayBuffer): void
+    socketError(error: Error): void
+    socketClose(): void
+}
+
+export class ORB implements EventTarget, SocketUser {
     debug: number		// values > 0 enable debug output
     name: string
 
@@ -67,9 +74,35 @@ export class ORB implements EventTarget {
         this.reqid = 0
         this.listeners = new Map<string, Set<EventListenerOrEventListenerObject>>()
     }
+
+    //
+    // Network
+    //
+    socketSend!: (buffer: ArrayBuffer) => void
+    socketRcvd(buffer:ArrayBuffer): void {
+        // const decoder = new GIOPDecoder(ab)
+        // decoder.scanGIOPHeader(MessageType.REPLY)
+        // const data = decoder.scanReplyHeader()
+        // console.log(`client: got reply for request ${data.requestId}`)
+        // const handler = map.get(data.requestId)
+        // if (handler === undefined) {
+        //     console.log(`Unexpected reply to request ${data.requestId}`)
+        //     break
+        // }
+        // map.delete(data.requestId)
+        // switch(data.replyStatus) {
+        //     case GIOPDecoder.NO_EXCEPTION:
+        //         handler.decode(decoder)
+        //         break
+        //     case GIOPDecoder.USER_EXCEPTION:
+        //         handler.reject(new Error(`User Exception`))
+        //         break
+        // }
+    }
+    socketError(error: Error): void {}
+    socketClose(): void {}
     
-    // EventTarget methods
-    
+    // EventTarget methods 
     addEventListener(type: string,
                      listener: EventListenerOrEventListenerObject | null,
                      options?: boolean | AddEventListenerOptions): void
@@ -352,10 +385,10 @@ export class ORB implements EventTarget {
         if (this.debug>0) {
             console.log("ORB.send("+JSON.stringify(data)+")")
         }
-
         return new Promise<any>( (resolve, reject) => {
             if (this.socket === undefined)
                 throw Error("ORB.send(): no socket")
+
             this.socket.onmessage = (message: any) => {
                 if (this.debug>0) {
                     console.log("ORB.send(...) received "+message.data)

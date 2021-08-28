@@ -16,28 +16,22 @@
 *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { ORB, IOR, GIOPEncoder, GIOPDecoder, MessageType } from "corba.js"
+import { use, expect } from "chai"
+import * as chaiAsPromised from "chai-as-promised"
+use(chaiAsPromised.default)
+
 import * as http from "http"
 import { 
     server as WebSocketServer,
     client as WebSocketClient,
     request as WebSocketRequest,
-    connection as Connection,
+    connection as WebSocketConnection,
     Message
 } from "websocket"
 import * as ws from "websocket"
 
-import { use, expect } from "chai"
-import * as chai from "chai"
-import * as chaiAsPromised from "chai-as-promised"
-
-console.log(use)
-console.log(chaiAsPromised)
-use(chaiAsPromised.default)
-
-// chai.use(chaiAsPromised as any)
-
-// import { expect } from "chai"
+import { Stub, GIOPEncoder, GIOPDecoder, MessageType, ORB } from "corba.js"
+import * as _interface from "./demux"
 
 // WebSocket close codes
 enum CloseCode {
@@ -62,36 +56,31 @@ enum CloseCode {
     CLOSE_CUSTOM = 4000
 }
 
-
-function createServer(port: number): Promise<WebSocketServer> {
+function listen(orb: ORB, port: number): Promise<WebSocketServer> {
     return new Promise<WebSocketServer>((resolve, reject) => {
         const httpServer = http.createServer()
         const wss = new (ws as any).default.server({httpServer, autoAcceptConnections: true}) as WebSocketServer
         wss.on("request", (request: WebSocketRequest) => {
-            console.log('server: request')
             request.accept()
         })
-        wss.on("connect", (connection: Connection) => {
-            console.log("server: connection")
-            const orb = new ServerORB(connection)
-            connection.on("message", (m: Message) => {
-                console.log("server: message")
-                switch(m.type) {
+        wss.on("connect", (connection: WebSocketConnection) => {
+            const clientORB = new ORB(orb)
+            clientORB.socketSend = (buffer: ArrayBuffer) => { connection.sendBytes(Buffer.from(buffer)) }
+            connection.on("error", (error: Error) => { clientORB.socketError(error) })
+            connection.on("close", (code: number, desc: string) => { clientORB.socketClose() })
+            connection.on("message", (message: Message) => {
+                switch(message.type) {
                     case "binary":
-                        const b = m.binaryData
-                        const ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
-                        orb.message(ab)
+                        const b = message.binaryData
+                        clientORB.socketRcvd(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength))
                         break
                     case "utf8":
-                        console.log(m.utf8Data)
+                        console.log(message.utf8Data)
                         break
                 }
             })
         })
-        wss.on("close", (connection: Connection, reason: number, desc: string) => {
-            const reasonText = CloseCode[reason] || `${reason}`
-            console.log(`server: close ${reasonText} '${desc}'`)
-        })
+        httpServer.once("error", (error: Error) => reject(error) )
         httpServer.listen(port, () => {
             console.log(`server is listening on port ${port}`)
             resolve(wss)
@@ -99,137 +88,199 @@ function createServer(port: number): Promise<WebSocketServer> {
     })
 }
 
-function createClient(url: string): Promise<Connection> {
-    return new Promise<Connection>((resolve, reject) => {
+// connect ORB to WebSocket server
+function connect(orb: ORB, url: string): Promise<WebSocketConnection> {
+    return new Promise<WebSocketConnection>((resolve, reject) => {
         const client = new (ws as any).default.client() as WebSocketClient
-        client.once("connect", (conn: Connection) => resolve(conn) )
+        client.once("connect", (connection: WebSocketConnection) => {
+            orb.socketSend = (buffer: ArrayBuffer) => connection.sendBytes(Buffer.from(buffer))
+            connection.on("error", (error: Error) => orb.socketError(error))
+            connection.on("close", (code: number, desc: string) => orb.socketClose())
+            connection.on("message", (m: Message) => {
+                switch(m.type) {
+                    case "binary":
+                        const b = m.binaryData
+                        orb.socketRcvd(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength))
+                        break
+                    case "utf8":
+                        console.log(m.utf8Data)
+                        break
+                }
+            })
+            resolve(connection)
+        })
         client.once("connectFailed", (error: Error) => reject(error))
         client.connect(url)
     })
 }
 
-class ServerORB {
-    connection: Connection
-    constructor(connection: Connection) {
-        this.connection = connection
-        this.message = this.message.bind(this)
-        this.error = this.error.bind(this)
-        this.close = this.close.bind(this)
-    }
-    message(buffer: ArrayBuffer) {
-        const decoder = new GIOPDecoder(buffer)
-        decoder.scanGIOPHeader(MessageType.REQUEST)
-        const request = decoder.scanRequestHeader()
+// class ServerORB {
+//     connection: WebSocketConnection
+//     constructor(connection: WebSocketConnection) {
+//         this.connection = connection
+//         this.message = this.message.bind(this)
+//         this.error = this.error.bind(this)
+//         this.close = this.close.bind(this)
+//     }
+//     message(buffer: ArrayBuffer) {
+//         const decoder = new GIOPDecoder(buffer)
+//         decoder.scanGIOPHeader(MessageType.REQUEST)
+//         const request = decoder.scanRequestHeader()
 
-        if (request.responseExpected) {}
+//         if (request.responseExpected) {}
 
-        if (request.requestId === 2) {
-            const encoder0 = new GIOPEncoder()
-            encoder0.encodeReply(2)
-            encoder0.setGIOPHeader(MessageType.REPLY)
-            this.connection.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
+//         if (request.requestId === 2) {
+//             const encoder0 = new GIOPEncoder()
+//             encoder0.encodeReply(2)
+//             encoder0.setGIOPHeader(MessageType.REPLY)
+//             this.connection.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
 
-            const encoder1 = new GIOPEncoder()
-            encoder1.encodeReply(1)
-            encoder1.setGIOPHeader(MessageType.REPLY)
-            this.connection.sendBytes(Buffer.from(encoder1.bytes.subarray(0, encoder1.offset)))
-        }
-        if (request.requestId === 3) {
-            const encoder = new GIOPEncoder()
-            encoder.encodeReply(3, GIOPDecoder.USER_EXCEPTION)
-            encoder.setGIOPHeader(MessageType.REPLY)
-            this.connection.sendBytes(Buffer.from(encoder.bytes.subarray(0, encoder.offset)))
-        }
+//             const encoder1 = new GIOPEncoder()
+//             encoder1.encodeReply(1)
+//             encoder1.setGIOPHeader(MessageType.REPLY)
+//             this.connection.sendBytes(Buffer.from(encoder1.bytes.subarray(0, encoder1.offset)))
+//         }
+//         if (request.requestId === 3) {
+//             const encoder = new GIOPEncoder()
+//             encoder.encodeReply(3, GIOPDecoder.USER_EXCEPTION)
+//             encoder.setGIOPHeader(MessageType.REPLY)
+//             this.connection.sendBytes(Buffer.from(encoder.bytes.subarray(0, encoder.offset)))
+//         }
 
-        // const encoder = new GIOPEncoder()
-        // encoder.encodeReply(request.requestId)
-        // encoder.setGIOPHeader(MessageType.REPLY)
-        // this.connection.sendBytes(Buffer.from(encoder.bytes.subarray(0, encoder.offset)))
-    }
-    error(error: Error) {
-        console.log(`ORB: error ${error}`)
-    }
-    close(code: number, reason: string) {
-        console.log(`ORB client closed. code ${code}, reason '${reason}'`)
-    }
-}
+//         // const encoder = new GIOPEncoder()
+//         // encoder.encodeReply(request.requestId)
+//         // encoder.setGIOPHeader(MessageType.REPLY)
+//         // this.connection.sendBytes(Buffer.from(encoder.bytes.subarray(0, encoder.offset)))
+//     }
+//     error(error: Error) {
+//         console.log(`ORB: error ${error}`)
+//     }
+//     close(code: number, reason: string) {
+//         console.log(`ORB client closed. code ${code}, reason '${reason}'`)
+//     }
+// }
 
 class PromiseHandler {
-    constructor(resolve: () => void, reject: (reason?: any) => void) {
-        this.resolve = resolve
+    constructor(decode: (decoder: GIOPDecoder) => void, reject: (reason?: any) => void) {
+        this.decode = decode
         this.reject = reject
     }
-    resolve: () => void
+    decode: (decoder: GIOPDecoder) => void
     reject: (reason?: any) => void
 }
 
 const map = new Map<number, PromiseHandler>()
 
-function call(client: Connection, objectId: string, method: string, requestId: number) {
+function call(client: WebSocketConnection, objectId: string, method: string, requestId: number) {
     console.log(`client: send request ${requestId}`)
     const encoder0 = new GIOPEncoder()
-    encoder0.encodeRequest(objectId, method, requestId, MessageType.REPLY)
+    encoder0.encodeRequest(objectId, method, requestId, true)
+
     encoder0.setGIOPHeader(MessageType.REQUEST)
     client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
-    return new Promise<void>( (resolve, reject) => map.set(requestId, new PromiseHandler(resolve, reject)))
+    return new Promise<void>( (resolve, reject) => map.set(requestId, new PromiseHandler(
+        () => resolve(),
+        reject)))
 }
 
+// npm run test:demux:run
+// rm -f lib/idl/idl.cjs ; npm run build:idl:build && ./bin/corba-idl --ts-all test-mico/demux.idl && cat test-mico/demux_stub.ts
+
+export class ServerStub extends Stub implements _interface.Server {
+    static _idlClassName(): string {
+        return "Server"
+    }
+
+    static narrow(object: any): ServerStub {
+        if (object instanceof ServerStub)
+            return object as ServerStub
+        throw Error("ServerStub.narrow() failed")
+    }
+
+    onewayCall(a: number): void {
+        const encoder = new GIOPEncoder()
+        const requestId = ++this.orb.reqid
+        encoder.encodeRequest(`${this.id}`, "onewayCall", requestId, false)
+
+        encoder.ushort(a)
+
+        encoder.setGIOPHeader(MessageType.REQUEST)
+        // client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
+    }
+    twowayCall(a: number): Promise<number> {
+        const encoder = new GIOPEncoder()
+        const requestId = ++this.orb.reqid
+        encoder.encodeRequest(`${this.id}`, "twowayCall", requestId, true)
+
+        encoder.ushort(a)
+
+        encoder.setGIOPHeader(MessageType.REQUEST)
+        // client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
+
+        return new Promise<number>( (resolve, reject) => map.set(requestId, 
+            new PromiseHandler(
+                (decoder: GIOPDecoder) => resolve(decoder.ushort()),
+                reject)
+        ))
+    }
+}
+
+// https://html.spec.whatwg.org/multipage/web-sockets.html#network
+// * the W3C WebSocket supports two types for sending & receiving: Blob & ArrayBuffer
+// * Blob is the default, we want ArrayBuffer because we want to look into it
+
+// in giop.spec.ts i'm using socket, but this is a wrapper for net.Socket, which has an
+// API that's closer to WebSockets (but uses Uint8Array instead of ArrayBuffer)
+
+// blob               arraybuffer
+// immutable          can be changed, eg. with a dataview
+// could be on disk   ram
+
+// events: open, message, error, close
+// MessageEvent {
+//      data: any
+// }
+// send(data: Blob|ArrayBuffer|ArrayBufferView)
+// ORB Network Adapter
+// 
+// sets ->  ORB.send: (buffer: ArrayBuffer) => void
+// calls -> ORB.message(buffer: ArrayBuffer)
+// calls -> ORB.error() ????
+// calls -> ORB.close
+
 describe("multiplexer/demultiplexer", function () {
-    it.only("", async function () {
-        const server = await createServer(8080)
+    it.only("a", async function() {
+        const orb = new ORB()
+        const serverStub = new ServerStub(orb, 1)
+        serverStub.onewayCall(17)
+        const x = await serverStub.twowayCall(42)
+        console.log(`twowayCall(42) -> ${x}`)
+    })
+    it("b", async function () {
+        const serverORB = new ORB()
+        // register skeleton implementation
+        const serverWS = await listen(serverORB, 8080)
 
-        // const client = new WebSocketClient()
-        // client.connect('ws://localhost:8080')
+        const clientORB = new ORB()
+        // register stub
+        const clientWS = await connect(clientORB, "ws://localhost:8080/")
 
-        const client = await createClient('ws://localhost:8080/')
-        console.log("client: open")
-
-        client.on("message", (m: Message) => {
-            console.log("client: message")
-            switch(m.type) {
-                case "binary":
-                    const b = m.binaryData
-                    const ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
-                    const decoder = new GIOPDecoder(ab)
-                    decoder.scanGIOPHeader(MessageType.REPLY)
-                    const data = decoder.scanReplyHeader()
-                    console.log(`client: got reply for request ${data.requestId}`)
-                    const handler = map.get(data.requestId)
-                    if (handler === undefined) {
-                        console.log(`Unexpected reply to request ${data.requestId}`)
-                        break
-                    }
-                    switch(data.replyStatus) {
-                        case GIOPDecoder.NO_EXCEPTION:
-                            handler.resolve()
-                            break
-                        case GIOPDecoder.USER_EXCEPTION:
-                            handler.reject(new Error(`User Exception`))
-                            break
-                    }
-                    break
-                case "utf8":
-                    console.log(m.utf8Data)
-                    break
-            }
-        })
-
-        call(client, "DUMMY", "callA", 1)
+        call(clientWS, "DUMMY", "callA", 1)
             .then( () => {
                 console.log("got reply for callA")
             })
 
-        call(client, "DUMMY", "callB", 2)
+        call(clientWS, "DUMMY", "callB", 2)
             .then( () => {
                 console.log("got reply for callB")
             })
 
-        await expect(call(client, "DUMMY", "callC", 3)).to.be.rejectedWith(Error,
+        await expect(call(clientWS, "DUMMY", "callC", 3)).to.be.rejectedWith(Error,
             "User Exception", "b")
-        // client.sendUTF("Hello again!")
-        client.close(CloseCode.CLOSE_CUSTOM + 711, "Cologne")
-        // server.close()
-        server.closeAllConnections()
+
+        clientWS.close(CloseCode.CLOSE_CUSTOM + 711, "Cologne")
+        // serverWS.closeAllConnections()
+        serverWS.shutDown()
 /*
         const serverORB = new ORB()
         serverORB.name = "serverORB"

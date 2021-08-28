@@ -116,7 +116,7 @@ function interface_dcl(): Node | undefined {
     if (t1 === undefined)
         throw Error("expected { after interface header but got end of file")
     if (t1.type !== Type.TKN_TEXT && t1.text != '{')
-        throw Error("expected { after interface header but got " + t0.toString())
+        throw Error(`expected { after interface header but got ${t0}`)
 
     let t2 = interface_body()
 
@@ -124,7 +124,7 @@ function interface_dcl(): Node | undefined {
     if (!t3)
         throw Error("unexpected end of file")
     if (t3.type !== Type.TKN_TEXT && t3.text != '}')
-        throw Error("expected } after interface header but got " + t3.toString())
+        throw Error(`expected } after interface body but got '${t3}'`)
 
     let node = new Node(Type.SYN_INTERFACE, t0.child[1]!.text)
     node.append(t0)
@@ -617,6 +617,13 @@ function integer_type(): Node | undefined {
     if (t0 !== undefined) {
         return t0
     }
+
+    t0 = lexer.lex()
+    if (t0 !== undefined && [Type.TKN_SHORT, Type.TKN_LONG, Type.TKN_UNSIGNED].includes(t0.type)) {
+        throw Error('valid integer types are: short, unsigned short, long, unsigned long, long long, unsigned long long')
+    }
+    lexer.unlex(t0)
+
     return undefined
 }
 

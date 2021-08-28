@@ -90,11 +90,11 @@ export class GIOPEncoder extends GIOPBase {
         this.data.setUint32(8, this.offset - 12, GIOPEncoder.littleEndian)
     }
 
-    encodeRequest(objectKey: string, method: string, requestId = 1, responseExpected = MessageType.REPLY) {
+    encodeRequest(objectKey: string, method: string, requestId = 1, responseExpected: boolean) {
         this.skipGIOPHeader()
         this.ulong(0) // serviceContextListLength
         this.ulong(requestId)
-        this.byte(responseExpected)
+        this.byte(responseExpected ? 1 : 0)
         this.blob(objectKey!)
         this.string(method)
         this.ulong(0) // Requesting Principal length
