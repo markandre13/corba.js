@@ -61,9 +61,9 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                                 oneway = true
 
                             if (oneway && type.type !== Type.TKN_VOID)
-                                console.log("WARNING: corba.js currently requires every oneway function to return void")
-                            if (!oneway && type.type === Type.TKN_VOID)
-                                console.log("WARNING: corba.js currently requires operations returning void to be oneway")
+                                throw Error("oneway methods must return void")
+                            // if (!oneway && type.type === Type.TKN_VOID)
+                            //     console.log("WARNING: corba.js currently requires operations returning void to be oneway")
 
                             let identifier = op_dcl.child[2]!.text
                             let parameter_decls = op_dcl.child[3]!.child
@@ -83,7 +83,10 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                                 }
                                 out.write(identifier + ": " + typeIDLtoTS(type, FileType.SKELETON))
                             }
-                            out.write(`): Promise<${typeIDLtoTS(type, FileType.SKELETON)}>\n`)
+                            if (oneway)
+                                out.write(`): void\n`);
+                            else
+                                out.write(`): Promise<${typeIDLtoTS(type, FileType.SKELETON)}>\n`)
                         } break
                         case Type.TKN_ATTRIBUTE: {
                         } break

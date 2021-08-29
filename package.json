@@ -25,8 +25,9 @@
     "test:watch": "karma start --singleRun=false --autoWatch=true karma.conf.cjs | grep -v '^Chrome Headless .* LOG:'",
     "test:mico": "npm run test:mico:ior && npm run test:mico:run:watch",
     "test:mico:ior": "scp 192.168.1.105:mico-test/IOR.txt .",
+
     "test:mico:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test-mico ./node_modules/.bin/mocha lib/test-mico",
-    "test:demux:run": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test-mico ./node_modules/.bin/mocha lib/test-mico/demux.spec.js",
+    "test:demux:run": "npm run build:idl:build && bin/corba-idl --ts-all  test-mico/demux.idl && ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test-mico ./node_modules/.bin/mocha lib/test-mico/demux.spec.js",
     "update": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {

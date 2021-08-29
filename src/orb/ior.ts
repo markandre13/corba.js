@@ -80,88 +80,15 @@ export class IOR {
         }
     
         const decoder = new GIOPDecoder(buffer)
-
-        // The binary is in CDR. As per 9.3.3 Encapsulation, page 79, the first octet defines the bytes order
-        const byteOrder = decoder.byte()
-        decoder.littleEndian = byteOrder === GIOPBase.ENDIAN_LITTLE
-
-        // struct IOR, field: string type_id ???
-        const oid = decoder.string()
-        if (oid !== "IDL:Server:1.0") {
-            throw Error(`Unsupported OID '${oid}'. Currently only 'IDL:Server:1.0' is implemented.`)
+        decoder.endian()
+        const ref = decoder.reference()
+        if (ref.oid !== "IDL:Server:1.0") {
+            throw Error(`Unsupported OID '${ref.oid}'. Currently only 'IDL:Server:1.0' is implemented.`)
         }
+        this.host = ref.host
+        this.port = ref.port
+        this.objectKey = ref.objectKey
 
-        // struct IOR, field: TaggedProfileSeq profiles ???
-        const profileCount = decoder.ulong()
-        // console.log(`oid: '${oid}', tag count=${tagCount}`)
-        for (let i = 0; i < profileCount; ++i) {
-            const profileId = decoder.ulong()
-            const profileLength = decoder.ulong()
-            const profileStart = decoder.offset
-
-            switch (profileId) {
-                // CORBA 3.3 Part 2: 9.7.2 IIOP IOR Profiles
-                case IOR.TAG.IOR.INTERNET_IOP: {
-                    // console.log(`Internet IOP Component, length=${profileLength}`)
-                    const iiopMajorVersion = decoder.byte()
-                    const iiopMinorVersion = decoder.byte()
-                    if (iiopMajorVersion !== GIOPBase.MAJOR_VERSION &&
-                        iiopMinorVersion !== GIOPBase.MINOR_VERSION) {
-                        throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
-                    }
-                    this.host = decoder.string()
-                    this.port = decoder.short()
-                    this.objectKey = decoder.blob()
-
-                    // IIOP 1.1 and above
-                    // TaggedComponentSeq
-
-                    // console.log(`IIOP ${iiopMajorVersion}.${iiopMinorVersion} ${this.host}:${this.port} ${this.objectKey}`)
-                } break
-                // WIP: the code below doesn't work out at all...
-                // case IOR.TAG.IOR.MULTIPLE_COMPONENTS: {                    
-                //      const count = decoder.dword()
-                //      console.log(`Multiple Component, length=${profileLength}, entries=${count}`)
-                //      for(let i=0; i<count; ++i) {
-                //         const componentId = decoder.dword()
-                //         const componentLength = decoder.dword()
-                //         const componentStart = decoder.offset
-                //         console.log(`    IOR Component ${componentId}, length=${componentLength}`)
-                //         switch(componentId) {
-                //             case IOR.TAG.ComponentId.CODE_SETS: {
-                //                 // CORBA 3.3 Part 2: 7.10.2.4
-                //                 console.log(`        CODE_SETS`)
-                //                 const charNativeCodeSet = decoder.dword()
-                //                 let count = decoder.dword()
-                //                 console.log(`            charNativeCodeSet=${charNativeCodeSet}, ${count} conversations`)
-                //                 for(i=0; i<count; ++i) {
-                //                     const charConversationCodeSet = decoder.dword()
-                //                     console.log(`  ${charConversationCodeSet}`)
-                //                 }
-                //                 console.log(`${componentStart + componentLength - decoder.offset} octets left`)
-
-                //                 const wcharNativeCodeSet = decoder.dword()
-                //                 count = decoder.dword()
-                //                 console.log(`wcharNativeCodeSet=${wcharNativeCodeSet}, ${count} conversations`)
-                //                 for(i=0; i<count; ++i) {
-                //                     const wcharConversationCodeSet = decoder.dword()
-                //                     console.log(`  ${wcharConversationCodeSet}`)
-                //                 }
-                //             } break
-                //             default:
-                //                 console.log(`Ignoring IOR Component ${componentId}`)
-                //         }
-                //         decoder.offset = componentStart + componentLength
-                //      }
-                // } break
-                default:
-                    // console.log(`Unhandled tag type=${profileId}`)
-            }
-            decoder.offset = profileStart + profileLength
-            const unread = profileLength - (decoder.offset - profileStart)
-            if (unread !== 0)
-                console.log(`note: ${unread} octets at end of IOR Component`)
-        }
         if (decoder.offset !== bytes.byteLength)
             console.log(`note: ${bytes.byteLength-decoder.offset} octets at end of IOR`)
     }

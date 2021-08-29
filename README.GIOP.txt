@@ -254,6 +254,47 @@ oneway setPoint with struct
 	0x0070:  7400 0000 0000 0000 0000 0000 6f12 83c0  t...........o...
 	0x0080:  ca21 0940 c9e5 3fa4 dfbe 0540            .!.@..?....@
 
+Object Reference (could this be an IOR?)
+
+0000   47 49 4f 50 01 00 01 01 88 00 00 00 00 00 00 00  GIOP............
+       ^           ^  ^  ^  ^  ^           ^
+       |           |  |  |  |  |           service context list length
+       |           |  |  |  |  message size
+       |           |  |  |  message type: 1 = reply
+       |           |  |  little endian
+       |           |  minor version
+       |           major version
+       GIOP
+0010   02 00 00 00 00 00 00 00 0e 00 00 00 49 44 4c 3a  ............IDL:
+       ^           ^           ^           ^
+       |           |           |           OID
+       |           |           OID length
+       |           reply status: no exception
+       request id 2
+0020   42 6f 61 72 64 3a 31 2e 30 00 00 00 02 00 00 00  Board:1.0.......
+                                           ^
+                                           sequence length
+0030   00 00 00 00 2f 00 00 00 01 01 00 00 0e 00 00 00  ..../...........
+       ^           ^           ^           ^
+       |           |           |           strlen = 14 host
+       |           |           iiop version major/minor
+       |           tag length
+       tag id: TAG_INTERNET_IOP (9.7.2 IIOP IOR Profiles)            
+0040   31 39 32 2e 31 36 38 2e 31 2e 31 30 35 00 28 23  192.168.1.105.(#
+                                                 ^ port
+       13 00 00 00 2f 31 33 39 32 2f 31 36 33 30 32 33  ..../1392/163023
+       ^
+       objectID len = 19
+       39 35 30 32 2f 5f 31 00 01 00 00 00 24 00 00 00  9502/_1.....$...
+                               ^           ^
+                               |           tag length
+                               tag id: TAG_MULTIPLE_COMPONENTS
+       01 00 00 00 01 00 00 00 01 00 00 00 14 00 00 00  ................
+       01 00 00 00 01 00 01 00 00 00 00 00 09 01 01 00  ................
+       00 00 00 00                                      ....
+
+15
+
 tweaking corba.js for GIOP
 
 corba.js creates:

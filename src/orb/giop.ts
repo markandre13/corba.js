@@ -16,6 +16,9 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { CORBAObject, Skeleton } from "corba.js"
+import { IOR } from "./ior"
+
 // 9.4 GIOP Message Formats
 export enum MessageType {
     REQUEST = 0,
@@ -132,6 +135,30 @@ export class GIOPEncoder extends GIOPBase {
             this.ulong(0xffffffff) // sure? how the heck to we distinguish indirections to object and repositoryId?
             this.long(indirection)
         }
+    }
+
+    reference(object: CORBAObject) {
+        const className = (object.constructor as any)._idlClassName()
+        this.string(`IDL:${className}:1.0`)
+
+        this.ulong(1) // profileCount
+        
+        this.ulong(IOR.TAG.IOR.INTERNET_IOP)
+        const offsetSize = this.offset
+        this.ulong(0) // profileLength
+        const offsetDataStart = this.offset
+
+        this.byte(GIOPBase.MAJOR_VERSION)
+        this.byte(GIOPBase.MINOR_VERSION)
+
+        this.string("localhost")
+        this.short(8080)
+        this.blob(`${object.id}`)
+
+        const offsetDataEnd = this.offset
+        this.offset = offsetSize
+        this.ulong(offsetDataEnd - offsetDataEnd)
+        this.offset = offsetDataEnd
     }
 
     protected objectPosition = new Map<Object, number>()
@@ -278,6 +305,13 @@ class ReplyData {
     replyStatus!: number
 }
 
+class ObjectReference {
+    oid!: string
+    host!: string
+    port!: number
+    objectKey!: string
+}
+
 export class GIOPDecoder extends GIOPBase {
     buffer: ArrayBuffer
     data: DataView
@@ -297,7 +331,7 @@ export class GIOPDecoder extends GIOPBase {
         this.bytes = new Uint8Array(buffer)
     }
 
-    scanGIOPHeader(expectType: MessageType) {
+    scanGIOPHeader(): MessageType {
         const magic = this.data.getUint32(0)
         if (magic !== 0x47494f50) {
             throw Error(`Missing GIOP Header Magic Number (got 0x${magic.toString(16)}, expected 0x47494f50`)
@@ -314,14 +348,16 @@ export class GIOPDecoder extends GIOPBase {
         this.littleEndian = byteOrder === GIOPBase.ENDIAN_LITTLE
 
         const type = this.byte()
-        if (type !== expectType) {
-            throw Error(`Expected GIOP message type ${expectType} but got ${type}`)
-        }
+        // if (type !== expectType) {
+        //     throw Error(`Expected GIOP message type ${expectType} but got ${type}`)
+        // }
 
         const length = this.ulong()
         if (this.buffer.byteLength !== length + 12) {
             throw Error(`GIOP message is ${length + 12} bytes but buffer only contains ${this.buffer.byteLength}.`)
         }
+
+        return type
     }
 
     // ReplyStatusType
@@ -333,7 +369,7 @@ export class GIOPDecoder extends GIOPBase {
     static LOCATION_FORWARD_PERM = 4
     static NEEDS_ADDRESSING_MODE = 5
 
-    scanRequestHeader() {
+    scanRequestHeader(): RequestData {
         const serviceContextListLength = this.ulong()
         if (serviceContextListLength !== 0)
             throw Error(`serviceContextList is not supported`)
@@ -349,7 +385,7 @@ export class GIOPDecoder extends GIOPBase {
         return data
     }
 
-    scanReplyHeader() {
+    scanReplyHeader(): ReplyData {
         const serviceContextListLength = this.ulong()
         if (serviceContextListLength !== 0)
             throw Error(`serviceContextList is not supported`)
@@ -392,7 +428,7 @@ export class GIOPDecoder extends GIOPBase {
                             1: "Unable to locate value factory.",
                             2: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
                             3: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
-                            4: "Attempt to marshal Local object.",
+                            4: "Attempt to marshal local object.",
                             5: "wchar or wstring data erroneosly sent by client over GIOP 1.0 connection",
                             6: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
                             7: "Unsupported RMI/IDL custom value type stream format.",
@@ -411,6 +447,49 @@ export class GIOPDecoder extends GIOPBase {
         return data
     }
 
+    reference(): ObjectReference {
+        const data = new ObjectReference()
+
+        // struct IOR, field: string type_id ???
+        data.oid = this.string()
+
+        // struct IOR, field: TaggedProfileSeq profiles ???
+        const profileCount = this.ulong()
+        // console.log(`oid: '${oid}', tag count=${tagCount}`)
+        for (let i = 0; i < profileCount; ++i) {
+            const profileId = this.ulong()
+            const profileLength = this.ulong()
+            const profileStart = this.offset
+
+            switch (profileId) {
+                // CORBA 3.3 Part 2: 9.7.2 IIOP IOR Profiles
+                case IOR.TAG.IOR.INTERNET_IOP: {
+                    // console.log(`Internet IOP Component, length=${profileLength}`)
+                    const iiopMajorVersion = this.byte()
+                    const iiopMinorVersion = this.byte()
+                    if (iiopMajorVersion !== GIOPBase.MAJOR_VERSION &&
+                        iiopMinorVersion !== GIOPBase.MINOR_VERSION) {
+                        throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
+                    }
+                    data.host = this.string()
+                    data.port = this.short()
+                    data.objectKey = this.blob()
+
+                    // IIOP 1.1 and above
+                    // TaggedComponentSeq
+
+                    // console.log(`IIOP ${iiopMajorVersion}.${iiopMinorVersion} ${this.host}:${this.port} ${this.objectKey}`)
+                } break
+
+                default:
+                    // console.log(`Unhandled tag type=${profileId}`)
+            }
+            this.offset = profileStart + profileLength
+        }
+        return data
+    }
+
+    // rather: value?
     object(): any {
         // throw Error(`GIOPDecoder.object() is not implemented yet`)
 
@@ -471,13 +550,17 @@ export class GIOPDecoder extends GIOPBase {
             default:
                 throw Error(`Unsupported value with CORBA tag 0x${code.toString(16)}`)
         }
-
     }
 
     protected valueTypes = new Map<string, Function>()
 
     registerValueType(valuetypeConstructor: Function, spec: string) {
         this.valueTypes.set(spec, valuetypeConstructor)
+    }
+
+    endian() {
+        const byteOrder = this.byte()
+        this.littleEndian = byteOrder === GIOPBase.ENDIAN_LITTLE
     }
 
     blob(length?: number) {

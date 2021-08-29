@@ -30,8 +30,10 @@ import {
 } from "websocket"
 import * as ws from "websocket"
 
-import { Stub, GIOPEncoder, GIOPDecoder, MessageType, ORB } from "corba.js"
+import { Stub, GIOPEncoder, GIOPDecoder, MessageType, ORB, PromiseHandler } from "corba.js"
+
 import * as _interface from "./demux"
+import * as skel from "./demux_skel"
 
 // WebSocket close codes
 enum CloseCode {
@@ -160,28 +162,7 @@ function connect(orb: ORB, url: string): Promise<WebSocketConnection> {
 //     }
 // }
 
-class PromiseHandler {
-    constructor(decode: (decoder: GIOPDecoder) => void, reject: (reason?: any) => void) {
-        this.decode = decode
-        this.reject = reject
-    }
-    decode: (decoder: GIOPDecoder) => void
-    reject: (reason?: any) => void
-}
 
-const map = new Map<number, PromiseHandler>()
-
-function call(client: WebSocketConnection, objectId: string, method: string, requestId: number) {
-    console.log(`client: send request ${requestId}`)
-    const encoder0 = new GIOPEncoder()
-    encoder0.encodeRequest(objectId, method, requestId, true)
-
-    encoder0.setGIOPHeader(MessageType.REQUEST)
-    client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
-    return new Promise<void>( (resolve, reject) => map.set(requestId, new PromiseHandler(
-        () => resolve(),
-        reject)))
-}
 
 // npm run test:demux:run
 // rm -f lib/idl/idl.cjs ; npm run build:idl:build && ./bin/corba-idl --ts-all test-mico/demux.idl && cat test-mico/demux_stub.ts
@@ -205,7 +186,7 @@ export class ServerStub extends Stub implements _interface.Server {
         encoder.ushort(a)
 
         encoder.setGIOPHeader(MessageType.REQUEST)
-        // client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
+        this.orb.socketSend(encoder.bytes.subarray(0, encoder.offset))
     }
     twowayCall(a: number): Promise<number> {
         const encoder = new GIOPEncoder()
@@ -215,13 +196,22 @@ export class ServerStub extends Stub implements _interface.Server {
         encoder.ushort(a)
 
         encoder.setGIOPHeader(MessageType.REQUEST)
-        // client.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
+        this.orb.socketSend(encoder.bytes.subarray(0, encoder.offset))
 
-        return new Promise<number>( (resolve, reject) => map.set(requestId, 
+        return new Promise<number>( (resolve, reject) => this.orb.map.set(requestId, 
             new PromiseHandler(
                 (decoder: GIOPDecoder) => resolve(decoder.ushort()),
                 reject)
         ))
+    }
+}
+
+class Server_impl extends skel.Server {
+    onewayCall(a: number) {
+
+    }
+    async twowayCall(a: number) {
+        return a + 20
     }
 }
 
@@ -249,34 +239,40 @@ export class ServerStub extends Stub implements _interface.Server {
 // calls -> ORB.close
 
 describe("multiplexer/demultiplexer", function () {
-    it.only("a", async function() {
-        const orb = new ORB()
-        const serverStub = new ServerStub(orb, 1)
-        serverStub.onewayCall(17)
-        const x = await serverStub.twowayCall(42)
-        console.log(`twowayCall(42) -> ${x}`)
-    })
+    // it.only("a", async function() {
+    //     const orb = new ORB()
+    //     const serverStub = new ServerStub(orb, 1)
+    //     serverStub.onewayCall(17)
+    //     const x = await serverStub.twowayCall(42)
+    //     console.log(`twowayCall(42) -> ${x}`)
+    // })
     it("b", async function () {
         const serverORB = new ORB()
-        // register skeleton implementation
+        serverORB.bind("Server", new Server_impl(serverORB))
         const serverWS = await listen(serverORB, 8080)
 
         const clientORB = new ORB()
-        // register stub
+        clientORB.registerStubClass(ServerStub)
         const clientWS = await connect(clientORB, "ws://localhost:8080/")
 
-        call(clientWS, "DUMMY", "callA", 1)
-            .then( () => {
-                console.log("got reply for callA")
-            })
+        // const serverStub = new ServerStub(clientORB, 1)
+        let serverStub = ServerStub.narrow(await clientORB.resolve("Server"))
+        serverStub.onewayCall(17)
+        const x = await serverStub.twowayCall(42)
+        console.log(`twowayCall(42) -> ${x}`)
 
-        call(clientWS, "DUMMY", "callB", 2)
-            .then( () => {
-                console.log("got reply for callB")
-            })
+        // call(clientWS, "DUMMY", "callA", 1)
+        //     .then( () => {
+        //         console.log("got reply for callA")
+        //     })
 
-        await expect(call(clientWS, "DUMMY", "callC", 3)).to.be.rejectedWith(Error,
-            "User Exception", "b")
+        // call(clientWS, "DUMMY", "callB", 2)
+        //     .then( () => {
+        //         console.log("got reply for callB")
+        //     })
+
+        // await expect(call(clientWS, "DUMMY", "callC", 3)).to.be.rejectedWith(Error,
+        //     "User Exception", "b")
 
         clientWS.close(CloseCode.CLOSE_CUSTOM + 711, "Cologne")
         // serverWS.closeAllConnections()
