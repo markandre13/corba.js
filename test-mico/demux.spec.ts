@@ -116,54 +116,6 @@ function connect(orb: ORB, url: string): Promise<WebSocketConnection> {
     })
 }
 
-// class ServerORB {
-//     connection: WebSocketConnection
-//     constructor(connection: WebSocketConnection) {
-//         this.connection = connection
-//         this.message = this.message.bind(this)
-//         this.error = this.error.bind(this)
-//         this.close = this.close.bind(this)
-//     }
-//     message(buffer: ArrayBuffer) {
-//         const decoder = new GIOPDecoder(buffer)
-//         decoder.scanGIOPHeader(MessageType.REQUEST)
-//         const request = decoder.scanRequestHeader()
-
-//         if (request.responseExpected) {}
-
-//         if (request.requestId === 2) {
-//             const encoder0 = new GIOPEncoder()
-//             encoder0.encodeReply(2)
-//             encoder0.setGIOPHeader(MessageType.REPLY)
-//             this.connection.sendBytes(Buffer.from(encoder0.bytes.subarray(0, encoder0.offset)))
-
-//             const encoder1 = new GIOPEncoder()
-//             encoder1.encodeReply(1)
-//             encoder1.setGIOPHeader(MessageType.REPLY)
-//             this.connection.sendBytes(Buffer.from(encoder1.bytes.subarray(0, encoder1.offset)))
-//         }
-//         if (request.requestId === 3) {
-//             const encoder = new GIOPEncoder()
-//             encoder.encodeReply(3, GIOPDecoder.USER_EXCEPTION)
-//             encoder.setGIOPHeader(MessageType.REPLY)
-//             this.connection.sendBytes(Buffer.from(encoder.bytes.subarray(0, encoder.offset)))
-//         }
-
-//         // const encoder = new GIOPEncoder()
-//         // encoder.encodeReply(request.requestId)
-//         // encoder.setGIOPHeader(MessageType.REPLY)
-//         // this.connection.sendBytes(Buffer.from(encoder.bytes.subarray(0, encoder.offset)))
-//     }
-//     error(error: Error) {
-//         console.log(`ORB: error ${error}`)
-//     }
-//     close(code: number, reason: string) {
-//         console.log(`ORB client closed. code ${code}, reason '${reason}'`)
-//     }
-// }
-
-
-
 // npm run test:demux:run
 // rm -f lib/idl/idl.cjs ; npm run build:idl:build && ./bin/corba-idl --ts-all test-mico/demux.idl && cat test-mico/demux_stub.ts
 
@@ -179,74 +131,27 @@ export class ServerStub extends Stub implements _interface.Server {
     }
 
     onewayCall(a: number): void {
-        const encoder = new GIOPEncoder()
-        const requestId = ++this.orb.reqid
-        encoder.encodeRequest(`${this.id}`, "onewayCall", requestId, false)
-
-        encoder.ushort(a)
-
-        encoder.setGIOPHeader(MessageType.REQUEST)
-        this.orb.socketSend(encoder.bytes.subarray(0, encoder.offset))
+        this.orb.onewayCall(`${this.id}`, "onewayCall", (encoder) => encoder.ushort(a))
     }
     twowayCall(a: number): Promise<number> {
-        const encoder = new GIOPEncoder()
-        const requestId = ++this.orb.reqid
-        encoder.encodeRequest(`${this.id}`, "twowayCall", requestId, true)
-
-        encoder.ushort(a)
-
-        encoder.setGIOPHeader(MessageType.REQUEST)
-        this.orb.socketSend(encoder.bytes.subarray(0, encoder.offset))
-
-        return new Promise<number>( (resolve, reject) => this.orb.map.set(requestId, 
-            new PromiseHandler(
-                (decoder: GIOPDecoder) => resolve(decoder.ushort()),
-                reject)
-        ))
+        return this.orb.twowayCall(`${this.id}`, "twowayCall",
+            (encoder) => encoder.ushort(a),
+            (decoder) => decoder.ushort())
     }
 }
 
 class Server_impl extends skel.Server {
     onewayCall(a: number) {
-
+        console.log(`Server_impl.onewayCall(${a})`)
     }
     async twowayCall(a: number) {
+        console.log(`Server_impl.twowayCall(${a})`)
         return a + 20
     }
 }
 
-// https://html.spec.whatwg.org/multipage/web-sockets.html#network
-// * the W3C WebSocket supports two types for sending & receiving: Blob & ArrayBuffer
-// * Blob is the default, we want ArrayBuffer because we want to look into it
-
-// in giop.spec.ts i'm using socket, but this is a wrapper for net.Socket, which has an
-// API that's closer to WebSockets (but uses Uint8Array instead of ArrayBuffer)
-
-// blob               arraybuffer
-// immutable          can be changed, eg. with a dataview
-// could be on disk   ram
-
-// events: open, message, error, close
-// MessageEvent {
-//      data: any
-// }
-// send(data: Blob|ArrayBuffer|ArrayBufferView)
-// ORB Network Adapter
-// 
-// sets ->  ORB.send: (buffer: ArrayBuffer) => void
-// calls -> ORB.message(buffer: ArrayBuffer)
-// calls -> ORB.error() ????
-// calls -> ORB.close
-
 describe("multiplexer/demultiplexer", function () {
-    // it.only("a", async function() {
-    //     const orb = new ORB()
-    //     const serverStub = new ServerStub(orb, 1)
-    //     serverStub.onewayCall(17)
-    //     const x = await serverStub.twowayCall(42)
-    //     console.log(`twowayCall(42) -> ${x}`)
-    // })
-    it("b", async function () {
+    it("call ORB using GIOP", async function () {
         const serverORB = new ORB()
         serverORB.bind("Server", new Server_impl(serverORB))
         const serverWS = await listen(serverORB, 8080)
@@ -255,50 +160,12 @@ describe("multiplexer/demultiplexer", function () {
         clientORB.registerStubClass(ServerStub)
         const clientWS = await connect(clientORB, "ws://localhost:8080/")
 
-        // const serverStub = new ServerStub(clientORB, 1)
-        let serverStub = ServerStub.narrow(await clientORB.resolve("Server"))
+        const serverStub = ServerStub.narrow(await clientORB.resolve("Server"))
         serverStub.onewayCall(17)
         const x = await serverStub.twowayCall(42)
-        console.log(`twowayCall(42) -> ${x}`)
-
-        // call(clientWS, "DUMMY", "callA", 1)
-        //     .then( () => {
-        //         console.log("got reply for callA")
-        //     })
-
-        // call(clientWS, "DUMMY", "callB", 2)
-        //     .then( () => {
-        //         console.log("got reply for callB")
-        //     })
-
-        // await expect(call(clientWS, "DUMMY", "callC", 3)).to.be.rejectedWith(Error,
-        //     "User Exception", "b")
+        console.log(`twowayCall(42) -> ${x}`) 
 
         clientWS.close(CloseCode.CLOSE_CUSTOM + 711, "Cologne")
-        // serverWS.closeAllConnections()
         serverWS.shutDown()
-/*
-        const serverORB = new ORB()
-        serverORB.name = "serverORB"
-        //serverORB.debug = 1
-        serverORB.bind("Server", new Server_impl(serverORB))     
-
-        const clientORB = new ORB()
-        clientORB.name = "clientORB"
-        //clientORB.debug = 1
-        clientORB.registerStubClass(stub.Server)
-        
-        mockConnection(serverORB, clientORB).name = "acceptedORB"
-
-        const server = stub.Server.narrow(await clientORB.resolve("Server"))
-
-        // the idea is that the server has delays and we'll get the reponses in a different order
-        // eg. C, A, B
-        client.callA().then ...
-        client.callB().then ...
-        client.callC().then ...
-*/
-
-    })
-
+     })
 })

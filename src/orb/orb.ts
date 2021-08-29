@@ -49,7 +49,7 @@ export class ORB implements EventTarget, SocketUser {
     stubsByName: Map<string, any>
     stubsById: Map<string, Stub>
 
-    servants: Array<Skeleton | undefined>
+    servants: Array<CORBAObject | undefined>
     unusedServantIds: Array<number>
 
     accesibleServants: Set<Skeleton>
@@ -92,27 +92,39 @@ export class ORB implements EventTarget, SocketUser {
     socketSend!: (buffer: ArrayBuffer) => void
     map = new Map<number, PromiseHandler>()
 
-    callNew<T>(objectId: string, method: string,
-        encode:(encoder: GIOPEncoder) => void,
+    onewayCall(objectId: string, method: string, encode: (encoder: GIOPEncoder) => void) {
+        this.callCore(++this.reqid, false, objectId, method, encode)
+    }
+
+    twowayCall<T>(objectId: string, method: string,
+        encode: (encoder: GIOPEncoder) => void,
         decode: (decoder: GIOPDecoder) => T
     ) {
-        const requestId = ++this.reqid
-
-        console.log(`client: send request ${requestId}`)
-        const encoder = new GIOPEncoder()
-        encoder.encodeRequest(objectId, method, requestId, true)
-        encode(encoder)
-        encoder.setGIOPHeader(MessageType.REQUEST)
-
-        this.socketSend(encoder.bytes.subarray(0, encoder.offset))
-        return new Promise<T>((resolve, reject) =>
+        return new Promise<T>((resolve, reject) => {
+            const requestId = ++this.reqid
             this.map.set(
                 requestId,
                 new PromiseHandler(
                     (decoder: GIOPDecoder) => resolve(decode(decoder)),
                     reject)
             )
-        )
+            this.callCore(requestId, true, objectId, method, encode)
+        })
+    }
+
+    protected callCore(
+        requestId: number,
+        responseExpected: boolean,
+        objectId: string,
+        method: string,
+        encode: (encoder: GIOPEncoder) => void) {
+        console.log(`client: send request ${requestId}`)
+        const encoder = new GIOPEncoder()
+        encoder.encodeRequest(objectId, method, requestId, responseExpected)
+        encode(encoder)
+        encoder.setGIOPHeader(MessageType.REQUEST)
+
+        this.socketSend(encoder.bytes.subarray(0, encoder.offset))
     }
 
     //
@@ -121,7 +133,7 @@ export class ORB implements EventTarget, SocketUser {
     socketRcvd(buffer: ArrayBuffer): void {
         const decoder = new GIOPDecoder(buffer)
         const type = decoder.scanGIOPHeader()
-        switch(type) {
+        switch (type) {
             case MessageType.REQUEST: {
                 const data = decoder.scanRequestHeader()
                 if (data.objectKey === "ORB") {
@@ -137,30 +149,38 @@ export class ORB implements EventTarget, SocketUser {
                             this.aclAdd(object)
                             encoder.encodeReply(data.requestId, GIOPDecoder.NO_EXCEPTION)
                             encoder.reference(object)
-                        }                       
+                        }
                         encoder.setGIOPHeader(MessageType.REPLY)
                         this.socketSend(encoder.bytes.subarray(0, encoder.offset))
                     }
                     return
                 }
 
-                console.log(`need to call skeleton ${data.objectKey} ${data.method}`)
+                const id = parseInt(data.objectKey)
+                if (id >= this.servants.length) {
+                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server for unknown servant id ${id}`)
+                }
+                let servant = this.servants[id] as any
+                if (servant === undefined) {
+                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server for unknown servant id " + msg.id`)
+                }
+                if (!servant.acl.has(this)) {
+                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with id ${id}`)
+                }
+                if (servant[data.method] === undefined) {
+                    throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with id ${id}`)
+                }
 
-                // if (msg.id >= this.servants.length) {
-                //     throw Error("ORB.handleMethod(): client required method '" + msg.method + "' on server for unknown servant id " + msg.id)
-                // }
-                // let servant = this.servants[msg.id] as any
-                // if (servant === undefined) {
-                //     throw Error("ORB.handleMethod(): client required method '" + msg.method + "' on server for unknown servant id " + msg.id)
-                // }
-                // if (!servant.acl.has(this)) {
-                //     throw Error("ORB.handleMethod(): client required method '" + msg.method + "' on server but has no rights to access servant with id " + msg.id)
-                // }
-                // if (servant[msg.method] === undefined) {
-                //     throw Error("ORB.handleMethod(): client required unknown method '" + msg.method + "' on server for servant with id " + msg.id)
-                // }
-
-
+                const result = servant[data.method].apply(servant)
+                // TODO: const result = servant[data.method].apply(servant, params) as any // decode and pass arguments as array
+                if (data.responseExpected) {
+                    const encoder = new GIOPEncoder()
+                    encoder.encodeReply(data.requestId, GIOPDecoder.NO_EXCEPTION)
+                    // TODO: encode result (beware: result is likely a Promise)
+                    encoder.short(1313)
+                    encoder.setGIOPHeader(MessageType.REPLY)
+                    this.socketSend(encoder.bytes.subarray(0, encoder.offset))
+                }
             } break
             case MessageType.REPLY: {
                 const data = decoder.scanReplyHeader()
@@ -234,7 +254,7 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     // called by the Skeleton
-    registerServant(servant: Skeleton): number {
+    registerServant(servant: CORBAObject): number {
         let id = this.unusedServantIds.pop()
         if (id !== undefined) {
             this.servants[id] = servant
@@ -323,17 +343,17 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     async resolve(id: string): Promise<Stub> {
-        const oid = await this.callNew("ORB", "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())
+        const oid = await this.twowayCall("ORB", "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())
 
         // if we already have a stub, return that one
         // if (oid.host === this.peerHost && oid.port === this.peerPort) {
-            let object = this.stubsById.get(oid.objectKey)
-            if (object !== undefined)
-                return object
+        let object = this.stubsById.get(oid.objectKey)
+        if (object !== undefined)
+            return object
         // }
 
         // new reference, create a new stub
-        let aStubClass = this.stubsByName.get(oid.oid.substr(4, oid.oid.length-8))
+        let aStubClass = this.stubsByName.get(oid.oid.substr(4, oid.oid.length - 8))
         if (aStubClass === undefined) {
             throw Error(`ORB: can not deserialize object of unregistered stub '${oid.oid}'`)
         }

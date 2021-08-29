@@ -54,22 +54,23 @@ export class GIOPBase {
 }
 
 export class GIOPEncoder extends GIOPBase {
-    buffer = new ArrayBuffer(0x16 * 10); // write code to extend on demand, fragment really large messages?
+    buffer = new ArrayBuffer(0xFFFF); // FIXME: write code to extend on demand, fragment really large messages?
     data = new DataView(this.buffer);
     bytes = new Uint8Array(this.buffer);
 
     protected static textEncoder = new TextEncoder();
-
     static littleEndian?: boolean
+
+    protected repositoryIds = new Map<string, number>()
+    protected objectPosition = new Map<Object, number>()
 
     constructor() {
         super()
-        // use the systems endianes
+        // use this system's endianes
         if (GIOPEncoder.littleEndian === undefined) {
             const buffer = new ArrayBuffer(2)
             new Int16Array(buffer)[0] = 0x1234
             GIOPEncoder.littleEndian = new DataView(buffer).getUint8(0) === 0x34
-            // GIOPEncoder.littleEndian = false
         }
     }
 
@@ -81,6 +82,8 @@ export class GIOPEncoder extends GIOPBase {
         this.offset = 10
     }
 
+    // this is the last method to be called as it also set's the GIOP messsages size
+    // from the already encoded data
     setGIOPHeader(type: MessageType) {
         this.data.setUint32(0, 0x47494f50) // magic "GIOP"
 
@@ -109,8 +112,6 @@ export class GIOPEncoder extends GIOPBase {
         this.ulong(requestId)
         this.ulong(replyStatus)
     }
-
-    protected repositoryIds = new Map<string, number>()
 
     repositoryId(name: string) {
         // * "IDL:" indicates that the type was defined in an IDL file
@@ -157,11 +158,9 @@ export class GIOPEncoder extends GIOPBase {
 
         const offsetDataEnd = this.offset
         this.offset = offsetSize
-        this.ulong(offsetDataEnd - offsetDataEnd)
+        this.ulong(offsetDataEnd - offsetDataStart)
         this.offset = offsetDataEnd
     }
-
-    protected objectPosition = new Map<Object, number>()
 
     object(object: Object) {
         const position = this.objectPosition.get(object)
@@ -171,7 +170,6 @@ export class GIOPEncoder extends GIOPBase {
         } else {
             const indirection = position - this.offset - 2
             this.ulong(0xffffffff)
-            // const indirection = position - this.offset - 4
             this.long(indirection)
         }
     }
@@ -317,12 +315,12 @@ export class GIOPDecoder extends GIOPBase {
     data: DataView
     bytes: Uint8Array
 
-    littleEndian = true;
+    littleEndian = true
 
     // FIXME: make protected
     public objects = new Map<number, Object>()
 
-    protected static textDecoder = new TextDecoder();
+    protected static textDecoder = new TextDecoder()
 
     constructor(buffer: ArrayBuffer) {
         super()
@@ -344,17 +342,11 @@ export class GIOPDecoder extends GIOPBase {
             throw Error(`Unsupported GIOP ${giopMajorVersion}.${giopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
         }
 
-        const byteOrder = this.byte()
-        this.littleEndian = byteOrder === GIOPBase.ENDIAN_LITTLE
-
+        this.endian()
         const type = this.byte()
-        // if (type !== expectType) {
-        //     throw Error(`Expected GIOP message type ${expectType} but got ${type}`)
-        // }
-
         const length = this.ulong()
         if (this.buffer.byteLength !== length + 12) {
-            throw Error(`GIOP message is ${length + 12} bytes but buffer only contains ${this.buffer.byteLength}.`)
+            throw Error(`GIOP message is ${length + 12} bytes but buffer contains ${this.buffer.byteLength}.`)
         }
 
         return type
@@ -522,20 +514,6 @@ export class GIOPDecoder extends GIOPBase {
                 const obj = new (c as any)(this)
                 this.objects.set(objectOffset, obj)
                 return obj
-                // name = name.substr(4, name.length - 8)
-                // switch (name) {
-                //     case "Point": {
-                //         const obj = new Point(this)
-                //         this.objects.set(objectOffset, obj)
-                //         return obj
-                //     }
-                //     case "space/Box": {
-                //         const obj = new Box(this)
-                //         this.objects.set(objectOffset, obj)
-                //         return obj
-                //     }
-                // }
-                // throw Error(`Unregistered CORBA Value Type 'IDL:${name}:1.0'`)
             }
             case 0xffffffff: {
                 const indirection = this.long()
