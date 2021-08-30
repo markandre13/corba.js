@@ -146,7 +146,7 @@ class Server_impl extends skel.Server {
     }
     async twowayCall(a: number) {
         console.log(`Server_impl.twowayCall(${a})`)
-        return a + 20
+        return a + 5
     }
 }
 
@@ -163,9 +163,10 @@ describe("multiplexer/demultiplexer", function () {
         const serverStub = ServerStub.narrow(await clientORB.resolve("Server"))
         serverStub.onewayCall(17)
         const x = await serverStub.twowayCall(42)
-        console.log(`twowayCall(42) -> ${x}`) 
+        console.log(`twowayCall(42) -> ${x}`)
+        expect(x).equals(47)
 
-        clientWS.close(CloseCode.CLOSE_CUSTOM + 711, "Cologne")
+        clientWS.close()
         serverWS.shutDown()
      })
 })

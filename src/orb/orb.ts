@@ -66,9 +66,9 @@ export class ORB implements EventTarget, SocketUser {
     constructor(orb?: ORB) {
         if (orb === undefined) {
             this.debug = 0
-            this.servants = new Array<Skeleton | undefined>()
+            this.servants = []
             this.servants.push(undefined) // reserve id 0
-            this.unusedServantIds = new Array<number>()
+            this.unusedServantIds = []
             this.stubsByName = new Map<string, any>()
             this.initialReferences = new Map<string, any>()
             this.name = ""
@@ -118,7 +118,7 @@ export class ORB implements EventTarget, SocketUser {
         objectId: string,
         method: string,
         encode: (encoder: GIOPEncoder) => void) {
-        console.log(`client: send request ${requestId}`)
+        // console.log(`client: send request ${requestId}`)
         const encoder = new GIOPEncoder()
         encoder.encodeRequest(objectId, method, requestId, responseExpected)
         encode(encoder)
@@ -139,11 +139,11 @@ export class ORB implements EventTarget, SocketUser {
                 if (data.objectKey === "ORB") {
                     if (data.method === "resolve") {
                         const reference = decoder.string()
-                        console.log(`ORB: received ORB.resolve("${reference}")`)
+                        // console.log(`ORB: received ORB.resolve("${reference}")`)
                         const encoder = new GIOPEncoder()
                         let object = this.initialReferences.get(reference)
                         if (object === undefined) {
-                            console.log(`ORB.handleResolveInitialReferences(): failed to resolve '${reference}`)
+                            // console.log(`ORB.handleResolveInitialReferences(): failed to resolve '${reference}`)
                             encoder.encodeReply(data.requestId, GIOPDecoder.SYSTEM_EXCEPTION)
                         } else {
                             this.aclAdd(object)
@@ -171,20 +171,36 @@ export class ORB implements EventTarget, SocketUser {
                     throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with id ${id}`)
                 }
 
-                const result = servant[data.method].apply(servant)
-                // TODO: const result = servant[data.method].apply(servant, params) as any // decode and pass arguments as array
-                if (data.responseExpected) {
-                    const encoder = new GIOPEncoder()
-                    encoder.encodeReply(data.requestId, GIOPDecoder.NO_EXCEPTION)
-                    // TODO: encode result (beware: result is likely a Promise)
-                    encoder.short(1313)
-                    encoder.setGIOPHeader(MessageType.REPLY)
-                    this.socketSend(encoder.bytes.subarray(0, encoder.offset))
+                if (data.method === "twowayCall") {
+
+                    const params: any[] = []
+                    params.push(decoder.ushort())
+
+                    const result = servant[data.method].apply(servant, params) as Promise<any>
+                    if (data.responseExpected) {
+                        result
+                            .then((result: any) => {
+                                const encoder = new GIOPEncoder()
+                                encoder.encodeReply(data.requestId, GIOPDecoder.NO_EXCEPTION)
+                                encoder.short(result)
+                                encoder.setGIOPHeader(MessageType.REPLY)
+                                this.socketSend(encoder.bytes.subarray(0, encoder.offset))       
+                            })
+                            .catch((error: Error) => {
+                                const encoder = new GIOPEncoder()
+                                encoder.encodeReply(data.requestId, GIOPDecoder.USER_EXCEPTION)
+                                // FIXME: encode exception
+                                encoder.setGIOPHeader(MessageType.REPLY)
+                                this.socketSend(encoder.bytes.subarray(0, encoder.offset))
+                            })
+                    }   
+                } else {
+                    servant[data.method].apply(servant)
                 }
             } break
             case MessageType.REPLY: {
                 const data = decoder.scanReplyHeader()
-                console.log(`client: got reply for request ${data.requestId}`)
+                // console.log(`client: got reply for request ${data.requestId}`)
                 const handler = this.map.get(data.requestId)
                 if (handler === undefined) {
                     console.log(`Unexpected reply to request ${data.requestId}`)
@@ -204,14 +220,17 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     socketError(error: Error): void { }
-    socketClose(): void { }
+    socketClose(): void { 
+        this.dispatchEvent(new Event("close"))
+        this.release()
+    }
 
+    //
     // EventTarget methods 
-    addEventListener(type: string,
+    //
+    addEventListener(type: "close",
         listener: EventListenerOrEventListenerObject | null,
         options?: boolean | AddEventListenerOptions): void {
-        if (type !== "close")
-            throw Error("ORB.addEventListener: type must be 'close'")
         if (listener === null)
             return
         let set = this.listeners.get(type)
@@ -222,11 +241,9 @@ export class ORB implements EventTarget, SocketUser {
         set.add(listener)
     }
 
-    removeEventListener(type: string,
+    removeEventListener(type: "close",
         listener?: EventListenerOrEventListenerObject | null,
         options?: EventListenerOptions | boolean): void {
-        if (type !== "close")
-            throw Error("ORB.removeEventListener: type must be 'close'")
         if (listener === null || listener === undefined)
             return
         let set = this.listeners.get(type)
@@ -321,25 +338,7 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     async list(): Promise<Array<string>> {
-        let result = new Array<string>()
-
-        for (let [id, obj] of this.initialReferences) {
-            result.push(id)
-        }
-
-        if (this.socket === undefined)
-            return result
-
-        let data = {
-            "corba": "1.0",
-            "list": null
-        }
-        let remoteInitialReferences = await this.send(data)
-        for (let id of remoteInitialReferences.result) {
-            result.push(id)
-        }
-
-        return result
+        throw Error("not implemented yet")
     }
 
     async resolve(id: string): Promise<Stub> {
@@ -368,103 +367,15 @@ export class ORB implements EventTarget, SocketUser {
     //
 
     serialize(object: any): string {
-        if (object === null || typeof object !== "object") {
-            return JSON.stringify(object)
-        }
-
-        if (object instanceof Stub) {
-            throw Error("ORB.serialize(): Stub")
-        }
-        if (object instanceof Skeleton) {
-            return `{"#R":"${(object.constructor as any)._idlClassName()}","#V":${object.id}}`
-        }
-
-        if (object instanceof Array) {
-            let data = ""
-            for (let x of object) {
-                if (data.length !== 0)
-                    data += ","
-                data += this.serialize(x)
-            }
-            return "[" + data + "]"
-        }
-
-        let data = ""
-        let prototype = Object.getPrototypeOf(object)
-        let valueTypeInformation: valueTypeInformation | undefined
-        while (prototype !== null) {
-            valueTypeInformation = ORB.valueTypeByPrototype.get(prototype)
-            if (valueTypeInformation !== undefined)
-                break
-            prototype = Object.getPrototypeOf(prototype)
-        }
-        if (valueTypeInformation === undefined) {
-            console.log(object)
-            throw Error("ORB: can not serialize object of unregistered valuetype")
-        }
-        for (let attribute of valueTypeInformation.attributes) {
-            if (object[attribute] !== undefined) {
-                if (data.length !== 0)
-                    data += ","
-                data += '"' + attribute + '":' + this.serialize(object[attribute])
-            }
-        }
-        return `{"#T":"${valueTypeInformation.name!}","#V":{${data}}}`
+        throw Error("obsolete")
     }
 
     deserialize(text: string): any {
-        if (text === undefined || text === null)
-            return null
-        try {
-            return this._deserialize(JSON.parse(text))
-        }
-        catch (error) {
-            console.log(text)
-            throw error
-        }
+        throw Error("obsolete")
     }
 
     _deserialize(data: any): any {
-        if (data === null)
-            return null
-
-        if (typeof data !== "object")
-            return data
-
-        if (data instanceof Array) {
-            for (let i in data) {
-                data[i] = this._deserialize(data[i])
-            }
-            return data
-        }
-
-        let type = data["#T"]
-        let reference = data["#R"]
-        let value = data["#V"]
-        if (reference !== undefined && value !== undefined) {
-            let object = this.stubsById.get(value)
-            if (object !== undefined)
-                return object
-            let aStubClass = this.stubsByName.get(reference)
-            if (aStubClass === undefined) {
-                throw Error(`ORB: can not deserialize object of unregistered stub '${reference}'`)
-            }
-            object = new aStubClass(this, value)
-            this.stubsById.set(value, object!)
-            return object
-        }
-
-        if (type === undefined || value === undefined) {
-            throw Error("ORB: no type/value information in serialized data")
-        }
-        let valueTypeInformation = ORB.valueTypeByName.get(type)
-        if (valueTypeInformation === undefined)
-            throw Error(`ORB: can not deserialize object of unregistered valuetype '${type}'`)
-        let object = new (valueTypeInformation.construct as any)()
-        for (let [innerAttribute, innerValue] of Object.entries(value)) {
-            object[innerAttribute] = this._deserialize(innerValue)
-        }
-        return object
+        throw Error("obsolete")
     }
 
     //
@@ -472,103 +383,15 @@ export class ORB implements EventTarget, SocketUser {
     //
 
     async connect(url: string): Promise<void> {
-        if (this.debug > 0)
-            console.log("ORB.connect('" + url + ")")
-        let orb = this
-        return new Promise<void>((resolve, reject) => {
-            orb.socket = new WebSocket(url)
-            orb.socket.onopen = function () {
-                resolve()
-            }
-            orb.socket.onerror = function (err: any) {
-                reject(err)
-            }
-            orb.socket.onclose = (event: Event) => {
-                this.dispatchEvent(event)
-                this.release()
-            }
-        })
+        throw Error("obsolete")
     }
 
     send(data: any, oneway: boolean = false): Promise<any> {
-        let reqid = ++this.reqid
-        data.reqid = reqid
-        if (this.debug > 0) {
-            console.log("ORB.send(" + JSON.stringify(data) + ")")
-        }
-        return new Promise<any>((resolve, reject) => {
-            if (this.socket === undefined)
-                throw Error("ORB.send(): no socket")
-
-            this.socket.onmessage = (message: any) => {
-                if (this.debug > 0) {
-                    console.log("ORB.send(...) received " + message.data)
-                }
-                let msg = JSON.parse(String(message.data))
-                if (msg.corba !== "1.0")
-                    reject(Error("expected corba version 1.0 but got " + msg.corba))
-                if (msg.method !== undefined) {
-                    try {
-                        this.handleMethod(msg)
-                    }
-                    catch (error) {
-                        if (error instanceof Error)
-                            console.log(error.message)
-                        else
-                            console.log(error)
-                        throw error
-                    }
-                } else
-                    if (msg.list !== undefined) {
-                        this.handleListInitialReferences(msg)
-                    } else
-                        if (msg.resolve !== undefined) {
-                            this.handleResolveInitialReferences(msg)
-                        } else
-                            if (reqid == msg.reqid) {
-                                resolve(msg)
-                            }
-            }
-            this.socket.onerror = function (err: any) {
-                reject(err)
-            }
-            this.socket.send(JSON.stringify(data))
-            if (oneway) {
-                resolve(undefined)
-            }
-        })
+        throw Error("obsolete")
     }
 
     async call(stub: Stub, oneway: boolean, method: string, params: Array<any>): Promise<any> {
-        // throw Error("FAILURE")
-        if (this.debug > 0) {
-            console.log("ORB.call(...) method " + method)
-        }
-        for (let i in params) {
-            if (params[i] instanceof Skeleton) {
-                this.aclAdd(params[i])
-            }
-            if (params[i] instanceof Stub) {
-                throw Error("ORB.call(): not implemented: method '" + method + "' received stub as argument")
-            }
-            try {
-                params[i] = this.serialize(params[i])
-            }
-            catch (error) {
-                console.log(error)
-                throw error
-            }
-        }
-
-        let msg = await this.send({ // FIXME: we should'n wait here for oneway function but this looks like we do...
-            "corba": "1.0",
-            "method": method,
-            "params": params,
-            "id": stub.id
-        }, oneway)
-
-        if (!oneway)
-            return this.deserialize(msg.result)
+        throw Error("obsolete")
     }
 
     release() {
@@ -587,103 +410,15 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     handleMethod(msg: any) {
-        if (this.debug > 0)
-            console.log("ORB.handleMethod(", msg, ")")
-        if (msg.id >= this.servants.length) {
-            throw Error("ORB.handleMethod(): client required method '" + msg.method + "' on server for unknown servant id " + msg.id)
-        }
-        let servant = this.servants[msg.id] as any
-        if (servant === undefined) {
-            throw Error("ORB.handleMethod(): client required method '" + msg.method + "' on server for unknown servant id " + msg.id)
-        }
-        if (!servant.acl.has(this)) {
-            throw Error("ORB.handleMethod(): client required method '" + msg.method + "' on server but has no rights to access servant with id " + msg.id)
-        }
-        if (servant[msg.method] === undefined) {
-            throw Error("ORB.handleMethod(): client required unknown method '" + msg.method + "' on server for servant with id " + msg.id)
-        }
-        for (let i in msg.params) {
-            msg.params[i] = this.deserialize(msg.params[i])
-        }
-
-        servant.orb = this // set orb to client connection orb
-        let result = servant[msg.method].apply(servant, msg.params) as any
-
-        if (this.debug > 0)
-            console.log("ORB.handleMethod(): got result ", result)
-
-        result
-            .then((result: any) => {
-                if (result === undefined)
-                    return
-
-                if (result instanceof Skeleton) {
-                    this.aclAdd(result)
-
-                    result.orb = this // replace listener orb with client connection orb
-                }
-                if (result instanceof Stub) {
-                    throw Error("ORB.handleMethod(): method '" + msg.method + "' returned stub")
-                }
-
-                let answer = {
-                    "corba": "1.0",
-                    "result": this.serialize(result),
-                    "reqid": msg.reqid
-                }
-                let text = JSON.stringify(answer)
-                if (this.debug > 0) {
-                    console.log("ORB.handleMethod(): sending call reply " + text)
-                }
-                this.socket!.send(text)
-            })
-            .catch((error: any) => {
-                // FIXME: also print the class name
-                console.log("ORB.handleMethod(): the method '" + msg.method + "' threw an error: ", error)
-            })
+        throw Error("obsolete")
     }
 
     handleListInitialReferences(msg: any) {
-        let result = new Array<string>()
-        for (let [id, obj] of this.initialReferences) {
-            result.push(id)
-        }
-
-        let answer = {
-            "corba": "1.0",
-            "result": result,
-            "reqid": msg.reqid
-        }
-        let text = JSON.stringify(answer)
-        if (this.debug > 0) {
-            console.log("ORB.handleListInitialReferences(): sending call reply " + text)
-        }
-
-        this.socket!.send(text)
+        throw Error("obsolete")
     }
 
     handleResolveInitialReferences(msg: any) {
         throw Error("obsolete")
-        // let object = this.initialReferences.get(msg.resolve)
-        // if (object === undefined) {
-        //     console.log("ORB.handleResolveInitialReferences(): failed to resolve '" + msg.resolve + "'")
-        //     object = null
-        // } else {
-        //     this.aclAdd(object)
-        // }
-
-        // let answer = {
-        //     "corba": "1.0",
-        //     "result": this.serialize(object),
-        //     "reqid": msg.reqid
-        // }
-
-        // let text = JSON.stringify(answer)
-        // if (this.debug > 0) {
-        //     console.log("ORB.handleResolveInitialReferences(): sending call reply " + text)
-        // }
-
-        // this.socket!.send(text)
     }
 
     async listen(host: string, port: number): Promise<void> {

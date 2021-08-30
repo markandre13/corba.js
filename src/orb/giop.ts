@@ -371,9 +371,9 @@ export class GIOPDecoder extends GIOPBase {
         data.responseExpected = this.byte() != 0
         data.objectKey = this.blob()
         data.method = this.string()
-        const requestingPrincipalLength = this.short()
+        const requestingPrincipalLength = this.ulong()
 
-        console.log(`requestId=${data.requestId}, responseExpected=${data.responseExpected}, objectKey=${data.objectKey}, method=${data.method}, requestingPrincipalLength=${requestingPrincipalLength}`)
+        // console.log(`requestId=${data.requestId}, responseExpected=${data.responseExpected}, objectKey=${data.objectKey}, method=${data.method}, requestingPrincipalLength=${requestingPrincipalLength}`)
         return data
     }
 
