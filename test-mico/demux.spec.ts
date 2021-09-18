@@ -16,6 +16,17 @@
 *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// NEXT STEPS
+// [ ] demux.spec.ts contains a prototype for a stub implementation (ServerStub)
+//     => let the IDL compiler generate it (write the code directly into the X_stub.ts)
+// [ ] orb.ts socketRcvd() contains a hardcoded part to call ServerImpl
+//     => let the IDL compiler generate it (here we need a data structure/object the orb can lookup)
+//     write it into X_skel.ts, maybe as static data directly into the skeleton class
+// [ ] orb.ts constains lots of json related code to be thrown away
+
+// *.ts            interface
+// *_value.ts      this was the place where we had the
+
 import { use, expect } from "chai"
 import * as chaiAsPromised from "chai-as-promised"
 use(chaiAsPromised.default)
@@ -130,6 +141,7 @@ export class ServerStub extends Stub implements _interface.Server {
         throw Error("ServerStub.narrow() failed")
     }
 
+    // TODO: THIS NEEDS TO BE CREATED BY THE IDL COMPILER
     onewayCall(a: number): void {
         this.orb.onewayCall(`${this.id}`, "onewayCall", (encoder) => encoder.ushort(a))
     }
@@ -147,6 +159,37 @@ class Server_impl extends skel.Server {
     async twowayCall(a: number) {
         console.log(`Server_impl.twowayCall(${a})`)
         return a + 5
+    }
+}
+
+// stub:
+//   client calls stub
+//   stub encodes arguments
+//   orb sends
+//   (skeleton)
+//   orb receives
+//   decode result
+//   stub returns
+// skeleton:
+//   orb receives
+//   decode arguments
+//   call impl
+//   encode result
+//   orb sends
+
+abstract class TestSkeleton {
+    // TODO: THIS NEEDS TO BE CREATED BY THE IDL COMPILER
+    private _orb_bla(decoder: GIOPDecoder, encoder: GIOPEncoder): void {
+        encoder.ushort(this.bla(decoder.ushort()))
+    }
+    abstract bla(n: number): number
+}
+
+class TestImplementation extends TestSkeleton {
+    v = 83
+
+    bla(n: number): number {
+        return n + this.v
     }
 }
 
@@ -168,5 +211,21 @@ describe("multiplexer/demultiplexer", function () {
 
         clientWS.close()
         serverWS.shutDown()
-     })
+    })
+
+    it.only("class skeleton", function() {
+        const impl = new TestImplementation();
+
+        const outArgs = new GIOPEncoder()
+        outArgs.ushort(1900)
+        const decoder = new GIOPDecoder(outArgs.buffer)
+        const encoder = new GIOPEncoder();
+
+        (impl as any)["_orb_"+"bla"].call(impl, decoder, encoder)
+
+        const outResult = new GIOPDecoder(encoder.buffer)
+        const r = outResult.ushort()
+
+        expect(r).equals(1983)
+    })
 })

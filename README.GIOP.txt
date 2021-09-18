@@ -2,6 +2,7 @@ NOTES ON CORBA'S binary General Inter-ORB Protocol (GIOP)
 
 GIOP FEATURES
 
+GIOP
 * is a binary format
 * can handle multiple pointers to the same object
   in case the object has been stored before, a relative offset will point to the previous definition
