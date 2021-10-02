@@ -569,13 +569,25 @@ export class GIOPDecoder extends GIOPBase {
                     this.offset = savedOffset
                 }
                 // console.log(`repositoryID '${name}' at 0x${memo.toString(16)}`)
-                if (name.length < 8 || name.substr(0, 4) !== "IDL:" || name.substr(name.length - 4) !== ":1.0")
+                if (name.length < 8 || name.substring(0, 4) !== "IDL:" || name.substring(name.length - 4) !== ":1.0")
                     throw Error(`Unsupported CORBA GIOP Repository ID '${name}'`)
+                const shortName = name.substring(4, name.length - 4)
 
-                const c = this.valueTypes.get(name)
-                if (c === undefined)
-                    throw Error(`Unregistered Repository ID '${name}'`)
-                const obj = new (c as any)(this)
+                let valueTypeInformation = ORB.valueTypeByName.get(shortName)
+                if (valueTypeInformation === undefined)
+                    throw Error(`Unregistered Repository ID '${name}' (${shortName})`)
+                    // throw Error(`ORB: can not deserialize object of unregistered valuetype '${shortName}'`)
+        // let object = new (valueTypeInformation.construct as any)()
+        // for(let [innerAttribute, innerValue] of Object.entries(value)) {
+        //     object[innerAttribute] = this._deserialize(innerValue)
+        // }
+        // return object
+
+                // const c = this.valueTypes.get(shortName)
+                // if (c === undefined) {
+                //     throw Error(`Unregistered Repository ID '${name}' (${shortName})`)
+                // }
+                const obj = new (valueTypeInformation.construct as any)(this)
                 this.objects.set(objectOffset, obj)
                 return obj
             }
@@ -614,11 +626,11 @@ export class GIOPDecoder extends GIOPBase {
         }
     }
 
-    protected valueTypes = new Map<string, Function>()
+    // protected valueTypes = new Map<string, Function>()
 
-    registerValueType(valuetypeConstructor: Function, spec: string) {
-        this.valueTypes.set(spec, valuetypeConstructor)
-    }
+    // registerValueType(valuetypeConstructor: Function, spec: string) {
+    //     this.valueTypes.set(spec, valuetypeConstructor)
+    // }
 
     endian() {
         const byteOrder = this.byte()

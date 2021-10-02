@@ -77,16 +77,14 @@ class Rectangle extends Figure implements valuetype.Rectangle {
 }
 
 class Server_impl extends skel.Server {
-    static instance?: Server_impl
     methodAWasCalled = false
-    static methodBWasCalled = false
+    methodBWasCalled = false
 
     client?: stub.Client
 
     constructor(orb: ORB) {
         super(orb)
         console.log("Server_impl.constructor()")
-        Server_impl.instance = this
     }
     
     async setClient(client: stub.Client) {
@@ -102,7 +100,7 @@ class Server_impl extends skel.Server {
     async methodB() {
         console.log("Server_impl.methodB()")
         expect(this.orb.name).to.equal("acceptedORB")
-        Server_impl.methodBWasCalled = true
+        this.methodBWasCalled = true
         await this.client!.methodC()
         return 0
     }
@@ -114,25 +112,25 @@ class Server_impl extends skel.Server {
 }
 
 class Client_impl extends skel.Client {
-    static instance?: Client_impl
-    static methodCWasCalled = false
-    static figureModelReceivedFromServer?: FigureModel
+    instance?: Client_impl
+    methodCWasCalled = false
+    figureModelReceivedFromServer?: FigureModel
 
     constructor(orb: ORB) {
         super(orb)
         console.log("Client_impl.constructor()")
-        Client_impl.instance = this
     }
     
     async methodC() {
         console.log("Client_impl.methodC()")
-        Client_impl.methodCWasCalled = true
+        this.methodCWasCalled = true
         return 0
     }
     
     async setFigureModel(figuremodel: FigureModel) {
         console.log("Client_impl.setFigureModel()")
-        Client_impl.figureModelReceivedFromServer = figuremodel
+        console.log(figuremodel)
+        this.figureModelReceivedFromServer = figuremodel
     }
 }
 
@@ -165,7 +163,8 @@ describe("corba.js", function() {
         expect(serverStub).instanceOf(stub.Server)
 
         console.log("# CLIENT -> SERVER: SET CLIENT")
-        await serverStub.setClient(new Client_impl(clientORB))
+        const clientImpl = new Client_impl(clientORB)
+        await serverStub.setClient(clientImpl)
         expect(serverImpl.client).instanceOf(stub.Client)
 
         console.log(`# CLIENT -> SERVER: CALL METHOD`)
@@ -174,27 +173,30 @@ describe("corba.js", function() {
         expect(serverImpl.methodAWasCalled).to.equal(true)
 
         console.log(`# CLIENT -> SERVER -> CLIENT: CALL METHOD WHICH CALLS US BACK`)
-        expect(Server_impl.methodBWasCalled).to.equal(false)
-        expect(Client_impl.methodCWasCalled).to.equal(false)
+        expect(serverImpl.methodBWasCalled).to.equal(false)
+        expect(clientImpl.methodCWasCalled).to.equal(false)
         await serverStub.methodB()
-        expect(Server_impl.methodBWasCalled).to.equal(true)
-        expect(Client_impl.methodCWasCalled).to.equal(true)
+        expect(serverImpl.methodBWasCalled).to.equal(true)
+        expect(clientImpl.methodCWasCalled).to.equal(true)
 
         console.log("# CLIENT -> SERVER: CALL METHOD WITH ARGUMENTS AND RETURN RESULT")
         let answer = await serverImpl.answer(6, 7)
         expect(answer).to.equal(42)
 
         console.log("# SERVER -> CLIENT: SEND VALUETYPE")
-        expect(Client_impl.figureModelReceivedFromServer).to.equal(undefined)
+        expect(clientImpl.figureModelReceivedFromServer).to.equal(undefined)
 
         let model = new FigureModel()
         model.data.push(new Rectangle(10, 20, 30, 40))
         model.data.push(new Rectangle(50, 60, 70, 80))
-        await Server_impl.instance!.client!.setFigureModel(model)
 
-        expect(Client_impl.figureModelReceivedFromServer!.data[0]).to.be.an.instanceof(Rectangle)
-        expect(Client_impl.figureModelReceivedFromServer!.data[0].toString()).to.equal("Rectangle: (10,20,30,40)")
-        let rectangle = Client_impl.figureModelReceivedFromServer!.data[0] as Rectangle
+        await serverImpl.client!.setFigureModel(model)
+
+        expect(clientImpl.figureModelReceivedFromServer).not.undefined
+        expect(clientImpl.figureModelReceivedFromServer!.data).length(2)
+        expect(clientImpl.figureModelReceivedFromServer!.data[0]).to.be.an.instanceof(Rectangle)
+        expect(clientImpl.figureModelReceivedFromServer!.data[0].toString()).to.equal("Rectangle: (10,20,30,40)")
+        let rectangle = clientImpl.figureModelReceivedFromServer!.data[0] as Rectangle
         expect(rectangle.origin).to.be.an.instanceof(Origin)
         expect(rectangle.origin.toString()).to.equal("Origin: x=10, y=20")
         expect(rectangle.size).to.be.an.instanceof(Size)
