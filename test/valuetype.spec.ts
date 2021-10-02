@@ -16,9 +16,9 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
- import { expect } from "chai"
+import { expect } from "chai"
 
-import { ORB } from "../src/orb/orb-nodejs"
+import { ORB } from "corba.js"
 import * as value from "./generated/valuetype_value"
 import * as skel from "./generated/valuetype_skel"
 import * as stub from "./generated/valuetype_stub"

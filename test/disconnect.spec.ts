@@ -18,8 +18,7 @@
 
 import { expect } from "chai"
 
-import * as server from "../src/orb/orb-nodejs"
-import * as client from "../src/orb/orb"
+import { ORB } from "corba.js"
 import * as iface from "./generated/disconnect"
 import * as skel from "./generated/disconnect_skel"
 import * as stub from "./generated/disconnect_stub"
@@ -75,7 +74,7 @@ class Session_impl extends skel.Session implements EventListenerObject {
 class Listener_impl extends skel.Listener {
     calledBack: boolean
     
-    constructor(orb: server.ORB) {
+    constructor(orb: ORB) {
         super(orb)
         this.calledBack = false
     }
@@ -89,13 +88,13 @@ describe("disconnect", function() {
     it("connect and disconnect two clients to the server", async function() {
 
         // setup server
-        let serverORB = new server.ORB()
+        let serverORB = new ORB()
 //serverORB.debug = 1
         serverORB.bind("Server", new Server_impl(serverORB))
         serverORB.registerStubClass(stub.Listener)
         
         // setup client A
-        let clientA = new client.ORB()
+        let clientA = new ORB()
 //clientA.debug = 1
         clientA.registerStubClass(stub.Server)
         clientA.registerStubClass(stub.Session)
@@ -115,7 +114,7 @@ describe("disconnect", function() {
         expect(listenerA.calledBack).to.equal(true)
         
         // setup client B
-        let clientB = new client.ORB()
+        let clientB = new ORB()
 //clientB.debug = 1
         clientB.registerStubClass(stub.Server)
         clientB.registerStubClass(stub.Session)

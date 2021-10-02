@@ -16,23 +16,32 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import * as server from "../src/orb/orb-nodejs"
-import * as client from "../src/orb/orb"
+import { ORB } from "corba.js"
 
-export function mockConnection(serverORB: server.ORB, clientORB: client.ORB): server.ORB {
-    let acceptedORB = new server.ORB(serverORB)
+export function mockConnection(server: ORB, client: ORB): ORB {
+    
+    client.socketSend = (buffer: ArrayBuffer) => {
+        server.socketRcvd(buffer)
+    }
 
-    acceptedORB.socket = {
-        send: function(data: any) {
-            clientORB.socket!.onmessage({data:data} as any)
-        }
-    } as any
-    acceptedORB.accept()
-    clientORB.socket = {
-        send: function(data: any) {
-            acceptedORB.socket!.onmessage({data:data} as any)
-        }
-    } as any
-    return acceptedORB
+    server.socketSend = (buffer: ArrayBuffer) => {
+        client.socketRcvd(buffer)
+    }
+
+
+    // let acceptedORB = new ORB(serverORB)
+
+    // acceptedORB.socket = {
+    //     send: function(data: any) {
+    //         clientORB.socket!.onmessage({data:data} as any)
+    //     }
+    // } as any
+    // acceptedORB.accept()
+    // clientORB.socket = {
+    //     send: function(data: any) {
+    //         acceptedORB.socket!.onmessage({data:data} as any)
+    //     }
+    // } as any
+    return server
 }
 

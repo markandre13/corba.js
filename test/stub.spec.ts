@@ -16,11 +16,12 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
- import { expect } from "chai"
+import { expect } from "chai"
 
-import { ORB } from "../src/orb/orb-nodejs"
+import { ORB } from "corba.js"
 import * as skel from "./generated/stub_skel"
 import * as stub from "./generated/stub_stub"
+import { mockConnection } from "./util"
 
 class Data_impl extends skel.Data {
     static numberOfInstances = 0
@@ -71,20 +72,7 @@ describe("stub", function() {
         clientORB.registerStubClass(stub.Server)
         clientORB.registerStubClass(stub.Data)
 
-        // mock network connection between server and client ORB
-        // FIXME: use mockConnection
-        serverORB.socket = {
-            send: function(data: any) {
-                clientORB.socket!.onmessage({data:data} as any)
-            }
-        } as any
-        serverORB.accept()
-
-        clientORB.socket = {
-            send: function(data: any) {
-                serverORB.socket!.onmessage({data:data} as any)
-            }
-        } as any
+        mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
         let server = stub.Server.narrow(await clientORB.resolve("Server"))
@@ -103,20 +91,7 @@ describe("stub", function() {
         clientORB.registerStubClass(stub.Server)
         serverORB.registerStubClass(stub.Data)
 
-        // mock network connection between server and client ORB
-        // FIXME: use mockConnection
-        serverORB.socket = {
-            send: function(data: any) {
-                clientORB.socket!.onmessage({data:data} as any)
-            }
-        } as any
-        serverORB.accept()
-
-        clientORB.socket = {
-            send: function(data: any) {
-                serverORB.socket!.onmessage({data:data} as any)
-            }
-        } as any
+        mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
         let server = stub.Server.narrow(await clientORB.resolve("Server"))
@@ -141,20 +116,7 @@ describe("stub", function() {
         clientORB.registerStubClass(stub.Server)
         serverORB.registerStubClass(stub.Data)
 
-        // mock network connection between server and client ORB
-        // FIXME: use mockConnection
-        serverORB.socket = {
-            send: function(data: any) {
-                clientORB.socket!.onmessage({data:data} as any)
-            }
-        } as any
-        serverORB.accept()
-
-        clientORB.socket = {
-            send: function(data: any) {
-                serverORB.socket!.onmessage({data:data} as any)
-            }
-        } as any
+        mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
         let server = stub.Server.narrow(await clientORB.resolve("Server"))

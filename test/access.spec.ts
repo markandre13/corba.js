@@ -18,8 +18,7 @@
 
 import { expect } from "chai"
 
-import * as server from "../src/orb/orb-nodejs"
-import * as client from "../src/orb/orb"
+import { ORB } from "corba.js"
 import * as iface from "./generated/access"
 import * as skel from "./generated/access_skel"
 import * as stub from "./generated/access_stub"
@@ -30,7 +29,7 @@ class Server_impl extends skel.Server {
     wasCalled: boolean
     listener: Map<string, iface.Listener>
 
-    constructor(orb: server.ORB, name: string) {
+    constructor(orb: ORB, name: string) {
         super(orb)
         this.name = name
         this.wasCalled = false
@@ -58,7 +57,7 @@ class Listener_impl extends skel.Listener {
     name: string
     wasCalled: boolean
 
-    constructor(orb: server.ORB, name: string) {
+    constructor(orb: ORB, name: string) {
         super(orb)
         this.name = name
         this.wasCalled = false
@@ -80,7 +79,7 @@ describe("access", async function() {
     it("bind", async function() {
 
         // setup server
-        let serverORB = new server.ORB()
+        let serverORB = new ORB()
 
         let serverA = new Server_impl(serverORB, "A")
         let serverB = new Server_impl(serverORB, "B")
@@ -88,7 +87,7 @@ describe("access", async function() {
         serverORB.bind("ServerA", serverA)
 
         // setup client A
-        let clientA = new client.ORB()
+        let clientA = new ORB()
         clientA.registerStubClass(stub.Server)
         let connectionA = mockConnection(serverORB, clientA)
 
@@ -134,7 +133,7 @@ describe("access", async function() {
     it("object send to server", async function() {
 
         // setup server
-        let serverORB = new server.ORB()
+        let serverORB = new ORB()
 
         let serverImpl = new Server_impl(serverORB, "S")
 
@@ -142,7 +141,7 @@ describe("access", async function() {
         serverORB.registerStubClass(stub.Listener)
 
         // setup client A
-        let clientA = new client.ORB()
+        let clientA = new ORB()
         clientA.registerStubClass(stub.Server)
         let connectionA = mockConnection(serverORB, clientA)
         let serverStub = stub.Server.narrow(await clientA.resolve("Server"))
@@ -165,7 +164,7 @@ describe("access", async function() {
 
         objectA.wasCalled = false
         objectB.wasCalled = false
-        let error = undefined
+        let error: any = undefined
         try {
             await objectAStub!.call()
         }
@@ -191,7 +190,7 @@ describe("access", async function() {
     it("object received from server", async function() {
 
         // setup server
-        let serverORB = new server.ORB()
+        let serverORB = new ORB()
 
         let serverImpl = new Server_impl(serverORB, "S")
         let objectA = new Listener_impl(serverORB, "A")
@@ -202,7 +201,7 @@ describe("access", async function() {
         serverORB.bind("Server", serverImpl)
 
         // setup client A
-        let clientA = new client.ORB()
+        let clientA = new ORB()
         clientA.registerStubClass(stub.Server)
         clientA.registerStubClass(stub.Listener)
         let connectionA = mockConnection(serverORB, clientA)
@@ -220,7 +219,7 @@ describe("access", async function() {
 
         objectA.wasCalled = false
         objectB.wasCalled = false
-        let error = undefined
+        let error: any = undefined
         try {
             await objectAStub!.call()
         }

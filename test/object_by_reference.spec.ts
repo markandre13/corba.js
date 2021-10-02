@@ -18,8 +18,7 @@
 
 import { expect } from "chai"
 
-import * as server from "../src/orb/orb-nodejs"
-import * as client from "../src/orb/orb"
+import { ORB } from "corba.js"
 import * as iface from "./generated/object_by_reference"
 import * as skel from "./generated/object_by_reference_skel"
 import * as stub from "./generated/object_by_reference_stub"
@@ -49,12 +48,12 @@ class Listener_impl extends skel.Listener {
 
 describe("object by reference", function() {
     it("return value and argument", async function() {
-        let serverORB = new server.ORB()
+        let serverORB = new ORB()
 //serverORB.debug = 1
         serverORB.bind("Server", new Server_impl(serverORB))
         serverORB.registerStubClass(stub.Listener)
             
-        let clientORB = new client.ORB()
+        let clientORB = new ORB()
 //clientORB.debug = 1
         clientORB.registerStubClass(stub.Server)
         clientORB.registerStubClass(stub.Session)

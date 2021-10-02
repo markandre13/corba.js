@@ -42,9 +42,9 @@ export class PromiseHandler {
 
 export class ORB implements EventTarget, SocketUser {
     debug: number		// values > 0 enable debug output
-    name: string
+    name: string        // orb name to ease debugging
 
-    socket?: any		// socket with the client/server
+    // socket?: any		// socket with the client/server
 
     stubsByName: Map<string, any>
     stubsById: Map<string, Stub>
@@ -356,7 +356,7 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     //
-    // valuetype
+    // JSON
     //
 
     serialize(object: any): string {
@@ -375,17 +375,17 @@ export class ORB implements EventTarget, SocketUser {
     // Client
     //
 
-    async connect(url: string): Promise<void> {
-        throw Error("obsolete")
-    }
+    // async connect(url: string): Promise<void> {
+    //     throw Error("obsolete")
+    // }
 
-    send(data: any, oneway: boolean = false): Promise<any> {
-        throw Error("obsolete")
-    }
+    // send(data: any, oneway: boolean = false): Promise<any> {
+    //     throw Error("obsolete")
+    // }
 
-    async call(stub: Stub, oneway: boolean, method: string, params: Array<any>): Promise<any> {
-        throw Error("obsolete")
-    }
+    // async call(stub: Stub, oneway: boolean, method: string, params: Array<any>): Promise<any> {
+    //     throw Error("obsolete")
+    // }
 
     release() {
         this.aclDeleteAll()
@@ -402,25 +402,25 @@ export class ORB implements EventTarget, SocketUser {
         this.accesibleServants.clear()
     }
 
-    handleMethod(msg: any) {
-        throw Error("obsolete")
-    }
+    // handleMethod(msg: any) {
+    //     throw Error("obsolete")
+    // }
 
-    handleListInitialReferences(msg: any) {
-        throw Error("obsolete")
-    }
+    // handleListInitialReferences(msg: any) {
+    //     throw Error("obsolete")
+    // }
 
-    handleResolveInitialReferences(msg: any) {
-        throw Error("obsolete")
-    }
+    // handleResolveInitialReferences(msg: any) {
+    //     throw Error("obsolete")
+    // }
 
-    async listen(host: string, port: number): Promise<void> {
-        throw Error("pure virtual function ORB.listen() being called in browser ORB")
-    }
+    // async listen(host: string, port: number): Promise<void> {
+    //     throw Error("pure virtual function ORB.listen() being called in browser ORB")
+    // }
 
-    accept() {
-        throw Error("pure virtual function ORB.accept() being called in browser ORB")
-    }
+    // accept() {
+    //     throw Error("pure virtual function ORB.accept() being called in browser ORB")
+    // }
 
 }
 

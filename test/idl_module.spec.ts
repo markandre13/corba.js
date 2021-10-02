@@ -21,7 +21,7 @@ import * as chaiAsPromised from "chai-as-promised"
 chai.use(chaiAsPromised as any)
 const expect = chai.expect
 
-import { ORB } from "../src/orb/orb-nodejs"
+import { ORB } from "corba.js"
 import * as _interface from "./generated/idl_module"
 import * as value from "./generated/idl_module_value"
 //import * as valueimpl from "./idl_module_valueimpl"

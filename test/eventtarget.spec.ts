@@ -18,15 +18,14 @@
 
 import { expect } from "chai"
 
-import * as server from "../src/orb/orb-nodejs"
-import * as client from "../src/orb/orb"
+import { ORB } from "corba.js"
 import { mockConnection } from "./util"
 
 describe("eventtarget", function() {
     describe("register and dispatch", async function() {
         it("eventListener", async function() {
             let flag = false
-            let orb = new client.ORB()
+            let orb = new ORB()
             orb.addEventListener("close", {
                 handleEvent: function() {
                     flag = true
@@ -39,7 +38,7 @@ describe("eventtarget", function() {
 
         it("closure", async function() {
             let flag = false
-            let orb = new client.ORB()
+            let orb = new ORB()
             orb.addEventListener("close", () => {
                 flag = true
             })
@@ -66,7 +65,7 @@ describe("eventtarget", function() {
             let a = new Listener("alfa")
             let b = new Listener("bravo")
             
-            let orb = new client.ORB()
+            let orb = new ORB()
             orb.addEventListener("close", a)
             orb.addEventListener("close", b)
             
@@ -86,10 +85,10 @@ describe("eventtarget", function() {
         
             class Listener {
                 name: string
-                orb: client.ORB
+                orb: ORB
                 callback: Function
             
-                constructor(instanceName: string, orb: client.ORB) {
+                constructor(instanceName: string, orb: ORB) {
                     this.name = instanceName
                     this.orb = orb
                     this.callback = () => {
@@ -102,7 +101,7 @@ describe("eventtarget", function() {
                 }
             }
     
-            let orb = new client.ORB()
+            let orb = new ORB()
             let a = new Listener("alfa", orb)
             let b = new Listener("bravo", orb)
             
@@ -121,7 +120,7 @@ describe("eventtarget", function() {
     it("onclose", async function() {
         let flagA = false
         let flagB = false
-        let orb = new client.ORB()
+        let orb = new ORB()
         orb.onclose = () => {
             flagA = true
         }
