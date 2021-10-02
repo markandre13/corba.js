@@ -576,17 +576,7 @@ export class GIOPDecoder extends GIOPBase {
                 let valueTypeInformation = ORB.valueTypeByName.get(shortName)
                 if (valueTypeInformation === undefined)
                     throw Error(`Unregistered Repository ID '${name}' (${shortName})`)
-                    // throw Error(`ORB: can not deserialize object of unregistered valuetype '${shortName}'`)
-        // let object = new (valueTypeInformation.construct as any)()
-        // for(let [innerAttribute, innerValue] of Object.entries(value)) {
-        //     object[innerAttribute] = this._deserialize(innerValue)
-        // }
-        // return object
 
-                // const c = this.valueTypes.get(shortName)
-                // if (c === undefined) {
-                //     throw Error(`Unregistered Repository ID '${name}' (${shortName})`)
-                // }
                 const obj = new (valueTypeInformation.construct as any)(this)
                 this.objects.set(objectOffset, obj)
                 return obj
@@ -655,8 +645,10 @@ export class GIOPDecoder extends GIOPBase {
         return value
     }
 
+    // FIXME: the code calling this will fail on sequence within sequence
     sequence<T>(decodeItem: () => T): T[] {
         const length = this.ulong()
+        console.log(`GIOPDecoder.sequence(): CREATE SEQUENCE WITH ${length} ENTRIES`)
         const array = new Array(length)
         for(let i=0; i<length; ++i) {
             array[i] = decodeItem()

@@ -188,7 +188,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
     }
 }
 
-// FIXME: there is another on in util.ts
+// FIXME: there is another one in util.ts
 export function typeIDLtoGIOP2(prefix: string, type: Node | undefined): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
@@ -260,7 +260,8 @@ export function typeIDLtoGIOP2(prefix: string, type: Node | undefined): string {
             return `${prefix}longdouble()`
         case Type.TKN_SEQUENCE: {
             // FIXME: enforce type check
-            return `(function(){ const l = init.ulong(); const a = new Array(l); for (let i=0 ; i<l; ++i) a[i] = ${typeIDLtoGIOP2(prefix, type!.child[0])}; return a })()`
+            // FIXME: decoder now has a sequence method
+            return `(function(){ const l = init.ulong(); const a = new Array(l); console.log(\`DECODE NEW ARRAY OF SIZE\${l}\`); for (let i=0 ; i<l; ++i) a[i] = ${typeIDLtoGIOP2(prefix, type!.child[0])}; return a })()`
         }
         default:
             throw Error(`no mapping from IDL type to TS type for ${type.toString()}`)
@@ -278,9 +279,9 @@ function writeTSValueInitFromGIOP(value_dcl: Node, out: fs.WriteStream, indent: 
             for (let declarator of declarators.child) {
                 let decl_identifier = declarator!.text
                 writeIndent(out, indent + 1)
-                out.write(`object.${decl_identifier} = ${typeIDLtoGIOP2("init.", type)}\n`)
+                // out.write(`object.${decl_identifier} = ${typeIDLtoGIOP2("init.", type)}\n`)
                 
-                // switch (type.type) {
+                switch (type.type) {
                 //     case Type.TKN_IDENTIFIER:
                 //         // custom types
                 //         // FIXME: doesn't work for Array<Layer>()
@@ -296,16 +297,12 @@ function writeTSValueInitFromGIOP(value_dcl: Node, out: fs.WriteStream, indent: 
                 //             out.write(`object.${decl_identifier} = ${typeIDLtoTS(type)}.narrow(init.readObject())\n`) // enforce type check
                 //         }
                 //         break
-                //     case Type.TKN_SEQUENCE:
-                //         // make the loop code a utility function
-                //         out.write(`const length = init.ulong()\n`)
-                //         writeIndent(out, indent + 1)
-                //         out.write(`for(let i<length; ++i) {}\n`)
-                //         break
-                //     default:
-                //         // doesn't work for 'unsigned long' yet
-                //         out.write(`object.${decl_identifier} = init.${type.toString()}()\n`)
-                // }
+                    case Type.TKN_SEQUENCE:
+                        out.write(`object.${decl_identifier} = init.sequence( () => init.${typeIDLtoGIOP(type.child[0]!)}())\n`)
+                        break
+                    default:
+                        out.write(`object.${decl_identifier} = ${typeIDLtoGIOP2("init.", type)}\n`)
+                }
             }
         }
     }

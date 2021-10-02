@@ -18,7 +18,7 @@
 
  import { expect } from "chai"
 
-import { ORB } from "corba.js"
+import { ORB, GIOPDecoder } from "corba.js"
 import * as value from "./generated/basics_value"
 import * as valuetype from "./generated/basics_valuetype"
 import * as skel from "./generated/basics_skel"
@@ -27,12 +27,11 @@ import { mockConnection } from "./util"
 
 class Origin implements value.Origin
 {
-    x: number
-    y: number
+    x!: number
+    y!: number
     
-    constructor(x?: number, y?: number) {
-        this.x = x ? x : 0
-        this.y = y ? y : 0
+    constructor(init?: Partial<Origin> | GIOPDecoder) {
+        value.initOrigin(this, init)
     }
     toString(): string {
         return "Origin: x="+this.x+", y="+this.y
@@ -40,11 +39,10 @@ class Origin implements value.Origin
 }
 
 class Size implements value.Size {
-    width: number
-    height: number
-    constructor(width?: number, height?: number) {
-        this.width = width ? width : 0
-        this.height = height ? height : 0
+    width!: number
+    height!: number
+    constructor(init?: Partial<Size> | GIOPDecoder) {
+        value.initSize(this, init)
     }
     toString(): string {
         return "Size: width="+this.width+", height="+this.height
@@ -56,20 +54,19 @@ abstract class Figure implements value.Figure {
     abstract toString(): string
 }
 
-class FigureModel {
-    data: Array<Figure>
-    constructor() {
-        this.data = new Array<Figure>()
+class FigureModel implements value.FigureModel {
+    data!: Array<Figure>
+    constructor(init?: Partial<FigureModel> | GIOPDecoder) {
+        value.initFigureModel(this, init)
     }
 }
 
-class Rectangle extends Figure implements valuetype.Rectangle {
-    origin: Origin
-    size: Size
-    constructor(x?: number, y?: number, width?: number, height?: number) {
+class Rectangle extends Figure implements value.Rectangle {
+    origin!: Origin
+    size!: Size
+    constructor(init?: Partial<Rectangle> | GIOPDecoder) {
         super()
-        this.origin = new Origin(x, y)
-        this.size   = new Size(width, height)
+        value.initRectangle(this, init)
     }
     toString(): string {
         return "Rectangle: ("+this.origin.x+","+this.origin.y+","+this.size.width+","+this.size.height+")"
@@ -187,8 +184,8 @@ describe("corba.js", function() {
         expect(clientImpl.figureModelReceivedFromServer).to.equal(undefined)
 
         let model = new FigureModel()
-        model.data.push(new Rectangle(10, 20, 30, 40))
-        model.data.push(new Rectangle(50, 60, 70, 80))
+        model.data.push(new Rectangle({origin: {x: 10, y: 20}, size: { width: 30, height: 40}}))
+        model.data.push(new Rectangle({origin: {x: 50, y: 60}, size: { width: 70, height: 80}}))
 
         await serverImpl.client!.setFigureModel(model)
 
