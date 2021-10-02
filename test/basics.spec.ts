@@ -31,6 +31,7 @@ class Origin implements value.Origin
     y!: number
     
     constructor(init?: Partial<Origin> | GIOPDecoder) {
+        console.log(`Origin()`)
         value.initOrigin(this, init)
     }
     toString(): string {
@@ -42,6 +43,7 @@ class Size implements value.Size {
     width!: number
     height!: number
     constructor(init?: Partial<Size> | GIOPDecoder) {
+        console.log(`Size()`)
         value.initSize(this, init)
     }
     toString(): string {
@@ -51,12 +53,17 @@ class Size implements value.Size {
 
 abstract class Figure implements value.Figure {
     id: number = 0
+    constructor(init?: Partial<Rectangle> | GIOPDecoder) {
+        console.log(`Figure()`)
+        value.initFigure(this, init)
+    }
     abstract toString(): string
 }
 
 class FigureModel implements value.FigureModel {
     data!: Array<Figure>
     constructor(init?: Partial<FigureModel> | GIOPDecoder) {
+        console.log(`INIT FigureModel()`)
         value.initFigureModel(this, init)
     }
 }
@@ -65,6 +72,7 @@ class Rectangle extends Figure implements value.Rectangle {
     origin!: Origin
     size!: Size
     constructor(init?: Partial<Rectangle> | GIOPDecoder) {
+        console.log(`Rectangle()`)
         super()
         value.initRectangle(this, init)
     }
@@ -132,7 +140,7 @@ class Client_impl extends skel.Client {
 }
 
 describe("corba.js", function() {
-    it.only("a basic test", async function() {
+    it("a basic test", async function() {
 
         let serverORB = new ORB()
         serverORB.name = "serverORB"
@@ -187,7 +195,9 @@ describe("corba.js", function() {
         model.data.push(new Rectangle({origin: {x: 10, y: 20}, size: { width: 30, height: 40}}))
         model.data.push(new Rectangle({origin: {x: 50, y: 60}, size: { width: 70, height: 80}}))
 
+        console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
         await serverImpl.client!.setFigureModel(model)
+        console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
         expect(clientImpl.figureModelReceivedFromServer).not.undefined
         expect(clientImpl.figureModelReceivedFromServer!.data).length(2)

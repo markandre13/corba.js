@@ -137,14 +137,15 @@ export class GIOPEncoder extends GIOPBase {
 
         const position = this.repositoryIds.get(id)
         if (position === undefined) {
-            console.log(`repositoryID '${id}' at 0x${this.offset.toString(16)}`)
+            console.log(`GIOPDecoder.repositoryId(): at 0x${this.offset.toString(16)} writing repository ID '${id}' at 0x${this.offset.toString(16)}`)
             this.repositoryIds.set(id, this.offset)
             this.ulong(0x7fffff02) // single repositoryId
+            console.log(`=====> place string '${id}' at 0x${this.offset.toString(16)}`)
             this.string(id)
         } else {
             // 9.3.4.3
             const indirection = position - this.offset - 2
-            console.log(`repositoryID '${id}' at 0x${this.offset.toString(16)} to reuse repositoryID at 0x${position.toString(16)}`)
+            console.log(`GIOPDecoder.repositoryId(): at 0x${this.offset.toString(16)} writing indirect repository ID '${id}' indirection ${indirection} pointing to 0x${position.toString(16)}`)
             this.ulong(0x7fffff02) // single repositoryId
             this.ulong(0xffffffff) // sure? how the heck to we distinguish indirections to object and repositoryId?
             this.long(indirection)
@@ -180,12 +181,12 @@ export class GIOPEncoder extends GIOPBase {
         if (object instanceof Stub) {
             throw Error("ORB: can not serialize Stub yet")
         }
+
         if (object instanceof Skeleton) {
             if (this.orb === undefined) {
                 throw Error("GIOPEncoder has no ORB defined. Can not add object to ACL.")
             }
             this.orb.aclAdd(object)
-
             this.reference(object)
             return
             // return `{"#R":"${(object.constructor as any)._idlClassName()}","#V":${object.id}}`
@@ -194,6 +195,7 @@ export class GIOPEncoder extends GIOPBase {
         const position = this.objectPosition.get(object)
         if (position !== undefined) {
             const indirection = position - this.offset - 2
+            console.log(`GIOPEncoder.object(): at 0x${this.offset.toString(16)} write object indirection ${indirection} pointing to 0x${position.toString(16)}`)
             this.ulong(0xffffffff)
             this.long(indirection)
             return
@@ -214,8 +216,7 @@ export class GIOPEncoder extends GIOPBase {
             throw Error(`ORB: can not serialize object of unregistered valuetype ${object.constructor.name}`)
         }
         this.objectPosition.set(object, this.offset)
-        valueTypeInformation.encode(this, object)
-      
+        valueTypeInformation.encode(this, object)      
     }
 
     blob(value: string) {
@@ -234,8 +235,13 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     sequence<T>(array: T[], encodeItem: (a:T) => void) {
+        console.log(`GIOPEncoder.sequence(): ENCODE SEQUENCE WITH ${array.length} ENTRIES AT 0x${this.offset.toString(16)}`)
         this.ulong(array.length)
-        array.forEach(encodeItem)
+        array.forEach( (value, index) => {
+            console.log(`GIOPEncoder.sequence(): ENCODE ITEM ${index} AT 0x${this.offset.toString(16)}`)
+            encodeItem(value)
+        })
+        console.log(`GIOPEncoder.sequence(): ENCODED SEQUENCE WITH ${array.length} ENTRIES`)
     }
 
     byte(value: number) {
@@ -287,6 +293,7 @@ export class GIOPEncoder extends GIOPBase {
 
     double(value: number) {
         this.align(8)
+        console.log(`ENCODE DOUBLE ${value} AT ${this.offset}`)
         this.data.setFloat64(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 8
     }
@@ -547,44 +554,47 @@ export class GIOPDecoder extends GIOPBase {
 
     // TODO: rather 'value' than 'object' as this is for valuetypes?
     object(): any {
-        // throw Error(`GIOPDecoder.object() is not implemented yet`)
-
-        // console.log(`decode() at 0x${this.offset.toString(16)}`)
-        const objectOffset = this.offset + 6
+        // console.log(`GIOPDecoder.object() at 0x${this.offset.toString(16)}`)
+        // const objectOffset = this.offset + 6
 
         const code = this.ulong()
+        const objectOffset = this.offset - 4
+
         switch (code) {
             case 0x7fffff02: {
-                const memo = this.offset
-                let name
+                let repositoryId
                 const len = this.ulong()
                 if (len !== 0xffffffff) {
-                    name = this.string(len)
+                    repositoryId = this.string(len)
+                    console.log(`GIOPDecoder.object(): at 0x${(objectOffset).toString(16)} got repository ID '${repositoryId}'`)
                 } else {
                     const indirection = this.long()
                     const savedOffset = this.offset
-                    this.offset = this.offset + indirection - 4
-                    console.log(`indirect repository ID should be at 0x${this.offset.toString(16)}`)
-                    name = this.string()
+                    this.offset = this.offset + indirection - 4 - 6
+                    console.log(`GIOPDecoder.object(): at 0x${(objectOffset).toString(16)} got indirect repository ID ${indirection} pointing to 0x${this.offset.toString(16)}`)
+                    this.offset += 4 // skip marker
+                    console.log(`=====> fetch string at 0x${this.offset.toString(16)}`)
+                    repositoryId = this.string()
+                    console.log(`==> repositoryId is '${repositoryId}'`)
                     this.offset = savedOffset
                 }
                 // console.log(`repositoryID '${name}' at 0x${memo.toString(16)}`)
-                if (name.length < 8 || name.substring(0, 4) !== "IDL:" || name.substring(name.length - 4) !== ":1.0")
-                    throw Error(`Unsupported CORBA GIOP Repository ID '${name}'`)
-                const shortName = name.substring(4, name.length - 4)
+                if (repositoryId.length < 8 || repositoryId.substring(0, 4) !== "IDL:" || repositoryId.substring(repositoryId.length - 4) !== ":1.0")
+                    throw Error(`Unsupported CORBA GIOP Repository ID '${repositoryId}'`)
+                const shortName = repositoryId.substring(4, repositoryId.length - 4)
 
                 let valueTypeInformation = ORB.valueTypeByName.get(shortName)
                 if (valueTypeInformation === undefined)
-                    throw Error(`Unregistered Repository ID '${name}' (${shortName})`)
+                    throw Error(`Unregistered Repository ID '${repositoryId}' (${shortName})`)
 
                 const obj = new (valueTypeInformation.construct as any)(this)
-                this.objects.set(objectOffset, obj)
+                this.objects.set(objectOffset+2, obj)
                 return obj
             }
             case 0xffffffff: {
                 const indirection = this.long()
                 const position = this.offset + indirection
-                // console.log(`Need to find previously generated object at 0x${position.toString(16)}`)
+                console.log(`GIOPDecoder.object(): at 0x${objectOffset.toString(16)} got indirect object ${indirection} pointing to 0x${position.toString(16)}`)
                 const obj = this.objects.get(position)
                 if (obj === undefined) {
                     throw Error("IDL:omg.org/CORBA/MARSHAL:1.0")
@@ -647,12 +657,16 @@ export class GIOPDecoder extends GIOPBase {
 
     // FIXME: the code calling this will fail on sequence within sequence
     sequence<T>(decodeItem: () => T): T[] {
+        const offset = this.offset
         const length = this.ulong()
-        console.log(`GIOPDecoder.sequence(): CREATE SEQUENCE WITH ${length} ENTRIES`)
+        console.log(`GIOPDecoder.sequence(): DECODE SEQUENCE WITH ${length} ENTRIES AT 0x${offset.toString(16)}`)
         const array = new Array(length)
         for(let i=0; i<length; ++i) {
+            console.log(`GIOPDecoder.sequence(): DECODE ITEM ${i} AT 0x${this.offset.toString(16)}`)
             array[i] = decodeItem()
+            console.log(`GIOPDecoder.sequence(): DECODED ITEM ${i}`)
         }
+        console.log(`GIOPDecoder.sequence(): DECODED SEQUENCE WITH ${length} ENTRIES`)
         return array
     }
 
@@ -715,6 +729,7 @@ export class GIOPDecoder extends GIOPBase {
     double() {
         this.align(8)
         const value = this.data.getFloat64(this.offset, this.littleEndian)
+        console.log(`DECODED DOUBLE ${value} AT ${this.offset}`)
         this.offset += 8
         return value
     }
