@@ -31,7 +31,7 @@ import { filenamePrefix, filename, setFilename, setFilenamePrefix, setFilenameLo
 function printHelp() {
     console.log(
         `corba.js IDL compiler
-Copyright (C) 2018, 2020 Mark-André Hopf <mhopf@mark13.org>
+Copyright (C) 2018, 2020, 2021 Mark-André Hopf <mhopf@mark13.org>
 This is free software; see the source for copying conditions.  There is
 ABSOLUTELY NO WARRANTY; not even for MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE.
@@ -43,14 +43,14 @@ Options:
   --ts-stub       create TypeScript stub file
   --ts-skeleton   create TypeScript skeleton file
   --ts-valuetype  create TypeScript valuetype file
-  --debug|-d      increase debug level
+  --verbose|-v    increase verbosity level
   --output-directory|-o <dir>
                   create files in <dir>
   --help|-h       this page
 `)
 }
 
-let debug = 0,
+let verbose = 0,
     outputDirectory: string | undefined,
     tsInterface = false,
     tsStub = false,
@@ -63,7 +63,7 @@ function main() {
     for (; i < process.argv.length; ++i) {
         setupFilenameVars(process.argv[i])
         let syntaxTree = parseIDLFile()
-        if (debug > 1)
+        if (verbose > 1)
             syntaxTree.printTree()
         createOutputFiles(syntaxTree)
     }
@@ -100,9 +100,9 @@ function parseArguments(): number {
             case "-o":
                 outputDirectory = process.argv[++i]
                 break
-            case "--debug":
-            case "-d":
-                ++debug
+            case "--verbose":
+            case "-v":
+                ++verbose
                 break
             case "--help":
             case "-h":
@@ -185,7 +185,7 @@ function parseIDLFile(): Node {
     catch (error) {
         if (error instanceof Error) {
             console.log(`corba-idl: error: ${error.message} in file '${filename}' at line ${lexer.line}, column ${lexer.column}`)
-            if (debug)
+            if (verbose)
                 console.log(error.stack)
         } else {
             console.log(error)
@@ -217,7 +217,7 @@ function createOutputFiles(syntaxTree: Node): void {
     catch (error) {
         if (error instanceof Error) {
             console.log(`corba-idl: error: ${error.message} in file '${filename}'`)
-            if (debug)
+            if (verbose)
                 console.log(error.stack)
         } else {
             console.log(error)

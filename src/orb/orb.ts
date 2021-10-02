@@ -18,8 +18,9 @@
 
 import { GIOPDecoder, GIOPEncoder, MessageType } from "./giop"
 
-export interface valueTypeInformation {
+export interface ValueTypeInformation {
     attributes: Array<string>
+    encode: (encoder: GIOPEncoder, obj: any) => void
     name?: string
     construct?: Function
 }
@@ -54,8 +55,8 @@ export class ORB implements EventTarget, SocketUser {
 
     accesibleServants: Set<Skeleton>
 
-    static valueTypeByName = new Map<string, valueTypeInformation>()
-    static valueTypeByPrototype = new Map<any, valueTypeInformation>()
+    static valueTypeByName = new Map<string, ValueTypeInformation>()
+    static valueTypeByPrototype = new Map<any, ValueTypeInformation>()
 
     initialReferences: Map<string, Skeleton>
 
@@ -119,19 +120,18 @@ export class ORB implements EventTarget, SocketUser {
         method: string,
         encode: (encoder: GIOPEncoder) => void) {
         // console.log(`client: send request ${requestId}`)
-        const encoder = new GIOPEncoder()
+        const encoder = new GIOPEncoder(this)
         encoder.encodeRequest(objectId, method, requestId, responseExpected)
         encode(encoder)
         encoder.setGIOPHeader(MessageType.REQUEST)
-
-        this.socketSend(encoder.bytes.subarray(0, encoder.offset))
+        this.socketSend(encoder.buffer.slice(0, encoder.offset))
     }
 
     //
     // Network IN
     //
     socketRcvd(buffer: ArrayBuffer): void {
-        const decoder = new GIOPDecoder(buffer)
+        const decoder = new GIOPDecoder(buffer, this)
         const type = decoder.scanGIOPHeader()
         switch (type) {
             case MessageType.REQUEST: {
@@ -140,7 +140,7 @@ export class ORB implements EventTarget, SocketUser {
                     if (data.method === "resolve") {
                         const reference = decoder.string()
                         // console.log(`ORB: received ORB.resolve("${reference}")`)
-                        const encoder = new GIOPEncoder()
+                        const encoder = new GIOPEncoder(this)
                         let object = this.initialReferences.get(reference)
                         if (object === undefined) {
                             // console.log(`ORB.handleResolveInitialReferences(): failed to resolve '${reference}`)
@@ -151,7 +151,7 @@ export class ORB implements EventTarget, SocketUser {
                             encoder.reference(object)
                         }
                         encoder.setGIOPHeader(MessageType.REPLY)
-                        this.socketSend(encoder.bytes.subarray(0, encoder.offset))
+                        this.socketSend(encoder.buffer.slice(0, encoder.offset))
                     }
                     return
                 }
@@ -171,7 +171,7 @@ export class ORB implements EventTarget, SocketUser {
                     throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with id ${id}`)
                 }
 
-                const encoder = new GIOPEncoder()
+                const encoder = new GIOPEncoder(this)
                 encoder.skipReplyHeader();
                 (servant as any)[`_orb_${data.method}`].call(servant, decoder, encoder)
                 .then( () => {
@@ -179,15 +179,16 @@ export class ORB implements EventTarget, SocketUser {
                         const length = encoder.offset
                         encoder.setGIOPHeader(MessageType.REPLY)
                         encoder.setReplyHeader(data.requestId, GIOPDecoder.NO_EXCEPTION)
-                        this.socketSend(encoder.bytes.subarray(0, length))
+                        this.socketSend(encoder.buffer.slice(0, length))
                     }    
                 })
                 .catch((error: Error) => {
+                    console.log(error)
                     if (data.responseExpected) {
                         const length = encoder.offset
                         encoder.setGIOPHeader(MessageType.REPLY)
                         encoder.setReplyHeader(data.requestId, GIOPDecoder.USER_EXCEPTION)
-                        this.socketSend(encoder.bytes.subarray(0, length))
+                        this.socketSend(encoder.buffer.slice(0, length))
                     }
                 })
             } break
@@ -345,9 +346,10 @@ export class ORB implements EventTarget, SocketUser {
         // }
 
         // new reference, create a new stub
-        let aStubClass = this.stubsByName.get(oid.oid.substr(4, oid.oid.length - 8))
+        const shortName = oid.oid.substring(4, oid.oid.length - 4)
+        let aStubClass = this.stubsByName.get(shortName)
         if (aStubClass === undefined) {
-            throw Error(`ORB: can not deserialize object of unregistered stub '${oid.oid}'`)
+            throw Error(`ORB: can not deserialize object of unregistered stub '${oid.oid} (${shortName})'`)
         }
         object = new aStubClass(this, oid.objectKey)
         this.stubsById.set(oid.objectKey, object!)
@@ -371,21 +373,10 @@ export class ORB implements EventTarget, SocketUser {
         throw Error("obsolete")
     }
 
+
     //
-    // Client
-    //
-
-    // async connect(url: string): Promise<void> {
-    //     throw Error("obsolete")
-    // }
-
-    // send(data: any, oneway: boolean = false): Promise<any> {
-    //     throw Error("obsolete")
-    // }
-
-    // async call(stub: Stub, oneway: boolean, method: string, params: Array<any>): Promise<any> {
-    //     throw Error("obsolete")
-    // }
+    // Access Control List
+    ///
 
     release() {
         this.aclDeleteAll()
@@ -401,27 +392,6 @@ export class ORB implements EventTarget, SocketUser {
             servant.acl.delete(this)
         this.accesibleServants.clear()
     }
-
-    // handleMethod(msg: any) {
-    //     throw Error("obsolete")
-    // }
-
-    // handleListInitialReferences(msg: any) {
-    //     throw Error("obsolete")
-    // }
-
-    // handleResolveInitialReferences(msg: any) {
-    //     throw Error("obsolete")
-    // }
-
-    // async listen(host: string, port: number): Promise<void> {
-    //     throw Error("pure virtual function ORB.listen() being called in browser ORB")
-    // }
-
-    // accept() {
-    //     throw Error("pure virtual function ORB.accept() being called in browser ORB")
-    // }
-
 }
 
 export abstract class CORBAObject {

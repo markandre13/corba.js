@@ -115,8 +115,7 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                                 }
                                 switch(type.type) {
                                     case Type.TKN_SEQUENCE:
-                                        out.write(`decoder.sequence( () => decoder.${typeIDLtoGIOP(type.child[0])}()`)
-                                        out.write(`)`)
+                                        out.write(`decoder.sequence( () => decoder.${typeIDLtoGIOP(type.child[0])}())`)
                                         break
                                     default:
                                         out.write(`decoder.${typeIDLtoGIOP(type)}()`)

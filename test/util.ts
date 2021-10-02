@@ -28,20 +28,6 @@ export function mockConnection(server: ORB, client: ORB): ORB {
         client.socketRcvd(buffer)
     }
 
-
-    // let acceptedORB = new ORB(serverORB)
-
-    // acceptedORB.socket = {
-    //     send: function(data: any) {
-    //         clientORB.socket!.onmessage({data:data} as any)
-    //     }
-    // } as any
-    // acceptedORB.accept()
-    // clientORB.socket = {
-    //     send: function(data: any) {
-    //         acceptedORB.socket!.onmessage({data:data} as any)
-    //     }
-    // } as any
     return server
 }
 

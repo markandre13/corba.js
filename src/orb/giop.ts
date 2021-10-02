@@ -16,8 +16,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { CORBAObject, Skeleton } from "corba.js"
-import { IOR } from "./ior"
+import { CORBAObject, ORB, IOR, Stub, Skeleton, ValueTypeInformation } from "corba.js"
 
 // 9.4 GIOP Message Formats
 export enum MessageType {
@@ -46,6 +45,11 @@ export class GIOPBase {
     static TWO_TO_32 = 4294967296;
     static TWO_TO_52 = 4503599627370496;
 
+    orb?: ORB
+    constructor(orb?: ORB) {
+        this.orb = orb
+    }
+
     align(alignment: number) {
         const inversePadding = this.offset % alignment
         if (inversePadding !== 0)
@@ -64,8 +68,8 @@ export class GIOPEncoder extends GIOPBase {
     protected repositoryIds = new Map<string, number>()
     protected objectPosition = new Map<Object, number>()
 
-    constructor() {
-        super()
+    constructor(orb?: ORB) {
+        super(orb)
         // use this system's endianes
         if (GIOPEncoder.littleEndian === undefined) {
             const buffer = new ArrayBuffer(2)
@@ -161,6 +165,7 @@ export class GIOPEncoder extends GIOPBase {
         this.byte(GIOPBase.MAJOR_VERSION)
         this.byte(GIOPBase.MINOR_VERSION)
 
+        // FIXME
         this.string("localhost")
         this.short(8080)
         this.blob(`${object.id}`)
@@ -172,15 +177,45 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     object(object: Object) {
+        if (object instanceof Stub) {
+            throw Error("ORB: can not serialize Stub yet")
+        }
+        if (object instanceof Skeleton) {
+            if (this.orb === undefined) {
+                throw Error("GIOPEncoder has no ORB defined. Can not add object to ACL.")
+            }
+            this.orb.aclAdd(object)
+
+            this.reference(object)
+            return
+            // return `{"#R":"${(object.constructor as any)._idlClassName()}","#V":${object.id}}`
+        }      
+
         const position = this.objectPosition.get(object)
-        if (position === undefined) {
-            this.objectPosition.set(object, this.offset);
-            (object as any).encode(this)
-        } else {
+        if (position !== undefined) {
             const indirection = position - this.offset - 2
             this.ulong(0xffffffff)
             this.long(indirection)
+            return
         }
+
+        let prototype = Object.getPrototypeOf(object)
+
+        let valueTypeInformation: ValueTypeInformation | undefined
+        while (prototype !== null) {
+            valueTypeInformation = ORB.valueTypeByPrototype.get(prototype)
+            if (valueTypeInformation !== undefined)
+                break
+            prototype = Object.getPrototypeOf(prototype)
+        }
+
+        if (valueTypeInformation === undefined) {
+            console.log(object)
+            throw Error(`ORB: can not serialize object of unregistered valuetype ${object.constructor.name}`)
+        }
+        this.objectPosition.set(object, this.offset)
+        valueTypeInformation.encode(this, object)
+      
     }
 
     blob(value: string) {
@@ -334,6 +369,9 @@ class ObjectReference {
     host!: string
     port!: number
     objectKey!: string
+    toString(): string {
+        return `ObjectReference(oid=${this.oid}, host=${this.host}, port=${this.port}, objectKey=${this.objectKey}')`
+    }
 }
 
 export class GIOPDecoder extends GIOPBase {
@@ -348,8 +386,8 @@ export class GIOPDecoder extends GIOPBase {
 
     protected static textDecoder = new TextDecoder()
 
-    constructor(buffer: ArrayBuffer) {
-        super()
+    constructor(buffer: ArrayBuffer, orb?: ORB) {
+        super(orb)
         this.buffer = buffer
         this.data = new DataView(buffer)
         this.bytes = new Uint8Array(buffer)
@@ -465,11 +503,11 @@ export class GIOPDecoder extends GIOPBase {
         return data
     }
 
-    reference(): ObjectReference {
+    reference(length: number | undefined = undefined): ObjectReference {
         const data = new ObjectReference()
 
         // struct IOR, field: string type_id ???
-        data.oid = this.string()
+        data.oid = this.string(length)
 
         // struct IOR, field: TaggedProfileSeq profiles ???
         const profileCount = this.ulong()
@@ -507,11 +545,11 @@ export class GIOPDecoder extends GIOPBase {
         return data
     }
 
-    // rather: value?
+    // TODO: rather 'value' than 'object' as this is for valuetypes?
     object(): any {
         // throw Error(`GIOPDecoder.object() is not implemented yet`)
 
-        console.log(`decode() at 0x${this.offset.toString(16)}`)
+        // console.log(`decode() at 0x${this.offset.toString(16)}`)
         const objectOffset = this.offset + 6
 
         const code = this.ulong()
@@ -530,7 +568,7 @@ export class GIOPDecoder extends GIOPBase {
                     name = this.string()
                     this.offset = savedOffset
                 }
-                console.log(`repositoryID '${name}' at 0x${memo.toString(16)}`)
+                // console.log(`repositoryID '${name}' at 0x${memo.toString(16)}`)
                 if (name.length < 8 || name.substr(0, 4) !== "IDL:" || name.substr(name.length - 4) !== ":1.0")
                     throw Error(`Unsupported CORBA GIOP Repository ID '${name}'`)
 
@@ -544,7 +582,7 @@ export class GIOPDecoder extends GIOPBase {
             case 0xffffffff: {
                 const indirection = this.long()
                 const position = this.offset + indirection
-                console.log(`Need to find previously generated object at 0x${position.toString(16)}`)
+                // console.log(`Need to find previously generated object at 0x${position.toString(16)}`)
                 const obj = this.objects.get(position)
                 if (obj === undefined) {
                     throw Error("IDL:omg.org/CORBA/MARSHAL:1.0")
@@ -552,7 +590,27 @@ export class GIOPDecoder extends GIOPBase {
                 return obj
             }
             default:
-                throw Error(`Unsupported value with CORBA tag 0x${code.toString(16)}`)
+                // TODO: this looks like a hack... plus: can't the IDL compiler not already use reference instead of object?
+                if (code < 0x7fffff00) {
+                    if (this.orb === undefined)
+                        throw Error("GIOPDecoder has no ORB defined. Can not resolve resolve reference to stub object.")
+                    const reference = this.reference(code)
+
+                    // TODO: this belongs elsewhere
+                    let object = this.orb.stubsById.get(reference.objectKey)
+                    if (object !== undefined)
+                        return object
+                    const shortName = reference.oid.substring(4,reference.oid.length-4)
+                    let aStubClass = this.orb.stubsByName.get(shortName)
+                    if (aStubClass === undefined) {
+                        throw Error(`ORB: no stub registered for OID '${reference.oid} (${shortName})'`)
+                    }
+                    object = new aStubClass(this.orb, reference.objectKey)
+                    this.orb.stubsById.set(reference.objectKey, object!)
+                    return object
+                } else {
+                    throw Error(`GIOPDecoder: Unsupported value with CORBA tag 0x${code.toString(16)}`)
+                }
         }
     }
 

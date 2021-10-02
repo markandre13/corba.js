@@ -78,14 +78,14 @@ class Rectangle extends Figure implements valuetype.Rectangle {
 
 class Server_impl extends skel.Server {
     static instance?: Server_impl
-    static methodAWasCalled = false
+    methodAWasCalled = false
     static methodBWasCalled = false
 
     client?: stub.Client
 
     constructor(orb: ORB) {
         super(orb)
-//console.log("Server_impl.constructor()")
+        console.log("Server_impl.constructor()")
         Server_impl.instance = this
     }
     
@@ -94,13 +94,13 @@ class Server_impl extends skel.Server {
     }
 
     async methodA() {
-//console.log("Server_impl.methodA()")
+        console.log("Server_impl.methodA()")
         expect(this.orb.name).to.equal("acceptedORB")
-        Server_impl.methodAWasCalled = true
+        this.methodAWasCalled = true
     }
     
     async methodB() {
-//console.log("Server_impl.methodB()")
+        console.log("Server_impl.methodB()")
         expect(this.orb.name).to.equal("acceptedORB")
         Server_impl.methodBWasCalled = true
         await this.client!.methodC()
@@ -108,7 +108,7 @@ class Server_impl extends skel.Server {
     }
     
     async answer(a: number, b: number) {
-//console.log("Server_impl.answer()")
+        console.log("Server_impl.answer()")
         return a*b
     }
 }
@@ -120,33 +120,34 @@ class Client_impl extends skel.Client {
 
     constructor(orb: ORB) {
         super(orb)
-//console.log("Client_impl.constructor()")
+        console.log("Client_impl.constructor()")
         Client_impl.instance = this
     }
     
     async methodC() {
-//console.log("Client_impl.methodC()")
+        console.log("Client_impl.methodC()")
         Client_impl.methodCWasCalled = true
         return 0
     }
     
     async setFigureModel(figuremodel: FigureModel) {
-//console.log("Client_impl.setFigureModel()")
+        console.log("Client_impl.setFigureModel()")
         Client_impl.figureModelReceivedFromServer = figuremodel
     }
 }
 
 describe("corba.js", function() {
-    it("a basic test", async function() {
+    it.only("a basic test", async function() {
 
         let serverORB = new ORB()
         serverORB.name = "serverORB"
-//serverORB.debug = 1
+        serverORB.debug = 1
         let clientORB = new ORB()
         clientORB.name = "clientORB"
-//clientORB.debug = 1
+        clientORB.debug = 1
 
-        serverORB.bind("Server", new Server_impl(serverORB))
+        const serverImpl = new Server_impl(serverORB)
+        serverORB.bind("Server", serverImpl)
         
         serverORB.registerStubClass(stub.Client)
         clientORB.registerStubClass(stub.Server)
@@ -159,27 +160,31 @@ describe("corba.js", function() {
 
         mockConnection(serverORB, clientORB).name = "acceptedORB"
 
-        let server = stub.Server.narrow(await clientORB.resolve("Server"))
-        await server.setClient(new Client_impl(clientORB))
+        console.log(`# CLIENT: RESOLVE SERVER`)
+        let serverStub = stub.Server.narrow(await clientORB.resolve("Server"))
+        expect(serverStub).instanceOf(stub.Server)
 
-        // method call
-        expect(Server_impl.methodAWasCalled).to.equal(false)
-        await server.methodA()
-        expect(Server_impl.methodAWasCalled).to.equal(true)
+        console.log("# CLIENT -> SERVER: SET CLIENT")
+        await serverStub.setClient(new Client_impl(clientORB))
+        expect(serverImpl.client).instanceOf(stub.Client)
 
-        // method call which calls us back
+        console.log(`# CLIENT -> SERVER: CALL METHOD`)
+        expect(serverImpl.methodAWasCalled).to.equal(false)
+        await serverStub.methodA()
+        expect(serverImpl.methodAWasCalled).to.equal(true)
+
+        console.log(`# CLIENT -> SERVER -> CLIENT: CALL METHOD WHICH CALLS US BACK`)
         expect(Server_impl.methodBWasCalled).to.equal(false)
         expect(Client_impl.methodCWasCalled).to.equal(false)
-        await server.methodB()
-
+        await serverStub.methodB()
         expect(Server_impl.methodBWasCalled).to.equal(true)
         expect(Client_impl.methodCWasCalled).to.equal(true)
 
-        // client calls answer() on server
-        let answer = await server.answer(6, 7)
+        console.log("# CLIENT -> SERVER: CALL METHOD WITH ARGUMENTS AND RETURN RESULT")
+        let answer = await serverImpl.answer(6, 7)
         expect(answer).to.equal(42)
 
-        // server sends FigureModel to client
+        console.log("# SERVER -> CLIENT: SEND VALUETYPE")
         expect(Client_impl.figureModelReceivedFromServer).to.equal(undefined)
 
         let model = new FigureModel()

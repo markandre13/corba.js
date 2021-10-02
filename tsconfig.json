@@ -38,5 +38,5 @@
     "src/orb",
     "test",
     "test-mico"
-  ]
+, "src/net/websocket.ts"  ]
 }
