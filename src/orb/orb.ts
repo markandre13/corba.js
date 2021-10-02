@@ -92,14 +92,14 @@ export class ORB implements EventTarget, SocketUser {
     socketSend!: (buffer: ArrayBuffer) => void
     map = new Map<number, PromiseHandler>()
 
-    onewayCall(objectId: string, method: string, encode: (encoder: GIOPEncoder) => void) {
+    onewayCall(objectId: string, method: string, encode: (encoder: GIOPEncoder) => void): void {
         this.callCore(++this.reqid, false, objectId, method, encode)
     }
 
     twowayCall<T>(objectId: string, method: string,
         encode: (encoder: GIOPEncoder) => void,
         decode: (decoder: GIOPDecoder) => T
-    ) {
+    ): Promise<T> {
         return new Promise<T>((resolve, reject) => {
             const requestId = ++this.reqid
             this.map.set(
@@ -171,32 +171,25 @@ export class ORB implements EventTarget, SocketUser {
                     throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with id ${id}`)
                 }
 
-                if (data.method === "twowayCall") {
-
-                    const params: any[] = []
-                    params.push(decoder.ushort())
-
-                    const result = servant[data.method].apply(servant, params) as Promise<any>
+                const encoder = new GIOPEncoder()
+                encoder.skipReplyHeader();
+                (servant as any)[`_orb_${data.method}`].call(servant, decoder, encoder)
+                .then( () => {
                     if (data.responseExpected) {
-                        result
-                            .then((result: any) => {
-                                const encoder = new GIOPEncoder()
-                                encoder.encodeReply(data.requestId, GIOPDecoder.NO_EXCEPTION)
-                                encoder.short(result)
-                                encoder.setGIOPHeader(MessageType.REPLY)
-                                this.socketSend(encoder.bytes.subarray(0, encoder.offset))       
-                            })
-                            .catch((error: Error) => {
-                                const encoder = new GIOPEncoder()
-                                encoder.encodeReply(data.requestId, GIOPDecoder.USER_EXCEPTION)
-                                // FIXME: encode exception
-                                encoder.setGIOPHeader(MessageType.REPLY)
-                                this.socketSend(encoder.bytes.subarray(0, encoder.offset))
-                            })
-                    }   
-                } else {
-                    servant[data.method].apply(servant)
-                }
+                        const length = encoder.offset
+                        encoder.setGIOPHeader(MessageType.REPLY)
+                        encoder.setReplyHeader(data.requestId, GIOPDecoder.NO_EXCEPTION)
+                        this.socketSend(encoder.bytes.subarray(0, length))
+                    }    
+                })
+                .catch((error: Error) => {
+                    if (data.responseExpected) {
+                        const length = encoder.offset
+                        encoder.setGIOPHeader(MessageType.REPLY)
+                        encoder.setReplyHeader(data.requestId, GIOPDecoder.USER_EXCEPTION)
+                        this.socketSend(encoder.bytes.subarray(0, length))
+                    }
+                })
             } break
             case MessageType.REPLY: {
                 const data = decoder.scanReplyHeader()

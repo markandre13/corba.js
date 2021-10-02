@@ -45,6 +45,7 @@ import { Stub, GIOPEncoder, GIOPDecoder, MessageType, ORB, PromiseHandler } from
 
 import * as _interface from "./demux"
 import * as skel from "./demux_skel"
+import * as stub from "./demux_stub"
 
 // WebSocket close codes
 enum CloseCode {
@@ -130,28 +131,6 @@ function connect(orb: ORB, url: string): Promise<WebSocketConnection> {
 // npm run test:demux:run
 // rm -f lib/idl/idl.cjs ; npm run build:idl:build && ./bin/corba-idl --ts-all test-mico/demux.idl && cat test-mico/demux_stub.ts
 
-export class ServerStub extends Stub implements _interface.Server {
-    static _idlClassName(): string {
-        return "Server"
-    }
-
-    static narrow(object: any): ServerStub {
-        if (object instanceof ServerStub)
-            return object as ServerStub
-        throw Error("ServerStub.narrow() failed")
-    }
-
-    // TODO: THIS NEEDS TO BE CREATED BY THE IDL COMPILER
-    onewayCall(a: number): void {
-        this.orb.onewayCall(`${this.id}`, "onewayCall", (encoder) => encoder.ushort(a))
-    }
-    twowayCall(a: number): Promise<number> {
-        return this.orb.twowayCall(`${this.id}`, "twowayCall",
-            (encoder) => encoder.ushort(a),
-            (decoder) => decoder.ushort())
-    }
-}
-
 class Server_impl extends skel.Server {
     onewayCall(a: number) {
         console.log(`Server_impl.onewayCall(${a})`)
@@ -162,48 +141,17 @@ class Server_impl extends skel.Server {
     }
 }
 
-// stub:
-//   client calls stub
-//   stub encodes arguments
-//   orb sends
-//   (skeleton)
-//   orb receives
-//   decode result
-//   stub returns
-// skeleton:
-//   orb receives
-//   decode arguments
-//   call impl
-//   encode result
-//   orb sends
-
-abstract class TestSkeleton {
-    // TODO: THIS NEEDS TO BE CREATED BY THE IDL COMPILER
-    private _orb_bla(decoder: GIOPDecoder, encoder: GIOPEncoder): void {
-        encoder.ushort(this.bla(decoder.ushort()))
-    }
-    abstract bla(n: number): number
-}
-
-class TestImplementation extends TestSkeleton {
-    v = 83
-
-    bla(n: number): number {
-        return n + this.v
-    }
-}
-
 describe("multiplexer/demultiplexer", function () {
-    it("call ORB using GIOP", async function () {
+    it.only("call ORB using GIOP", async function () {
         const serverORB = new ORB()
         serverORB.bind("Server", new Server_impl(serverORB))
         const serverWS = await listen(serverORB, 8080)
 
         const clientORB = new ORB()
-        clientORB.registerStubClass(ServerStub)
+        clientORB.registerStubClass(stub.Server)
         const clientWS = await connect(clientORB, "ws://localhost:8080/")
 
-        const serverStub = ServerStub.narrow(await clientORB.resolve("Server"))
+        const serverStub = stub.Server.narrow(await clientORB.resolve("Server"))
         serverStub.onewayCall(17)
         const x = await serverStub.twowayCall(42)
         console.log(`twowayCall(42) -> ${x}`)
@@ -211,21 +159,5 @@ describe("multiplexer/demultiplexer", function () {
 
         clientWS.close()
         serverWS.shutDown()
-    })
-
-    it.only("class skeleton", function() {
-        const impl = new TestImplementation();
-
-        const outArgs = new GIOPEncoder()
-        outArgs.ushort(1900)
-        const decoder = new GIOPDecoder(outArgs.buffer)
-        const encoder = new GIOPEncoder();
-
-        (impl as any)["_orb_"+"bla"].call(impl, decoder, encoder)
-
-        const outResult = new GIOPDecoder(encoder.buffer)
-        const r = outResult.ushort()
-
-        expect(r).equals(1983)
     })
 })

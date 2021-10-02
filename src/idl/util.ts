@@ -112,6 +112,97 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
     }
 }
 
+export function typeIDLtoGIOP(type: Node | undefined) {
+    if (type === undefined)
+        throw Error("internal error: parser delivered no type information")
+    switch (type!.type) {
+        case Type.TKN_IDENTIFIER: {
+
+            let identifierType = type.child[type.child.length - 1]!
+        //     let relativeName = ""
+        //     for (let x of type.child) {
+        //         relativeName = `${relativeName}.${x!.text!}`
+        //     }
+        //     relativeName = relativeName.substring(1)
+
+        //     let absolutePrefix = ""
+        //     for (let x: Node | undefined = type.child[0]?.typeParent; x; x = x.typeParent) {
+        //         absolutePrefix = `.${x!.text}${absolutePrefix}`
+        //     }
+
+        //     if (type.child.length > 0 &&
+        //         type.child[0]!.type === Type.TKN_NATIVE &&
+        //         type.text!.length > 4 &&
+        //         type.text!.substring(type.text!.length - 4) === "_ptr") {
+        //         return `${absolutePrefix.substring(1)} | undefined`
+        //     }
+
+        //     let name: string
+            switch (identifierType.type) {
+                case Type.TKN_VALUETYPE:
+                    return "object"
+        //             if (filetype !== FileType.VALUETYPE)
+        //                 name = `valuetype${absolutePrefix}.${relativeName}`
+        //             else
+        //                 name = relativeName
+        //             break
+                case Type.SYN_INTERFACE:
+                    return "object"
+        //             if (filetype !== FileType.INTERFACE)
+        //                 name = `_interface${absolutePrefix}.${relativeName}`
+        //             else
+        //                 name = relativeName
+        //             break
+                case Type.TKN_STRUCT:
+                    return "object"
+        //             // FIXME: struct uses a wrong identifier node structure
+        //             name = type!.text!
+        //             if (filetype !== FileType.INTERFACE)
+        //                 name = `_interface${absolutePrefix}.${name}`
+        //             break
+        //         case Type.TKN_NATIVE:
+        //             name = relativeName
+        //             break
+                default:
+                    throw Error(`Internal Error in typeIDLtoGIOP(): type ${identifierType.toString()} is not implemented`)
+            }
+
+        //     return name
+
+        } break
+        case Type.TKN_VOID:
+            return "void"
+        case Type.TKN_BOOLEAN:
+            return "bool"
+        case Type.TKN_STRING:
+            return "string"
+        case Type.TKN_SHORT:
+            return "short"
+        case Type.TKN_LONG:
+            return "long"
+        case Type.SYN_LONGLONG:
+            return "longlong"
+        case Type.SYN_UNSIGNED_SHORT:
+            return "ushort"
+        case Type.SYN_UNSIGNED_LONG:
+            return "ulong"
+        case Type.SYN_UNSIGNED_LONGLONG:
+            return "ulonglong"
+        case Type.TKN_FLOAT:
+            return "float"
+        case Type.TKN_DOUBLE:
+            return "double"
+        case Type.SYN_LONG_DOUBLE:
+            throw Error("long double is not supported yet")
+        case Type.TKN_SEQUENCE:
+            // throw Error("sequence is not supported yet")
+            return "sequence"
+            // return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
+        default:
+            throw Error(`no mapping from IDL type to GIOP type for ${type.toString()}`)
+    }
+}
+
 export function defaultValueIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")

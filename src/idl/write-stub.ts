@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Node } from "./idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoTS, FileType } from "./util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoTS, typeIDLtoGIOP, FileType } from "./util"
 
 export function writeTSStub(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + "_stub.ts")
@@ -62,15 +62,15 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                         case Type.SYN_OPERATION_DECLARATION: {
                             let op_dcl = _export!
                             let attribute = op_dcl.child[0]
-                            let type = op_dcl.child[1]!
+                            let returnType = op_dcl.child[1]!
 
                             let oneway = false
                             if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
                                 oneway = true
 
-                            if (oneway && type.type !== Type.TKN_VOID)
+                            if (oneway && returnType.type !== Type.TKN_VOID)
                                 console.log("WARNING: corba.js currently requires every oneway function to return void")
-                            if (!oneway && type.type === Type.TKN_VOID)
+                            if (!oneway && returnType.type === Type.TKN_VOID)
                                 console.log("WARNING: corba.js currently requires operations returning void to be oneway")
 
                             let identifier = op_dcl.child[2]!.text
@@ -82,6 +82,7 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 let attribute = parameter_dcl!.child[0]!.type
                                 let type = parameter_dcl!.child[1]
                                 let identifier = parameter_dcl!.child[2]!.text
+                                // TODO: move this check into the parser or attach file, row & col to the parse tree nodes
                                 if (attribute !== Type.TKN_IN) {
                                     throw Error("corba.js currently only supports 'in' parameters")
                                 }
@@ -90,24 +91,64 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(identifier + ": " + typeIDLtoTS(type, FileType.STUB))
+                                out.write(`${identifier}: ${typeIDLtoTS(type, FileType.STUB)}`)
                             }
-                            out.write("): Promise<" + typeIDLtoTS(type, FileType.STUB) + "> {\n")
+                            // if (oneway) {
+
+                            // } else {
+                                out.write(`): Promise<${typeIDLtoTS(returnType, FileType.STUB)}> {\n`)
+                            // }
                             out.write("        ")
-                            if (!oneway)
+                            if (returnType.type !== Type.TKN_VOID)
                                 out.write("return ")
-                            out.write(`await this.orb.call(this, ${oneway}, "${identifier}", [`)
-                            comma = false
-                            for (let parameter_dcl of parameter_decls) {
-                                let identifier = parameter_dcl!.child[2]!.text
-                                if (!comma) {
-                                    comma = true
-                                } else {
-                                    out.write(", ")
-                                }
-                                out.write(identifier)
+                            if (!oneway)
+                                out.write("await ")
+ 
+                            // out.write(`await this.orb.call(this, ${oneway}, "${identifier}", [`)
+                            // comma = false
+                            // for (let parameter_dcl of parameter_decls) {
+                            //     let identifier = parameter_dcl!.child[2]!.text
+                            //     if (!comma) {
+                            //         comma = true
+                            //     } else {
+                            //         out.write(", ")
+                            //     }
+                            //     out.write(identifier)
+                            // }
+                            // out.write("])\n")
+
+                            // out.write("/*\n")
+                            // out.write("        ")
+                            if (returnType.type === Type.TKN_VOID) {
+                                out.write(`this.orb.onewayCall(\`\${this.id}\`, "${identifier}", `)
+                            } else {
+                                out.write(`this.orb.twowayCall(\`\${this.id}\`, "${identifier}", `)
                             }
-                            out.write("])\n")
+
+                            // encode
+                            out.write(`(encoder) => {\n`)
+                            for (let parameter_dcl of parameter_decls) {
+                                let type = parameter_dcl!.child[1]!
+                                let identifier = parameter_dcl!.child[2]!.text
+                                out.write(`            encoder.`)
+                                switch(type.type) {
+                                    case Type.TKN_SEQUENCE:
+                                        out.write(`sequence(${identifier}, (item) => encoder.${typeIDLtoGIOP(type.child[0])}(item))\n`)
+                                        break
+                                    default:
+                                        out.write(`${typeIDLtoGIOP(type)}(${identifier})\n`)
+                                }
+                            }
+                           
+                            if (returnType.type !== Type.TKN_VOID) {
+                                out.write(`        },\n`)
+                                out.write(`        `)
+                                out.write(`(decoder) => decoder.${typeIDLtoGIOP(returnType)}() )\n`)
+                            } else {
+                                out.write(`        })\n`)
+                            }
+                            // out.write("*/\n")
+
                             out.write("    }\n")
                         } break
                         case Type.TKN_ATTRIBUTE: {

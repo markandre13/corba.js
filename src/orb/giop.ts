@@ -113,6 +113,15 @@ export class GIOPEncoder extends GIOPBase {
         this.ulong(replyStatus)
     }
 
+    setReplyHeader(requestId: number, replyStatus: number = GIOPDecoder.NO_EXCEPTION) {
+        this.skipGIOPHeader()
+        this.encodeReply(requestId, replyStatus)
+    }
+
+    skipReplyHeader() {
+        this.offset = 24
+    }
+
     repositoryId(name: string) {
         // * "IDL:" indicates that the type was defined in an IDL file
         // * ":1.0" is the types version. 1.0 is used per default
@@ -189,6 +198,11 @@ export class GIOPEncoder extends GIOPBase {
         this.offset++
     }
 
+    sequence<T>(array: T[], encodeItem: (a:T) => void) {
+        this.ulong(array.length)
+        array.forEach(encodeItem)
+    }
+
     byte(value: number) {
         this.data.setUint8(this.offset, value)
         this.offset += 1
@@ -216,6 +230,18 @@ export class GIOPEncoder extends GIOPBase {
         this.align(4)
         this.data.setUint32(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 4
+    }
+
+    longlong(value: bigint) {
+        this.align(8)
+        this.data.setBigInt64(this.offset, value, GIOPEncoder.littleEndian)
+        this.offset += 8
+    }
+
+    ulonglong(value: bigint) {
+        this.align(8)
+        this.data.setBigUint64(this.offset, value, GIOPEncoder.littleEndian)
+        this.offset += 8
     }
 
     float(value: number) {
@@ -559,6 +585,15 @@ export class GIOPDecoder extends GIOPBase {
         return value
     }
 
+    sequence<T>(decodeItem: () => T): T[] {
+        const length = this.ulong()
+        const array = new Array(length)
+        for(let i=0; i<length; ++i) {
+            array[i] = decodeItem()
+        }
+        return array
+    }
+
     // char, octet
     byte() {
         const value = this.data.getUint8(this.offset)
@@ -591,6 +626,20 @@ export class GIOPDecoder extends GIOPBase {
         this.align(4)
         const value = this.data.getUint32(this.offset, this.littleEndian)
         this.offset += 4
+        return value
+    }
+
+    longlong() {
+        this.align(8)
+        const value = this.data.getBigInt64(this.offset, this.littleEndian)
+        this.offset += 8
+        return value
+    }
+
+    ulonglong() {
+        this.align(8)
+        const value = this.data.getBigUint64(this.offset, this.littleEndian)
+        this.offset += 8
         return value
     }
 
