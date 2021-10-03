@@ -1,0 +1,3 @@
+interface GIOPTest {
+    oneway void onewayMethod();
+};

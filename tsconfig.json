@@ -13,7 +13,7 @@
     "baseUrl": ".",
     "paths": {
       "corba.js": [ "src/orb/index" ],
-      "corba.js/*": [ "src/orb/*" ],
+      "corba.js/*": [ "src/*" ],
       "src/*": [ "src/*" ]
     },
     "plugins": [
@@ -36,7 +36,7 @@
   },
   "include": [
     "src/orb",
-    "test",
-    "test-mico"
-, "src/net/websocket.ts"  ]
+    "src/net",
+    "test"
+  ]
 }

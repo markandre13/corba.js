@@ -19,7 +19,7 @@
 
 import * as fs from "fs"
 import { ORB, IOR, GIOPEncoder, GIOPDecoder } from "corba.js"
-import { connect } from "../src/net/socket"
+import { connect } from "corba.js/net/socket"
 import * as value from "./mico/test_value"
 import * as stub from "./demux_stub"
 
