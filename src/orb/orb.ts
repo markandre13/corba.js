@@ -17,6 +17,7 @@
  */
 
 import { GIOPDecoder, GIOPEncoder, MessageType } from "./giop"
+import { IOR } from "./ior"
 
 export interface ValueTypeInformation {
     attributes: Array<string>
@@ -336,24 +337,40 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     async resolve(id: string): Promise<Stub> {
-        const oid = await this.twowayCall("ORB", "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())
+        const ref = await this.twowayCall("ORB", "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())
 
         // if we already have a stub, return that one
         // if (oid.host === this.peerHost && oid.port === this.peerPort) {
-        let object = this.stubsById.get(oid.objectKey)
-        if (object !== undefined)
+        let object = this.stubsById.get(ref.objectKey)
+        if (object !== undefined) {
             return object
-        // }
+        }
 
         // new reference, create a new stub
-        const shortName = oid.oid.substring(4, oid.oid.length - 4)
+        const shortName = ref.oid.substring(4, ref.oid.length - 4)
         let aStubClass = this.stubsByName.get(shortName)
         if (aStubClass === undefined) {
-            throw Error(`ORB: can not deserialize object of unregistered stub '${oid.oid} (${shortName})'`)
+            throw Error(`ORB: can not deserialize object of unregistered stub '${ref.oid} (${shortName})'`)
         }
-        object = new aStubClass(this, oid.objectKey)
-        this.stubsById.set(oid.objectKey, object!)
+        object = new aStubClass(this, ref.objectKey)
+        this.stubsById.set(ref.objectKey, object!)
 
+        return object!
+    }
+
+    iorToObject(ior: IOR): Stub {
+        let object = this.stubsById.get(ior.objectKey)
+        if (object !== undefined) {
+            return object
+        }
+
+        const shortName = ior.oid.substring(4, ior.oid.length - 4)
+        let aStubClass = this.stubsByName.get(shortName)
+        if (aStubClass === undefined) {
+            throw Error(`ORB: can not deserialize object of unregistered stub '${ior.oid} (${shortName})'`)
+        }
+        object = new aStubClass(this, ior.objectKey)
+        this.stubsById.set(ior.objectKey, object!)
         return object!
     }
 

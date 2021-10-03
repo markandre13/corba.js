@@ -52,7 +52,7 @@ class Server_impl extends skel.Server {
 }
 
 describe("multiplexer/demultiplexer", function () {
-    it.only("call ORB using GIOP", async function () {
+    xit("call ORB using GIOP", async function () {
         const serverORB = new ORB()
         serverORB.bind("Server", new Server_impl(serverORB))
         const serverWS = await listen(serverORB, 8080)

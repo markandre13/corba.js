@@ -1,40 +1,65 @@
-// /*
-//  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
-//  *  Copyright (C) 2018, 2021 Mark-André Hopf <mhopf@mark13.org>
-//  *
-//  *  This program is free software: you can redistribute it and/or modify
-//  *  it under the terms of the GNU Affero General Public License as published by
-//  *  the Free Software Foundation, either version 3 of the License, or
-//  *  (at your option) any later version.
-//  *
-//  *  This program is distributed in the hope that it will be useful,
-//  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
-//  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-//  *  GNU Affero General Public License for more details.
-//  *
-//  *  You should have received a copy of the GNU Affero General Public License
-//  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
-//  */
+/*
+ *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
+ *  Copyright (C) 2018, 2021 Mark-André Hopf <mhopf@mark13.org>
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// import { expect } from "chai"
-// import * as net from "net"
-// import * as fs from "fs"
-// import { ORB, IOR, GIOPEncoder, GIOPDecoder, MessageType } from "corba.js"
-// import * as value from "./mico/test_value"
 
-// // demuxing requests'n replies: when we create a promise, register for the connection
-// // the promise with its resolve and reject callbacks and request id.
-// // once the required message has arrived, locate this information and act on it.
-// // design the api to work with node.js net.Socket and websockets.
+import * as fs from "fs"
+import { ORB, IOR, GIOPEncoder, GIOPDecoder } from "corba.js"
+import { connect } from "../src/net/socket"
+import * as value from "./mico/test_value"
+import * as stub from "./demux_stub"
 
-// describe("CDR/GIOP", () => {
+describe("CDR/GIOP", () => {
 
-//     let ior!: IOR
+    let ior!: IOR
 
-//     before(() => {
-//         const data = fs.readFileSync("IOR.txt").toString().trim()
-//         ior = new IOR(data)
-//     })
+    before(() => {
+        const data = fs.readFileSync("IOR.txt").toString().trim()
+        ior = new IOR(data)
+    })
+
+    it("call mico", async function() {
+        const orb = new ORB()
+        orb.registerStubClass(stub.Server)
+        const data = fs.readFileSync("IOR.txt").toString().trim()
+
+        // this is how this would originally look like:
+        //   const obj = orb.stringToObject(data)
+        //   const server = Server::narrow(obj)
+        // but since corba.js is not a full CORBA implementation, we'll do it like this:
+        const ior = new IOR(data)
+        await connect(orb, ior.host!, ior.port!)
+        const obj = orb.iorToObject(ior)
+        const server = stub.Server.narrow(obj)
+
+        await server.onewayCall(7)
+        const x = await server.twowayCall(7)
+        console.log(x)
+    })
+
+    // WHAT'S NEXT:
+    // things to test with a real CORBA instance are basically for the validation of the GIOP
+    // send/receive arguments passed to method and result returned from method
+    // send/receive struct (as argument and return value. how do they differ from valuetypes in regard to GIOP?)
+    // send/receive sequence (as argument and return value)
+    // send/receive object reference (as argument and return value)
+    // send/receive value types with duplicated repositoryId as well as duplicated objects (aka multiple references to the same object)
+    // cover all of the above with a recorded fake, server and client side
+    // to keep the IDL for this test small, we'll implement server and client on MICO side
 
 //     it("do something binary", () => {
 //         const encoder = new GIOPEncoder()
@@ -315,78 +340,56 @@
 //         it("getBox(): duplicate repositoryId")
 //         it("getBox(): duplicate object")
 //     })
-// })
+})
 
-// function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
-//     while (addr < length) {
-//         let line = addr.toString(16).padStart(4, "0")
-//         for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
-//             line += " " + bytes[j].toString(16).padStart(2, "0")
-//         line = line.padEnd(4 + 16 * 3 + 1, " ")
-//         for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
-//             const b = bytes[j]
-//             if (b >= 32 && b  < 127)
-//                 line += String.fromCharCode(b)
-//             else
-//                 line += "."
-//         }
-//         addr += 16
-//         console.log(line)
-//     }
-// }
+function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
+    while (addr < length) {
+        let line = addr.toString(16).padStart(4, "0")
+        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
+            line += " " + bytes[j].toString(16).padStart(2, "0")
+        line = line.padEnd(4 + 16 * 3 + 1, " ")
+        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
+            const b = bytes[j]
+            if (b >= 32 && b  < 127)
+                line += String.fromCharCode(b)
+            else
+                line += "."
+        }
+        addr += 16
+        console.log(line)
+    }
+}
 
-// class Socket {
-//     socket = new net.Socket()
-//     async connect(host: string, port: number) {
-//         return new Promise<void>((resolve, reject) => {
-//             this.socket.on("error", reject)
-//             this.socket.connect(port, host, resolve)
-//         })
-//     }
-//     write(data: string | Uint8Array) {
-//         this.socket.write(data)
-//     }
-//     async read() {
-//         return new Promise<Buffer>((resolve, reject) => {
-//             this.socket.on("error", reject)
-//             this.socket.on("data", resolve)
-//         })
-//     }
-//     destroy() {
-//         this.socket.destroy()
-//     }
-// }
+export class Point implements value.Point {
+    x!: number
+    y!: number
 
-// export class Point implements value.Point {
-//     x!: number
-//     y!: number
+    constructor(init?: Partial<Point> | GIOPDecoder) {
+        value.initPoint(this, init)
+    }
 
-//     constructor(init?: Partial<Point> | GIOPDecoder) {
-//         value.initPoint(this, init)
-//     }
+    // something like these would later be generated by the IDL compiler
+    // try to keep initializing objects from JSON as this also served nicely to serialize from/to databases.
+    encode(encoder: GIOPEncoder) {
+        encoder.repositoryId("Point")
+        encoder.double(this.x)
+        encoder.double(this.y)
+    }
+}
 
-//     // something like these would later be generated by the IDL compiler
-//     // try to keep initializing objects from JSON as this also served nicely to serialize from/to databases.
-//     encode(encoder: GIOPEncoder) {
-//         encoder.repositoryId("Point")
-//         encoder.double(this.x)
-//         encoder.double(this.y)
-//     }
-// }
+export class Box implements value.space.Box {
+    p0!: Point
+    p1!: Point
 
-// export class Box implements value.space.Box {
-//     p0!: Point
-//     p1!: Point
+    constructor(init?: Partial<Box> | GIOPDecoder) {
+        value.space.initBox(this, init)
+    }
 
-//     constructor(init?: Partial<Box> | GIOPDecoder) {
-//         value.space.initBox(this, init)
-//     }
-
-//     // something like these would later be generated by the IDL compiler
-//     // try to keep initializing objects from JSON as this also served nicely to serialize from/to databases.
-//     encode(encoder: GIOPEncoder) {
-//         encoder.repositoryId("space/Box")
-//         encoder.object(this.p0)
-//         encoder.object(this.p1)
-//     }
-// }
+    // something like these would later be generated by the IDL compiler
+    // try to keep initializing objects from JSON as this also served nicely to serialize from/to databases.
+    encode(encoder: GIOPEncoder) {
+        encoder.repositoryId("space/Box")
+        encoder.object(this.p0)
+        encoder.object(this.p1)
+    }
+}

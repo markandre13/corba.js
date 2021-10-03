@@ -59,9 +59,10 @@ import { GIOPDecoder, GIOPBase } from "./giop"
 // Interoperable Object Reference (IOR), CDR encoded
 export class IOR {
 
-    host?: string
-    port?: number
-    objectKey?: string
+    host: string
+    port: number
+    oid: string
+    objectKey: string
 
     constructor(ior: string) {
         // 7.6.9 Stringified Object References
@@ -82,11 +83,9 @@ export class IOR {
         const decoder = new GIOPDecoder(buffer)
         decoder.endian()
         const ref = decoder.reference()
-        if (ref.oid !== "IDL:Server:1.0") {
-            throw Error(`Unsupported OID '${ref.oid}'. Currently only 'IDL:Server:1.0' is implemented.`)
-        }
         this.host = ref.host
         this.port = ref.port
+        this.oid = ref.oid
         this.objectKey = ref.objectKey
 
         if (decoder.offset !== bytes.byteLength)
