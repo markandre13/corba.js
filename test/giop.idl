@@ -1,3 +1,4 @@
 interface GIOPTest {
+    string peek();
     oneway void onewayMethod();
 };

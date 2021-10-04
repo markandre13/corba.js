@@ -2,6 +2,7 @@ import * as fs from "fs"
 import { ORB, IOR } from "corba.js"
 import { connect } from "corba.js/net/socket"
 import * as stub from "./generated/giop_stub"
+import { expect } from "chai"
 
 const fake = false
 
@@ -28,7 +29,7 @@ describe("CDR/GIOP", () => {
             ior = new IOR(data)
         }
         orb = new ORB()
-        // orb.registerStubClass(stub.Server)
+        orb.registerStubClass(stub.GIOPTest)
         const data = fs.readFileSync("IOR.txt").toString().trim()
 
         // this is how this would originally look like:
@@ -40,7 +41,27 @@ describe("CDR/GIOP", () => {
         server = stub.GIOPTest.narrow(obj)
     })
 
-    it.only("call mico", async function() {
+    it.only("one way method", async function() {
         server.onewayMethod()
+        expect(await server.peek()).to.equal("onewayMethod")
     })
+
+    // [ ] keep the mico file locally but build and run them remotely
+    // [ ] add a watch mode to the idl compiler to ease testing
+
+    // one test for each argument type (short, ushort, ... string, sequence, valuetype)
+    // it.only("")
+
+    // one test for the order of arguments
+
+    // one test for each return type (short, ushort, ... string, sequence, valuetype)
+
+    // value type in and out
+    // struct in and out
+
+    // duplicate repository id
+    // duplicate value type
+
+    // send object reference
+    // get object reference
 })

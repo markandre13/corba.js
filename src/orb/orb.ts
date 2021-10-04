@@ -367,7 +367,7 @@ export class ORB implements EventTarget, SocketUser {
         const shortName = ior.oid.substring(4, ior.oid.length - 4)
         let aStubClass = this.stubsByName.get(shortName)
         if (aStubClass === undefined) {
-            throw Error(`ORB: can not deserialize object of unregistered stub '${ior.oid} (${shortName})'`)
+            throw Error(`ORB: can not deserialize object of unregistered stub '${ior.oid}' (${shortName})'`)
         }
         object = new aStubClass(this, ior.objectKey)
         this.stubsById.set(ior.objectKey, object!)
