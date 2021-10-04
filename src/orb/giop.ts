@@ -104,7 +104,7 @@ export class GIOPEncoder extends GIOPBase {
         this.skipGIOPHeader()
         this.ulong(0) // serviceContextListLength
         this.ulong(requestId)
-        this.byte(responseExpected ? 1 : 0)
+        this.octet(responseExpected ? 1 : 0)
         this.blob(objectKey!)
         this.string(method)
         this.ulong(0) // Requesting Principal length
@@ -163,8 +163,8 @@ export class GIOPEncoder extends GIOPBase {
         this.ulong(0) // profileLength
         const offsetDataStart = this.offset
 
-        this.byte(GIOPBase.MAJOR_VERSION)
-        this.byte(GIOPBase.MINOR_VERSION)
+        this.octet(GIOPBase.MAJOR_VERSION)
+        this.octet(GIOPBase.MINOR_VERSION)
 
         // FIXME
         this.string("localhost")
@@ -235,16 +235,26 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     sequence<T>(array: T[], encodeItem: (a:T) => void) {
-        console.log(`GIOPEncoder.sequence(): ENCODE SEQUENCE WITH ${array.length} ENTRIES AT 0x${this.offset.toString(16)}`)
+        // console.log(`GIOPEncoder.sequence(): ENCODE SEQUENCE WITH ${array.length} ENTRIES AT 0x${this.offset.toString(16)}`)
         this.ulong(array.length)
         array.forEach( (value, index) => {
-            console.log(`GIOPEncoder.sequence(): ENCODE ITEM ${index} AT 0x${this.offset.toString(16)}`)
+            // console.log(`GIOPEncoder.sequence(): ENCODE ITEM ${index} AT 0x${this.offset.toString(16)}`)
             encodeItem(value)
         })
-        console.log(`GIOPEncoder.sequence(): ENCODED SEQUENCE WITH ${array.length} ENTRIES`)
+        // console.log(`GIOPEncoder.sequence(): ENCODED SEQUENCE WITH ${array.length} ENTRIES`)
     }
 
-    byte(value: number) {
+    bool(value: boolean) {
+        this.data.setUint8(this.offset, value ? 1 : 0)
+        this.offset += 1
+    }
+
+    char(value: number) {
+        this.data.setInt8(this.offset, value)
+        this.offset += 1
+    }
+
+    octet(value: number) {
         this.data.setUint8(this.offset, value)
         this.offset += 1
     }
@@ -293,7 +303,6 @@ export class GIOPEncoder extends GIOPBase {
 
     double(value: number) {
         this.align(8)
-        console.log(`ENCODE DOUBLE ${value} AT ${this.offset}`)
         this.data.setFloat64(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 8
     }
@@ -407,14 +416,14 @@ export class GIOPDecoder extends GIOPBase {
         }
         this.offset += 4
 
-        const giopMajorVersion = this.byte()
-        const giopMinorVersion = this.byte()
+        const giopMajorVersion = this.octet()
+        const giopMinorVersion = this.octet()
         if (giopMajorVersion !== GIOPBase.MAJOR_VERSION && giopMinorVersion !== GIOPBase.MINOR_VERSION) {
             throw Error(`Unsupported GIOP ${giopMajorVersion}.${giopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
         }
 
         this.endian()
-        const type = this.byte()
+        const type = this.octet()
         const length = this.ulong()
         if (this.buffer.byteLength !== length + 12) {
             throw Error(`GIOP message is ${length + 12} bytes but buffer contains ${this.buffer.byteLength}.`)
@@ -439,7 +448,7 @@ export class GIOPDecoder extends GIOPBase {
 
         const data = new RequestData()
         data.requestId = this.ulong()
-        data.responseExpected = this.byte() != 0
+        data.responseExpected = this.octet() != 0
         data.objectKey = this.blob()
         data.method = this.string()
         const requestingPrincipalLength = this.ulong()
@@ -528,8 +537,8 @@ export class GIOPDecoder extends GIOPBase {
                 // CORBA 3.3 Part 2: 9.7.2 IIOP IOR Profiles
                 case IOR.TAG.IOR.INTERNET_IOP: {
                     // console.log(`Internet IOP Component, length=${profileLength}`)
-                    const iiopMajorVersion = this.byte()
-                    const iiopMinorVersion = this.byte()
+                    const iiopMajorVersion = this.octet()
+                    const iiopMinorVersion = this.octet()
                     if (iiopMajorVersion !== GIOPBase.MAJOR_VERSION &&
                         iiopMinorVersion !== GIOPBase.MINOR_VERSION) {
                         throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
@@ -633,7 +642,7 @@ export class GIOPDecoder extends GIOPBase {
     // }
 
     endian() {
-        const byteOrder = this.byte()
+        const byteOrder = this.octet()
         this.littleEndian = byteOrder === GIOPBase.ENDIAN_LITTLE
     }
 
@@ -659,19 +668,30 @@ export class GIOPDecoder extends GIOPBase {
     sequence<T>(decodeItem: () => T): T[] {
         const offset = this.offset
         const length = this.ulong()
-        console.log(`GIOPDecoder.sequence(): DECODE SEQUENCE WITH ${length} ENTRIES AT 0x${offset.toString(16)}`)
+        // console.log(`GIOPDecoder.sequence(): DECODE SEQUENCE WITH ${length} ENTRIES AT 0x${offset.toString(16)}`)
         const array = new Array(length)
         for(let i=0; i<length; ++i) {
-            console.log(`GIOPDecoder.sequence(): DECODE ITEM ${i} AT 0x${this.offset.toString(16)}`)
+            // console.log(`GIOPDecoder.sequence(): DECODE ITEM ${i} AT 0x${this.offset.toString(16)}`)
             array[i] = decodeItem()
-            console.log(`GIOPDecoder.sequence(): DECODED ITEM ${i}`)
+            // console.log(`GIOPDecoder.sequence(): DECODED ITEM ${i}`)
         }
-        console.log(`GIOPDecoder.sequence(): DECODED SEQUENCE WITH ${length} ENTRIES`)
+        // console.log(`GIOPDecoder.sequence(): DECODED SEQUENCE WITH ${length} ENTRIES`)
         return array
     }
 
-    // char, octet
-    byte() {
+    bool() {
+        const value = this.data.getUint8(this.offset) !== 0
+        ++this.offset
+        return value
+    }
+
+    char() {
+        const value = this.data.getInt8(this.offset)
+        ++this.offset
+        return value
+    }
+
+    octet() {
         const value = this.data.getUint8(this.offset)
         ++this.offset
         return value

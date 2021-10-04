@@ -95,16 +95,19 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
             return "boolean"
         case Type.TKN_STRING:
             return "string"
+        case Type.TKN_CHAR:
+        case Type.TKN_OCTET:
         case Type.TKN_SHORT:
         case Type.TKN_LONG:
-        case Type.SYN_LONGLONG:
         case Type.SYN_UNSIGNED_SHORT:
         case Type.SYN_UNSIGNED_LONG:
-        case Type.SYN_UNSIGNED_LONGLONG:
         case Type.TKN_FLOAT:
         case Type.TKN_DOUBLE:
         case Type.SYN_LONG_DOUBLE:
             return "number"
+        case Type.SYN_LONGLONG:
+        case Type.SYN_UNSIGNED_LONGLONG:
+            return "bigint"
         case Type.TKN_SEQUENCE:
             return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
         default:
@@ -176,6 +179,10 @@ export function typeIDLtoGIOP(type: Node | undefined) {
             return "bool"
         case Type.TKN_STRING:
             return "string"
+        case Type.TKN_CHAR:
+            return "char"
+        case Type.TKN_OCTET:
+            return "octet"
         case Type.TKN_SHORT:
             return "short"
         case Type.TKN_LONG:

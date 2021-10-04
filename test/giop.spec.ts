@@ -43,7 +43,9 @@ describe("CDR/GIOP", () => {
 
     it("oneway method", async function() {
         server.onewayMethod()
+        // await sleep(100)
         expect(await server.peek()).to.equal("onewayMethod")
+        // await sleep(100)
     })
 
     // [ ] keep the mico file locally but build and run them remotely
@@ -52,16 +54,77 @@ describe("CDR/GIOP", () => {
     // one test for each argument type (short, ushort, ... string, sequence, valuetype)
     // we send two values to verify the padding
     describe("send values", function() {
+
+        it("bool", async function() {
+            await server.sendBool(false, true)
+            expect(await server.peek()).to.equal("sendBool(false,true)")
+        })
+
+        it("char", async function() {
+            await server.sendChar(-128, 127)
+            expect(await server.peek()).to.equal("sendChar(-128,127)")
+        })
+
+        it("octet", async function() {
+            await server.sendOctet(0, 255)
+            expect(await server.peek()).to.equal("sendOctet(0,255)")
+        })
+
         it("short", async function() {
-            server.sendShort(-80, 80)
+            await server.sendShort(-80, 80)
             expect(await server.peek()).to.equal("sendShort(-80,80)")
         })
 
         it("unsigned short", async function() {
-            server.sendUShort(0, 256)
+            await server.sendUShort(0, 256)   
             expect(await server.peek()).to.equal("sendUShort(0,256)")
         })
+
+        it("long", async function() {
+            await server.sendLong(-80, 80)
+            expect(await server.peek()).to.equal("sendLong(-80,80)")
+        })
+
+        it("unsigned long", async function() {
+            await server.sendULong(0, 256)
+            expect(await server.peek()).to.equal("sendULong(0,256)")
+        })
+
+        it("long long", async function() {
+            await server.sendLongLong(-80n, 80n)
+            expect(await server.peek()).to.equal("sendLongLong(-80,80)")
+        })
+
+        it("unsigned long long", async function() {
+            await server.sendULongLong(0n, 256n)
+            expect(await server.peek()).to.equal("sendULongLong(0,256)")
+        })
+
+        it("float", async function() {
+            await server.sendFloat(-80, 80)
+            expect(await server.peek()).to.equal("sendFloat(-80,80)")
+        })
+
+        it("double", async function() {
+            await server.sendDouble(-80, 80)
+            expect(await server.peek()).to.equal("sendDouble(-80,80)")
+        })
+
+        it("string", async function() {
+            await server.sendString("hello", "you")
+            expect(await server.peek()).to.equal("sendString(hello,you)")
+        })
+
+        it("sequence", async function() {
+            await server.sendSequence(["hello", "you"],[1138,1984,2001])
+            expect(await server.peek()).to.equal("sendSequence([hello,you,],[1138,1984,2001,])")
+        })
+
+        // array
     })
+
+    // any
+    // array
 
     // one test for the order of arguments
 
@@ -69,6 +132,7 @@ describe("CDR/GIOP", () => {
 
     // value type in and out
     // struct in and out
+    // union ?
 
     // duplicate repository id
     // duplicate value type
@@ -76,3 +140,9 @@ describe("CDR/GIOP", () => {
     // send object reference
     // get object reference
 })
+
+function sleep(ms: number) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
+  }

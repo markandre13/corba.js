@@ -6,38 +6,11 @@
 
 using namespace std;
 
-string lastToken;
-
-char* GIOPTest_impl::peek() throw(::CORBA::SystemException)
-{
-  cout << "GIOPTest_impl::peek()" << endl;
-  char *cs = CORBA::string_alloc(lastToken.size() + 1);
-  strcpy(cs, lastToken.c_str());
-  return cs;
-}
-
-void GIOPTest_impl::onewayMethod() throw(::CORBA::SystemException)
-{
-  lastToken = "onewayMethod";
-}
-
-void GIOPTest_impl::sendShort(CORBA::Short v0, CORBA::Short v1) throw(::CORBA::SystemException)
-{
-    std::stringstream ss;
-    ss << "sendShort(" << v0 << "," << v1 << ")";
-    lastToken = ss.str();
-}
-
-void GIOPTest_impl::sendUShort(CORBA::UShort v0, CORBA::UShort v1) throw(::CORBA::SystemException)
-{
-    std::stringstream ss;
-    ss << "sendUShort(" << v0 << "," << v1 << ")";
-    lastToken = ss.str();
-}
+const char * blank = "THIS PAGE INTENTIONALLY LEFT BLANK";
+string lastToken(blank);
 
 int
-main(int argc, char **argv)
-{
+main(int argc, char **argv) {
     int rc = 0;
     try {
         // init ORB and POA Manager
@@ -56,7 +29,7 @@ main(int argc, char **argv)
         GIOPTest_var f = impl->_this();
         // save the Interoperable Object Reference (IOR) to a file
         CORBA::String_var s = orb->object_to_string(f);
-        ofstream out( "IOR.txt");
+        ofstream out("IOR.txt");
         out << s << endl;
         out.close();
         // activate POA manager
@@ -64,15 +37,124 @@ main(int argc, char **argv)
         // run the ORB
         cout << "ORB is running..." << endl;
         orb->run();
-        poa->destroy( TRUE, TRUE);
+        poa->destroy(TRUE, TRUE);
         delete impl;
         rc = 0;
     }
-    catch(CORBA::SystemException_catch& ex)
-    {
-        ex -> _print(cerr);
+    catch(CORBA::SystemException_catch& ex) {
+        ex->_print(cerr);
         cerr << endl;
         rc = 1;
     }
     return rc;
+}
+
+char* GIOPTest_impl::peek() throw(::CORBA::SystemException)
+{
+    cout << "GIOPTest_impl::peek() " << lastToken << endl;
+    return CORBA::string_dup(lastToken.c_str());
+}
+
+void GIOPTest_impl::onewayMethod() throw(::CORBA::SystemException) {
+    lastToken = "onewayMethod";
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendBool(CORBA::Boolean v0, CORBA::Boolean v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendBool(" << (v0 ? "true" : "false") << "," << (v1 ? "true" : "false") << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendChar(CORBA::Char v0, CORBA::Char v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendChar(" << (int)v0 << "," << (int)v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendOctet(CORBA::Octet v0, CORBA::Octet v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendOctet(" << (unsigned)v0 << "," << (unsigned)v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendShort(CORBA::Short v0, CORBA::Short v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendShort(" << v0 << "," << v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendUShort(CORBA::UShort v0, CORBA::UShort v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendUShort(" << v0 << "," << v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendLong(CORBA::Long v0, CORBA::Long v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendLong(" << v0 << "," << v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendULong(CORBA::ULong v0, CORBA::ULong v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendULong(" << v0 << "," << v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendLongLong(CORBA::LongLong v0, CORBA::LongLong v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendLongLong(" << v0 << "," << v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendULongLong(CORBA::ULongLong v0, CORBA::ULongLong v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendULongLong(" << v0 << "," << v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendFloat(CORBA::Float v0, CORBA::Float v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendFloat(" << v0 << "," << v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendDouble(CORBA::Double v0, CORBA::Double v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendDouble(" << v0 << "," << v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendString(const char * v0, const char * v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendString(" << v0 << "," << v1 << ")";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendSequence(StringSequenceTmpl<CORBA::String_var> v0, SequenceTmpl<CORBA::Long,MICO_TID_DEF> v1 ) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendSequence([";
+    for (CORBA::ULong i = 0; i < v0.length(); i++) {
+        ss << v0[i] << ",";
+    }
+    ss << "],[";
+    for (CORBA::ULong i = 0; i < v1.length(); i++) {
+        ss << v1[i] << ",";
+    }
+    ss << "])";
+    lastToken = ss.str();
+    cout << lastToken << endl;
 }

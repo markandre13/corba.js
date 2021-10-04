@@ -1,6 +1,20 @@
 interface GIOPTest {
     string peek();
     oneway void onewayMethod();
-    oneway void sendShort(in short v0, in short v1);
-    oneway void sendUShort(in unsigned short v0, in unsigned short v1);
+
+    void sendBool(in boolean v0, in boolean v1);
+    void sendChar(in char v0, in char v1);
+    void sendOctet(in octet v0, in octet v1);
+    void sendShort(in short v0, in short v1);
+    void sendUShort(in unsigned short v0, in unsigned short v1);
+    void sendLong(in long v0, in long v1);
+    void sendULong(in unsigned long v0, in unsigned long v1);
+    void sendLongLong(in long long v0, in long long v1);
+    void sendULongLong(in unsigned long long v0, in unsigned long long v1);
+
+    void sendFloat(in float v0, in float v1);
+    void sendDouble(in double v0, in double v1);
+
+    void sendString(in string v0, in string v1);
+    void sendSequence(in sequence<string> v0, in sequence<long> v1);
 };

@@ -4,10 +4,10 @@ MICO_DIR=$(PWD)/../mico
 all: client server
 
 runs: server
-	killall server && ./server -ORBIIOPAddr inet:192.168.1.105:9000
+	killall server ; ./server -ORBIIOPAddr inet:192.168.1.105:9000
 
 runs-debug: server
-	./server -ORBIIOPAddr inet:192.168.1.105:9000 -ORBDebug All
+	killall server ; ./server -ORBIIOPAddr inet:192.168.1.105:9000 -ORBDebug All
 
 runc: client
 	LD_LIBRARY_PATH=$(MICO_DIR)/libs ./client
