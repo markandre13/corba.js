@@ -41,7 +41,7 @@ describe("CDR/GIOP", () => {
         server = stub.GIOPTest.narrow(obj)
     })
 
-    it.only("one way method", async function() {
+    it("oneway method", async function() {
         server.onewayMethod()
         expect(await server.peek()).to.equal("onewayMethod")
     })
@@ -50,7 +50,18 @@ describe("CDR/GIOP", () => {
     // [ ] add a watch mode to the idl compiler to ease testing
 
     // one test for each argument type (short, ushort, ... string, sequence, valuetype)
-    // it.only("")
+    // we send two values to verify the padding
+    describe("send values", function() {
+        it("short", async function() {
+            server.sendShort(-80, 80)
+            expect(await server.peek()).to.equal("sendShort(-80,80)")
+        })
+
+        it("unsigned short", async function() {
+            server.sendUShort(0, 256)
+            expect(await server.peek()).to.equal("sendUShort(0,256)")
+        })
+    })
 
     // one test for the order of arguments
 

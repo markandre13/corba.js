@@ -1,4 +1,6 @@
 interface GIOPTest {
     string peek();
     oneway void onewayMethod();
+    oneway void sendShort(in short v0, in short v1);
+    oneway void sendUShort(in unsigned short v0, in unsigned short v1);
 };
