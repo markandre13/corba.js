@@ -4,10 +4,27 @@
 #include <fstream>
 #include <sstream>
 
+#define REGISTER_VALUE_TYPE(T) \
+  struct T ## _Factory: public CORBA::ValueFactoryBase { \
+    CORBA::ValueBase* create_for_unmarshal() { \
+      return new T ## _impl(); \
+    } \
+  }; \
+  orb->register_value_factory("IDL:" #T ":1.0", new T ## _Factory());
+
 using namespace std;
 
 const char * blank = "THIS PAGE INTENTIONALLY LEFT BLANK";
 string lastToken(blank);
+
+class Point_impl: virtual public OBV_Point, virtual public CORBA::DefaultValueRefCountBase {
+  public:
+    Point_impl() {}
+    Point_impl(double x, double y) {
+      this->x(x);
+      this->y(y);
+    }
+};
 
 int
 main(int argc, char **argv) {
@@ -16,8 +33,7 @@ main(int argc, char **argv) {
         // init ORB and POA Manager
         CORBA::ORB_var orb = CORBA::ORB_init(argc, argv, "mico-local-orb");
 
-//        auto *factory = new toad::RectangleFactory();
-//        orb->register_value_factory("IDL:Rectangle:1.0", factory);
+        REGISTER_VALUE_TYPE(Point)
 
         CORBA::Object_var poaobj = orb->resolve_initial_references("RootPOA");
         PortableServer::POA_var poa = PortableServer::POA::_narrow( poaobj);
@@ -144,7 +160,7 @@ void GIOPTest_impl::sendString(const char * v0, const char * v1) throw(::CORBA::
     cout << lastToken << endl;
 }
 
-void GIOPTest_impl::sendSequence(StringSequenceTmpl<CORBA::String_var> v0, SequenceTmpl<CORBA::Long,MICO_TID_DEF> v1 ) throw(::CORBA::SystemException) {
+void GIOPTest_impl::sendSequence(StringSequenceTmpl<CORBA::String_var> v0, SequenceTmpl<CORBA::Long,MICO_TID_DEF> v1) throw(::CORBA::SystemException) {
     std::stringstream ss;
     ss << "sendSequence([";
     for (CORBA::ULong i = 0; i < v0.length(); i++) {
@@ -155,6 +171,22 @@ void GIOPTest_impl::sendSequence(StringSequenceTmpl<CORBA::String_var> v0, Seque
         ss << v1[i] << ",";
     }
     ss << "])";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendValuePoint(Point *v0) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendValuePoint(Point(" << v0->x() << "," << v0->y() << "))";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::sendValuePoints(Point *v0, Point *v1) throw(::CORBA::SystemException) {
+    std::stringstream ss;
+    ss << "sendValuePoints(Point(" << v0->x() << "," << v0->y() << "),Point(" << v1->x() << "," << v1->y() << "))";
+    if (v0 == v1)
+        ss << " // same object";
     lastToken = ss.str();
     cout << lastToken << endl;
 }

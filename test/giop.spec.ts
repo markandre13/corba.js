@@ -2,9 +2,12 @@ import * as fs from "fs"
 import { ORB, IOR } from "corba.js"
 import { connect } from "corba.js/net/socket"
 import * as stub from "./generated/giop_stub"
+import * as value from "./generated/giop_value"
 import { expect } from "chai"
 
 const fake = false
+
+// FIXME: this test does not work when MICO runs in debug mode; something is racy
 
 // WHAT'S NEXT:
 // things to test with a real CORBA instance are basically for the validation of the GIOP
@@ -23,13 +26,15 @@ describe("CDR/GIOP", () => {
     let orb!: ORB
     let server!: stub.GIOPTest
 
-    before(async function() {
+    before(async function () {
         if (!fake) {
             const data = fs.readFileSync("IOR.txt").toString().trim()
             ior = new IOR(data)
         }
         orb = new ORB()
+        ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
         orb.registerStubClass(stub.GIOPTest)
+        
         const data = fs.readFileSync("IOR.txt").toString().trim()
 
         // this is how this would originally look like:
@@ -41,7 +46,7 @@ describe("CDR/GIOP", () => {
         server = stub.GIOPTest.narrow(obj)
     })
 
-    it("oneway method", async function() {
+    it("oneway method", async function () {
         server.onewayMethod()
         // await sleep(100)
         expect(await server.peek()).to.equal("onewayMethod")
@@ -53,72 +58,98 @@ describe("CDR/GIOP", () => {
 
     // one test for each argument type (short, ushort, ... string, sequence, valuetype)
     // we send two values to verify the padding
-    describe("send values", function() {
+    describe("send values", function () {
 
-        it("bool", async function() {
+        it("bool", async function () {
             await server.sendBool(false, true)
             expect(await server.peek()).to.equal("sendBool(false,true)")
         })
 
-        it("char", async function() {
+        it("char", async function () {
             await server.sendChar(-128, 127)
             expect(await server.peek()).to.equal("sendChar(-128,127)")
         })
 
-        it("octet", async function() {
+        it("octet", async function () {
             await server.sendOctet(0, 255)
             expect(await server.peek()).to.equal("sendOctet(0,255)")
         })
 
-        it("short", async function() {
+        it("short", async function () {
             await server.sendShort(-80, 80)
             expect(await server.peek()).to.equal("sendShort(-80,80)")
         })
 
-        it("unsigned short", async function() {
-            await server.sendUShort(0, 256)   
+        it("unsigned short", async function () {
+            await server.sendUShort(0, 256)
             expect(await server.peek()).to.equal("sendUShort(0,256)")
         })
 
-        it("long", async function() {
+        it("long", async function () {
             await server.sendLong(-80, 80)
             expect(await server.peek()).to.equal("sendLong(-80,80)")
         })
 
-        it("unsigned long", async function() {
+        it("unsigned long", async function () {
             await server.sendULong(0, 256)
             expect(await server.peek()).to.equal("sendULong(0,256)")
         })
 
-        it("long long", async function() {
+        it("long long", async function () {
             await server.sendLongLong(-80n, 80n)
             expect(await server.peek()).to.equal("sendLongLong(-80,80)")
         })
 
-        it("unsigned long long", async function() {
+        it("unsigned long long", async function () {
             await server.sendULongLong(0n, 256n)
             expect(await server.peek()).to.equal("sendULongLong(0,256)")
         })
 
-        it("float", async function() {
+        it("float", async function () {
             await server.sendFloat(-80, 80)
             expect(await server.peek()).to.equal("sendFloat(-80,80)")
         })
 
-        it("double", async function() {
+        it("double", async function () {
             await server.sendDouble(-80, 80)
             expect(await server.peek()).to.equal("sendDouble(-80,80)")
         })
 
-        it("string", async function() {
+        it("string", async function () {
             await server.sendString("hello", "you")
             expect(await server.peek()).to.equal("sendString(hello,you)")
         })
 
-        it("sequence", async function() {
-            await server.sendSequence(["hello", "you"],[1138,1984,2001])
+        it("sequence", async function () {
+            await server.sendSequence(["hello", "you"], [1138, 1984, 2001])
             expect(await server.peek()).to.equal("sendSequence([hello,you,],[1138,1984,2001,])")
         })
+
+        it("value", async function () {
+            await server.sendValuePoint(new Point({x: 20, y: 30}))
+            expect(await server.peek()).to.equal("sendValuePoint(Point(20,30))")
+        })
+
+        // the indirection is most likely wrong:
+        // 47 49 4f 50 01 00 01 00 84 00 00 00 00 00 00 00  GIOP............
+        // 01 00 00 00 00 00 00 00 13 00 00 00 2f 31 38 38  ............/188
+        // 36 2f 31 36 33 33 34 35 39 36 33 34 2f 5f 30 00  6/1633459634/_0.
+        // 10 00 00 00 73 65 6e 64 56 61 6c 75 65 50 6f 69  ....sendValuePoi
+        // 6e 74 73 00 00 00 00 00 02 ff ff 7f 0e 00 00 00  nts......��.....
+        // 49 44 4c 3a 50 6f 69 6e 74 3a 31 2e 30 00 00 00  IDL:Point:1.0...
+        // 00 00 00 00 00 00 34 40 00 00 00 00 00 00 3e 40  ......4@......>@
+        // 02 ff ff 7f ff ff ff ff d6 ff ff ff 00 00 00 00  .��.��������....
+        // 00 00 00 00 00 00 44 40 00 00 00 00 00 00 49 40  ......D@......I@
+        // xit("value (duplicate repository ID)", async function () {
+        //     await server.sendValuePoints(new Point({x: 20, y: 30}), new Point({x: 40, y: 50}))
+        //     expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(40,50))")
+        // })
+
+        // xit("value (duplicate object)", async function () {
+        //     const p = new Point({x: 20, y: 30})
+        //     await server.sendValuePoints(p,p)
+        //     expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
+        // })
 
         // array
     })
@@ -141,8 +172,21 @@ describe("CDR/GIOP", () => {
     // get object reference
 })
 
+class Point implements value.Point
+{
+    x!: number
+    y!: number
+    
+    constructor(init: Partial<Point>) {
+        value.initPoint(this, init)
+    }
+    toString(): string {
+        return "Point: x="+this.x+", y="+this.y
+    }
+}
+
 function sleep(ms: number) {
     return new Promise((resolve) => {
-      setTimeout(resolve, ms);
-    });
-  }
+        setTimeout(resolve, ms)
+    })
+}
