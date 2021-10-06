@@ -137,15 +137,15 @@ export class GIOPEncoder extends GIOPBase {
 
         const position = this.repositoryIds.get(id)
         if (position === undefined) {
-            console.log(`GIOPDecoder.repositoryId(): at 0x${this.offset.toString(16)} writing repository ID '${id}' at 0x${this.offset.toString(16)}`)
+            // console.log(`GIOPDecoder.repositoryId(): at 0x${this.offset.toString(16)} writing repository ID '${id}' at 0x${this.offset.toString(16)}`)
             this.repositoryIds.set(id, this.offset)
             this.ulong(0x7fffff02) // single repositoryId
-            console.log(`=====> place string '${id}' at 0x${this.offset.toString(16)}`)
+            // console.log(`=====> place string '${id}' at 0x${this.offset.toString(16)}`)
             this.string(id)
         } else {
             // 9.3.4.3
             const indirection = position - this.offset - 2
-            console.log(`GIOPDecoder.repositoryId(): at 0x${this.offset.toString(16)} writing indirect repository ID '${id}' indirection ${indirection} pointing to 0x${position.toString(16)}`)
+            // console.log(`GIOPDecoder.repositoryId(): at 0x${this.offset.toString(16)} writing indirect repository ID '${id}' indirection ${indirection} pointing to 0x${position.toString(16)}`)
             this.ulong(0x7fffff02) // single repositoryId
             this.ulong(0xffffffff) // sure? how the heck to we distinguish indirections to object and repositoryId?
             this.long(indirection - 2)
@@ -194,9 +194,10 @@ export class GIOPEncoder extends GIOPBase {
 
         const position = this.objectPosition.get(object)
         if (position !== undefined) {
-            const indirection = position - this.offset - 2
-            console.log(`GIOPEncoder.object(): at 0x${this.offset.toString(16)} write object indirection ${indirection} pointing to 0x${position.toString(16)}`)
+            let indirection = position - this.offset - 2
+            // console.log(`GIOPEncoder.object(): at 0x${this.offset.toString(16)} write object indirection ${indirection} pointing to 0x${position.toString(16)}`)
             this.ulong(0xffffffff)
+            indirection -= 2
             this.long(indirection)
             return
         }
@@ -602,7 +603,8 @@ export class GIOPDecoder extends GIOPBase {
                 return obj
             }
             case 0xffffffff: {
-                const indirection = this.long()
+                let indirection = this.long()
+                indirection += 2
                 const position = this.offset + indirection
                 console.log(`GIOPDecoder.object(): at 0x${objectOffset.toString(16)} got indirect object ${indirection} pointing to 0x${position.toString(16)}`)
                 const obj = this.objects.get(position)

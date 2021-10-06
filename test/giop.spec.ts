@@ -135,10 +135,10 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(40,50))")
         })
 
-        it.only("value (duplicate object)", async function () {
+        it("value (duplicate object)", async function () {
             const p = new Point({x: 20, y: 30})
             await server.sendValuePoints(p,p)
-            // expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
+            expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
         })
 
         // array
