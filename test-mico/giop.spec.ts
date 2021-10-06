@@ -230,11 +230,25 @@ describe("CDR/GIOP", () => {
 //             //      ^           ^           ^
 //             //      |           |           x
 //             //      |           padding
-//             //      indirection
+//             //      indirection: ffffffd0 = -48; 0x90 - 48 = 0x60 -> that's were the repository id length is
 //             // 00a0 9a 99 99 99 99 99 01 40 00 00 00 00 00 00 00 00 .......@........
 //             //      ^                       ^
 //             //      |                       HU? WHAT'S WITH THE TRAILING 0s?
 //             //      y
+
+                // 0000 47 49 4f 50 01 00 01 00 84 00 00 00 00 00 00 00  GIOP............
+                // 0010 01 00 00 00 00 00 00 00 13 00 00 00 2f 31 38 38  ............/188
+                // 0020 36 2f 31 36 33 33 34 35 39 36 33 34 2f 5f 30 00  6/1633459634/_0.
+                // 0030 10 00 00 00 73 65 6e 64 56 61 6c 75 65 50 6f 69  ....sendValuePoi
+                // 0040 6e 74 73 00 00 00 00 00 02 ff ff 7f 0e 00 00 00  nts......��.....
+                // 0050 49 44 4c 3a 50 6f 69 6e 74 3a 31 2e 30 00 00 00  IDL:Point:1.0...
+                // 0060 00 00 00 00 00 00 34 40 00 00 00 00 00 00 3e 40  ......4@......>@
+                // 0070 02 ff ff 7f ff ff ff ff d6 ff ff ff 00 00 00 00  .��.��������....
+                //      ^           ^           ^
+                //      |           |           indirection = -42; 0x78 - 42 = 0x4e (but need to be 0x4c) => smaller by 2!
+                //      |           repository id is an indirection
+                //      value tag for point v1
+                // 0080 00 00 00 00 00 00 44 40 00 00 00 00 00 00 49 40  ......D@......I@
 
 //             // WAIT FOR ACK
 //             const data = await client.read()

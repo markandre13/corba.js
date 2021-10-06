@@ -130,26 +130,16 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendValuePoint(Point(20,30))")
         })
 
-        // the indirection is most likely wrong:
-        // 47 49 4f 50 01 00 01 00 84 00 00 00 00 00 00 00  GIOP............
-        // 01 00 00 00 00 00 00 00 13 00 00 00 2f 31 38 38  ............/188
-        // 36 2f 31 36 33 33 34 35 39 36 33 34 2f 5f 30 00  6/1633459634/_0.
-        // 10 00 00 00 73 65 6e 64 56 61 6c 75 65 50 6f 69  ....sendValuePoi
-        // 6e 74 73 00 00 00 00 00 02 ff ff 7f 0e 00 00 00  nts......��.....
-        // 49 44 4c 3a 50 6f 69 6e 74 3a 31 2e 30 00 00 00  IDL:Point:1.0...
-        // 00 00 00 00 00 00 34 40 00 00 00 00 00 00 3e 40  ......4@......>@
-        // 02 ff ff 7f ff ff ff ff d6 ff ff ff 00 00 00 00  .��.��������....
-        // 00 00 00 00 00 00 44 40 00 00 00 00 00 00 49 40  ......D@......I@
-        // xit("value (duplicate repository ID)", async function () {
-        //     await server.sendValuePoints(new Point({x: 20, y: 30}), new Point({x: 40, y: 50}))
-        //     expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(40,50))")
-        // })
+        it("value (duplicate repository ID)", async function () {
+            await server.sendValuePoints(new Point({x: 20, y: 30}), new Point({x: 40, y: 50}))
+            expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(40,50))")
+        })
 
-        // xit("value (duplicate object)", async function () {
-        //     const p = new Point({x: 20, y: 30})
-        //     await server.sendValuePoints(p,p)
-        //     expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
-        // })
+        it.only("value (duplicate object)", async function () {
+            const p = new Point({x: 20, y: 30})
+            await server.sendValuePoints(p,p)
+            // expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
+        })
 
         // array
     })

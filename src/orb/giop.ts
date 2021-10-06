@@ -148,7 +148,7 @@ export class GIOPEncoder extends GIOPBase {
             console.log(`GIOPDecoder.repositoryId(): at 0x${this.offset.toString(16)} writing indirect repository ID '${id}' indirection ${indirection} pointing to 0x${position.toString(16)}`)
             this.ulong(0x7fffff02) // single repositoryId
             this.ulong(0xffffffff) // sure? how the heck to we distinguish indirections to object and repositoryId?
-            this.long(indirection)
+            this.long(indirection - 2)
         }
     }
 
@@ -582,6 +582,7 @@ export class GIOPDecoder extends GIOPBase {
                     this.offset = this.offset + indirection - 4 - 6
                     console.log(`GIOPDecoder.object(): at 0x${(objectOffset).toString(16)} got indirect repository ID ${indirection} pointing to 0x${this.offset.toString(16)}`)
                     this.offset += 4 // skip marker
+                    this.offset += 2
                     console.log(`=====> fetch string at 0x${this.offset.toString(16)}`)
                     repositoryId = this.string()
                     console.log(`==> repositoryId is '${repositoryId}'`)
