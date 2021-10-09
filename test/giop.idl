@@ -29,5 +29,7 @@ interface GIOPTest {
 
     void sendValuePoint(in Point v0);
     void sendValuePoints(in Point v0, in Point v1);
+
+    // void sendAny(in any v0);
 };
 

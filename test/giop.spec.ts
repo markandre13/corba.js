@@ -4,8 +4,7 @@ import { connect } from "corba.js/net/socket"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
-
-const fake = false
+import { recordAnnotationApplied } from "mobx/dist/internal"
 
 // FIXME: this test does not work when MICO runs in debug mode; something is racy
 
@@ -25,12 +24,9 @@ describe("CDR/GIOP", () => {
     let ior!: IOR
     let orb!: ORB
     let server!: stub.GIOPTest
+    let fake!: Fake
 
     before(async function () {
-        if (!fake) {
-            const data = fs.readFileSync("IOR.txt").toString().trim()
-            ior = new IOR(data)
-        }
         orb = new ORB()
         ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
         orb.registerStubClass(stub.GIOPTest)
@@ -41,7 +37,12 @@ describe("CDR/GIOP", () => {
         //   const obj = orb.stringToObject(data)
         //   const server = Server::narrow(obj)
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
+        ior = new IOR(data)
         await connect(orb, ior.host!, ior.port!)
+
+        fake = new Fake(orb)
+        // fake.enableRecordMode()
+        
         const obj = orb.iorToObject(ior)
         server = stub.GIOPTest.narrow(obj)
     })
@@ -53,14 +54,28 @@ describe("CDR/GIOP", () => {
         // await sleep(100)
     })
 
-    // [ ] keep the mico file locally but build and run them remotely
+    // [X] keep the mico file locally but build and run them remotely
+    // [ ] implement a versatile network fake for corba.js
+    //   [ ] use a variant of connect which records and prints a hexdump, then use the dump to set an expectation
+    //   [ ] use the dump to test the server side
+    //   [ ] wrap it all into one nice package
+    // [ ] implement the server side (this also means the client side in C++)
+    // [ ] implement any (just for fun, for this we also need the client side in C++ to see how it's done)
+    // [ ] implement array
+    // [ ] implement exceptions
+    // [ ] find out where the race condition comes from in the tests, because of the await there shouldn't be one
     // [ ] add a watch mode to the idl compiler to ease testing
 
     // one test for each argument type (short, ushort, ... string, sequence, valuetype)
     // we send two values to verify the padding
     describe("send values", function () {
 
-        it("bool", async function () {
+        it.only("bool", async function () {
+            
+            // when the fake is in
+            //   record mode, this will store the data send
+            //   expect mode, this will compare the recorded data to the one being send
+            fake.expect(this.test!.fullTitle())
             await server.sendBool(false, true)
             expect(await server.peek()).to.equal("sendBool(false,true)")
         })
@@ -142,21 +157,15 @@ describe("CDR/GIOP", () => {
         })
 
         // array
+
+        // any
     })
-
-    // any
-    // array
-
-    // one test for the order of arguments
 
     // one test for each return type (short, ushort, ... string, sequence, valuetype)
 
     // value type in and out
     // struct in and out
     // union ?
-
-    // duplicate repository id
-    // duplicate value type
 
     // send object reference
     // get object reference
@@ -179,4 +188,67 @@ function sleep(ms: number) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms)
     })
+}
+
+// https://martinfowler.com/bliki/SelfInitializingFake.html
+class Fake {
+    testName?: string
+    recordMode = false
+    active = false
+
+    constructor(orb: ORB) {
+        this.insert(orb)
+    }
+
+    enableRecordMode() {
+        this.recordMode = true
+    }
+
+    expect(name: string) {
+        this.active = true
+        this.testName = `test/giop/${name.replace(/\W/g, "-")}.dump`
+        console.log(`EXPECT ${name} (${this.testName})`)
+    }
+
+    protected insert(orb: ORB) {
+        const send = orb.socketSend
+        orb.socketSend = (buffer: ArrayBuffer) => {
+            const view = new Uint8Array(buffer)
+            if (this.active) {
+                hexdump(view)
+                this.active = false
+                if (this.recordMode) {
+                    fs.writeFileSync(this.testName!, view)
+                } else {
+                    const data = fs.readFileSync(this.testName!)
+                    if (data.compare(view) !== 0) {
+                        console.log(`DIFFERENT`)
+                    } else {
+                        console.log(`SAME`)
+                    }
+                }
+            }
+            send(buffer)
+        }
+    }
+    
+}
+
+
+function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
+    while (addr < length) {
+        let line = addr.toString(16).padStart(4, "0")
+        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
+            line += " " + bytes[j].toString(16).padStart(2, "0")
+        line = line.padEnd(4 + 16 * 3 + 1, " ")
+        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
+            const b = bytes[j]
+            if (b >= 32 && b  < 127)
+                line += String.fromCharCode(b)
+            else
+                line += "."
+        }
+        addr += 16
+        console.log(line)
+    }
 }
