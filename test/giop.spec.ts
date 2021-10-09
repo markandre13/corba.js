@@ -1,4 +1,5 @@
 import * as fs from "fs"
+import { Socket } from "net"
 
 import { ORB, IOR } from "corba.js"
 import { connect } from "corba.js/net/socket"
@@ -30,7 +31,7 @@ describe("CDR/GIOP", () => {
         orb = new ORB()
         ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
         orb.registerStubClass(stub.GIOPTest)
-        
+
         const data = fs.readFileSync("IOR.txt").toString().trim()
 
         // this is how this would originally look like:
@@ -38,11 +39,11 @@ describe("CDR/GIOP", () => {
         //   const server = Server::narrow(obj)
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
         ior = new IOR(data)
-        await connect(orb, ior.host!, ior.port!)
+        const socket = await connect(orb, ior.host!, ior.port!)
 
-        fake = new Fake(orb)
+        fake = new Fake(orb, socket)
         // fake.enableRecordMode()
-        
+
         const obj = orb.iorToObject(ior)
         server = stub.GIOPTest.narrow(obj)
     })
@@ -55,9 +56,9 @@ describe("CDR/GIOP", () => {
     })
 
     // [X] keep the mico file locally but build and run them remotely
-    // [ ] implement a versatile network fake for corba.js
-    //   [ ] use a variant of connect which records and prints a hexdump, then use the dump to set an expectation
-    //   [ ] use the dump to test the server side
+    // [X] implement a versatile network fake for corba.js
+    //   [X] use a variant of connect which records and prints a hexdump, then use the dump to set an expectation
+    //   [X] use the dump to test the server side
     //   [ ] wrap it all into one nice package
     // [ ] implement the server side (this also means the client side in C++)
     // [ ] implement any (just for fun, for this we also need the client side in C++ to see how it's done)
@@ -71,10 +72,7 @@ describe("CDR/GIOP", () => {
     describe("send values", function () {
 
         it.only("bool", async function () {
-            
-            // when the fake is in
-            //   record mode, this will store the data send
-            //   expect mode, this will compare the recorded data to the one being send
+            // FIXME: there is no reply to the sendBool in the dump
             fake.expect(this.test!.fullTitle())
             await server.sendBool(false, true)
             expect(await server.peek()).to.equal("sendBool(false,true)")
@@ -141,18 +139,18 @@ describe("CDR/GIOP", () => {
         })
 
         it("value", async function () {
-            await server.sendValuePoint(new Point({x: 20, y: 30}))
+            await server.sendValuePoint(new Point({ x: 20, y: 30 }))
             expect(await server.peek()).to.equal("sendValuePoint(Point(20,30))")
         })
 
         it("value (duplicate repository ID)", async function () {
-            await server.sendValuePoints(new Point({x: 20, y: 30}), new Point({x: 40, y: 50}))
+            await server.sendValuePoints(new Point({ x: 20, y: 30 }), new Point({ x: 40, y: 50 }))
             expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(40,50))")
         })
 
         it("value (duplicate object)", async function () {
-            const p = new Point({x: 20, y: 30})
-            await server.sendValuePoints(p,p)
+            const p = new Point({ x: 20, y: 30 })
+            await server.sendValuePoints(p, p)
             expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
         })
 
@@ -171,16 +169,15 @@ describe("CDR/GIOP", () => {
     // get object reference
 })
 
-class Point implements value.Point
-{
+class Point implements value.Point {
     x!: number
     y!: number
-    
+
     constructor(init: Partial<Point>) {
         value.initPoint(this, init)
     }
     toString(): string {
-        return "Point: x="+this.x+", y="+this.y
+        return "Point: x=" + this.x + ", y=" + this.y
     }
 }
 
@@ -192,14 +189,18 @@ function sleep(ms: number) {
 
 // https://martinfowler.com/bliki/SelfInitializingFake.html
 class Fake {
+    orb: ORB
+    socket: Socket
+
     testName?: string
     recordMode = false
     fd!: number
     buffer!: string[]
-    active = false
 
-    constructor(orb: ORB) {
-        this.insert(orb)
+    constructor(orb: ORB, socket: Socket) {
+        this.orb = orb
+        this.socket = socket
+        this.insert(orb, socket)
     }
 
     enableRecordMode() {
@@ -207,59 +208,64 @@ class Fake {
     }
 
     async expect(name: string) {
-        this.active = true
         this.testName = `test/giop/${name.replace(/\W/g, "-")}.dump`
         if (this.recordMode) {
             this.fd = fs.openSync(this.testName, "w+")
         } else {
-            this.buffer = fs.readFileSync(this.testName!).toString("ascii").split(/\r?\n/);
+            this.buffer = fs.readFileSync(this.testName!).toString("ascii").split(/\r?\n/)
         }
         console.log(`EXPECT ${name} (${this.testName})`)
     }
 
-    protected insert(orb: ORB) {
+    protected insert(orb: ORB, socket: Socket) {
+        socket.removeAllListeners()
+        socket.on("error", (error: Error) => orb.socketError(error))
+        socket.on("close", (hadError: boolean) => orb.socketClose())
+        socket.on("data", (data: Buffer) => {
+            const view = new Uint8Array(data)
+            if (this.recordMode) {
+                fs.writeSync(this.fd, "IN\n")
+                fs.writeSync(this.fd, this.toHexdump(view))
+            }
+            orb.socketRcvd(data.buffer)
+        })
+
         const send = orb.socketSend
         orb.socketSend = (buffer: ArrayBuffer) => {
             const view = new Uint8Array(buffer)
-            if (this.active) {
-                this.active = false
-                if (this.recordMode) {
-                    // record as hexdump, prefix by IN/OUT to indicate the direction
-                    // we'll need a unit test for the fake
-                    // fs.writeFileSync(this.testName!, view)
-                    fs.writeSync(this.fd, "OUT\n")
-                    fs.writeSync(this.fd, this.toHexdump(view))
-                } else {
-                    let line = this.buffer.shift()
-                    if (line !== "OUT") {
-                        throw Error(`Expected OUT but got '${line}'`)
-                    }
-                    const x: number[] = []
-                    while(true) {
-                        line = this.buffer.shift()
-                        if (line === undefined)
-                            break
-                        if (line.length < 4) {
-                            this.buffer.unshift(line)
-                            break
-                        }
-                        for(let i=0; i<16; ++i) {
-                            const offset = 5 + i * 3
-                            const byte = parseInt(line.substring(offset, offset+2), 16)
-                            if (Number.isNaN(byte))
-                                break
-                            x.push(byte)
-                        }
-                    }
-                    const data = Buffer.from(x)
-                    if (data.compare(view) !== 0) {
-                        console.log(`DIFFERENT`)
-                    } else {
-                        console.log(`SAME`)
-                    }
+            if (this.recordMode) {
+                fs.writeSync(this.fd, "OUT\n")
+                fs.writeSync(this.fd, this.toHexdump(view))
+            } else {
+                let line = this.buffer.shift()
+                if (line !== "OUT") {
+                    throw Error(`Expected OUT but got '${line}'`)
                 }
+                const data = this.fromHexdump()
+                if (data.compare(view) !== 0) {
+                    console.log(`DIFFERENT`)
+                } else {
+                    console.log(`SAME`)
+                }
+                this.handleIn()
             }
             send(buffer)
+        }
+    }
+
+    handleIn() {
+        let line = this.buffer.shift()
+        if (line === "IN") {
+            setTimeout(() => {
+                const data = this.fromHexdump()
+                const b2 = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength)
+                this.orb.socketRcvd(b2)
+                this.handleIn()
+            }, 0)
+        } else {
+            if (line !== undefined) {
+                this.buffer.unshift(line)
+            }
         }
     }
 
@@ -272,7 +278,7 @@ class Fake {
             line = line.padEnd(4 + 16 * 3 + 1, " ")
             for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
                 const b = bytes[j]
-                if (b >= 32 && b  < 127)
+                if (b >= 32 && b < 127)
                     line += String.fromCharCode(b)
                 else
                     line += "."
@@ -282,5 +288,26 @@ class Fake {
         }
         return result
     }
-    
+
+    fromHexdump() {
+        const x: number[] = []
+        while (true) {
+            const line = this.buffer.shift()
+            if (line === undefined)
+                break
+            if (line.length < 4) {
+                this.buffer.unshift(line)
+                break
+            }
+            for (let i = 0; i < 16; ++i) {
+                const offset = 5 + i * 3
+                const byte = parseInt(line.substring(offset, offset + 2), 16)
+                if (Number.isNaN(byte))
+                    break
+                x.push(byte)
+            }
+        }
+        return Buffer.from(x)
+    }
+
 }

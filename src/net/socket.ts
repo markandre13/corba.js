@@ -22,6 +22,7 @@ import { Socket } from "net"
 export function connect(orb: ORB, host: string, port: number): Promise<Socket> {
     return new Promise<Socket>((resolve, reject) => {
         const socket = new Socket()
+        socket.setNoDelay()
         socket.on("error", (error: Error) => orb.socketError(error))
         socket.on("close", (hadError: boolean) => orb.socketClose())
         socket.on("data", (data: Buffer) => orb.socketRcvd(data.buffer))
