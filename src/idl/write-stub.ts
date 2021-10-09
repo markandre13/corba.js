@@ -116,7 +116,7 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
 
                             // out.write("/*\n")
                             // out.write("        ")
-                            if (returnType.type === Type.TKN_VOID) {
+                            if (oneway) {
                                 out.write(`this.orb.onewayCall(\`\${this.id}\`, "${identifier}", `)
                             } else {
                                 out.write(`this.orb.twowayCall(\`\${this.id}\`, "${identifier}", `)
@@ -137,12 +137,16 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 }
                             }
                            
-                            if (returnType.type !== Type.TKN_VOID) {
+                            if (oneway) {
+                                out.write(`        })\n`)
+                            } else {
                                 out.write(`        },\n`)
                                 out.write(`        `)
-                                out.write(`(decoder) => decoder.${typeIDLtoGIOP(returnType)}() )\n`)
-                            } else {
-                                out.write(`        })\n`)
+                                if (returnType.type !== Type.TKN_VOID) {
+                                    out.write(`(decoder) => decoder.${typeIDLtoGIOP(returnType)}() )\n`)
+                                } else {
+                                    out.write(`(decoder) => {} )\n`)
+                                }
                             }
                             // out.write("*/\n")
 
