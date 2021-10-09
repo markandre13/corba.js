@@ -1,10 +1,10 @@
 import * as fs from "fs"
+
 import { ORB, IOR } from "corba.js"
 import { connect } from "corba.js/net/socket"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
-import { recordAnnotationApplied } from "mobx/dist/internal"
 
 // FIXME: this test does not work when MICO runs in debug mode; something is racy
 
@@ -194,6 +194,8 @@ function sleep(ms: number) {
 class Fake {
     testName?: string
     recordMode = false
+    fd!: number
+    buffer!: string[]
     active = false
 
     constructor(orb: ORB) {
@@ -204,9 +206,14 @@ class Fake {
         this.recordMode = true
     }
 
-    expect(name: string) {
+    async expect(name: string) {
         this.active = true
         this.testName = `test/giop/${name.replace(/\W/g, "-")}.dump`
+        if (this.recordMode) {
+            this.fd = fs.openSync(this.testName, "w+")
+        } else {
+            this.buffer = fs.readFileSync(this.testName!).toString("ascii").split(/\r?\n/);
+        }
         console.log(`EXPECT ${name} (${this.testName})`)
     }
 
@@ -215,12 +222,36 @@ class Fake {
         orb.socketSend = (buffer: ArrayBuffer) => {
             const view = new Uint8Array(buffer)
             if (this.active) {
-                hexdump(view)
                 this.active = false
                 if (this.recordMode) {
-                    fs.writeFileSync(this.testName!, view)
+                    // record as hexdump, prefix by IN/OUT to indicate the direction
+                    // we'll need a unit test for the fake
+                    // fs.writeFileSync(this.testName!, view)
+                    fs.writeSync(this.fd, "OUT\n")
+                    fs.writeSync(this.fd, this.toHexdump(view))
                 } else {
-                    const data = fs.readFileSync(this.testName!)
+                    let line = this.buffer.shift()
+                    if (line !== "OUT") {
+                        throw Error(`Expected OUT but got '${line}'`)
+                    }
+                    const x: number[] = []
+                    while(true) {
+                        line = this.buffer.shift()
+                        if (line === undefined)
+                            break
+                        if (line.length < 4) {
+                            this.buffer.unshift(line)
+                            break
+                        }
+                        for(let i=0; i<16; ++i) {
+                            const offset = 5 + i * 3
+                            const byte = parseInt(line.substring(offset, offset+2), 16)
+                            if (Number.isNaN(byte))
+                                break
+                            x.push(byte)
+                        }
+                    }
+                    const data = Buffer.from(x)
                     if (data.compare(view) !== 0) {
                         console.log(`DIFFERENT`)
                     } else {
@@ -231,24 +262,25 @@ class Fake {
             send(buffer)
         }
     }
-    
-}
 
-
-function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
-    while (addr < length) {
-        let line = addr.toString(16).padStart(4, "0")
-        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
-            line += " " + bytes[j].toString(16).padStart(2, "0")
-        line = line.padEnd(4 + 16 * 3 + 1, " ")
-        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
-            const b = bytes[j]
-            if (b >= 32 && b  < 127)
-                line += String.fromCharCode(b)
-            else
-                line += "."
+    toHexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
+        let result = ""
+        while (addr < length) {
+            let line = addr.toString(16).padStart(4, "0")
+            for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
+                line += " " + bytes[j].toString(16).padStart(2, "0")
+            line = line.padEnd(4 + 16 * 3 + 1, " ")
+            for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
+                const b = bytes[j]
+                if (b >= 32 && b  < 127)
+                    line += String.fromCharCode(b)
+                else
+                    line += "."
+            }
+            addr += 16
+            result += line + "\n"
         }
-        addr += 16
-        console.log(line)
+        return result
     }
+    
 }
