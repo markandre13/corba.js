@@ -27,32 +27,40 @@ describe("CDR/GIOP", () => {
     let server!: stub.GIOPTest
     let fake!: Fake
 
+    beforeEach(function() {
+        fake.reset()
+    })
+
+    // FIXME: to make the tests independent of each other when using the fake, create a new ORB for each test so that the request counter is reset
     before(async function () {
         orb = new ORB()
         ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
         orb.registerStubClass(stub.GIOPTest)
 
-        const data = fs.readFileSync("IOR.txt").toString().trim()
+        const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
 
         // this is how this would originally look like:
         //   const obj = orb.stringToObject(data)
         //   const server = Server::narrow(obj)
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
         ior = new IOR(data)
-        const socket = await connect(orb, ior.host!, ior.port!)
+        fake = new Fake()
 
-        fake = new Fake(orb, socket)
-        // fake.enableRecordMode()
+        // RECORD
+        // const socket = await connect(orb, ior.host!, ior.port!)
+        // fake.record(orb, socket)
+
+        // REPLAY
+        fake.replay(orb)
 
         const obj = orb.iorToObject(ior)
         server = stub.GIOPTest.narrow(obj)
     })
 
     it("oneway method", async function () {
+        fake.expect(this.test!.fullTitle())
         server.onewayMethod()
-        // await sleep(100)
         expect(await server.peek()).to.equal("onewayMethod")
-        // await sleep(100)
     })
 
     // [X] keep the mico file locally but build and run them remotely
@@ -71,84 +79,98 @@ describe("CDR/GIOP", () => {
     // we send two values to verify the padding
     describe("send values", function () {
 
-        it.only("bool", async function () {
-            // FIXME: there is no reply to the sendBool in the dump
+        it("bool", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendBool(false, true)
             expect(await server.peek()).to.equal("sendBool(false,true)")
         })
 
         it("char", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendChar(-128, 127)
             expect(await server.peek()).to.equal("sendChar(-128,127)")
         })
 
         it("octet", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendOctet(0, 255)
             expect(await server.peek()).to.equal("sendOctet(0,255)")
         })
 
         it("short", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendShort(-80, 80)
             expect(await server.peek()).to.equal("sendShort(-80,80)")
         })
 
         it("unsigned short", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendUShort(0, 256)
             expect(await server.peek()).to.equal("sendUShort(0,256)")
         })
 
         it("long", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendLong(-80, 80)
             expect(await server.peek()).to.equal("sendLong(-80,80)")
         })
 
         it("unsigned long", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendULong(0, 256)
             expect(await server.peek()).to.equal("sendULong(0,256)")
         })
 
         it("long long", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendLongLong(-80n, 80n)
             expect(await server.peek()).to.equal("sendLongLong(-80,80)")
         })
 
         it("unsigned long long", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendULongLong(0n, 256n)
             expect(await server.peek()).to.equal("sendULongLong(0,256)")
         })
 
         it("float", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendFloat(-80, 80)
             expect(await server.peek()).to.equal("sendFloat(-80,80)")
         })
 
         it("double", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendDouble(-80, 80)
             expect(await server.peek()).to.equal("sendDouble(-80,80)")
         })
 
         it("string", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendString("hello", "you")
             expect(await server.peek()).to.equal("sendString(hello,you)")
         })
 
         it("sequence", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendSequence(["hello", "you"], [1138, 1984, 2001])
             expect(await server.peek()).to.equal("sendSequence([hello,you,],[1138,1984,2001,])")
         })
 
         it("value", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendValuePoint(new Point({ x: 20, y: 30 }))
             expect(await server.peek()).to.equal("sendValuePoint(Point(20,30))")
         })
 
         it("value (duplicate repository ID)", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.sendValuePoints(new Point({ x: 20, y: 30 }), new Point({ x: 40, y: 50 }))
             expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(40,50))")
         })
 
         it("value (duplicate object)", async function () {
+            fake.expect(this.test!.fullTitle())
             const p = new Point({ x: 20, y: 30 })
             await server.sendValuePoints(p, p)
             expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
@@ -189,41 +211,34 @@ function sleep(ms: number) {
 
 // https://martinfowler.com/bliki/SelfInitializingFake.html
 class Fake {
-    orb: ORB
-    socket: Socket
+    orb!: ORB
+    socket!: Socket
+    verbose = true
 
     testName?: string
     recordMode = false
-    fd!: number
-    buffer!: string[]
+    fd: number = -1
+    buffer: string[] = []
 
-    constructor(orb: ORB, socket: Socket) {
+    reset() {
+        this.testName = undefined
+        if (this.fd !== -1) {
+            fs.closeSync(this.fd)
+            this.fd = -1
+        }
+    }
+
+    record(orb: ORB, socket: Socket) {
+        this.recordMode = true
         this.orb = orb
         this.socket = socket
-        this.insert(orb, socket)
-    }
 
-    enableRecordMode() {
-        this.recordMode = true
-    }
-
-    async expect(name: string) {
-        this.testName = `test/giop/${name.replace(/\W/g, "-")}.dump`
-        if (this.recordMode) {
-            this.fd = fs.openSync(this.testName, "w+")
-        } else {
-            this.buffer = fs.readFileSync(this.testName!).toString("ascii").split(/\r?\n/)
-        }
-        console.log(`EXPECT ${name} (${this.testName})`)
-    }
-
-    protected insert(orb: ORB, socket: Socket) {
         socket.removeAllListeners()
         socket.on("error", (error: Error) => orb.socketError(error))
         socket.on("close", (hadError: boolean) => orb.socketClose())
         socket.on("data", (data: Buffer) => {
             const view = new Uint8Array(data)
-            if (this.recordMode) {
+            if (this.testName) {
                 fs.writeSync(this.fd, "IN\n")
                 fs.writeSync(this.fd, this.toHexdump(view))
             }
@@ -232,28 +247,52 @@ class Fake {
 
         const send = orb.socketSend
         orb.socketSend = (buffer: ArrayBuffer) => {
-            const view = new Uint8Array(buffer)
-            if (this.recordMode) {
+            if (this.testName) {
+                const view = new Uint8Array(buffer)
                 fs.writeSync(this.fd, "OUT\n")
                 fs.writeSync(this.fd, this.toHexdump(view))
-            } else {
-                let line = this.buffer.shift()
-                if (line !== "OUT") {
-                    throw Error(`Expected OUT but got '${line}'`)
-                }
-                const data = this.fromHexdump()
-                if (data.compare(view) !== 0) {
-                    console.log(`DIFFERENT`)
-                } else {
-                    console.log(`SAME`)
-                }
-                this.handleIn()
             }
             send(buffer)
         }
     }
 
-    handleIn() {
+    replay(orb: ORB) {
+        this.orb = orb
+        orb.socketSend = (buffer: ArrayBuffer) => {
+            if (this.testName === undefined) {
+                throw Error(`Fake is in replay mode but no expectation has been set up.`)
+            }
+            const view = new Uint8Array(buffer)
+            let line = this.buffer.shift()
+            if (line !== "OUT") {
+                throw Error(`Expected OUT but got '${line}'`)
+            }
+            const data = this.fromHexdump()
+            if (data.compare(view) !== 0) {
+                console.log("EXPECTED")
+                console.log(this.toHexdump(data))
+                console.log("GOT")
+                console.log(this.toHexdump(view))
+                throw Error(`Output does not match expectation.`)
+            }
+            this.handleIn()
+        }
+    }
+
+    expect(name: string) {
+        if (this.testName !== undefined) {
+            throw Error("test setup error: expect() called but earlier expect() hasn't been closed with reset()")
+        }
+        this.testName = `test/giop/${name.replace(/\W/g, "-")}.dump`
+        if (this.recordMode) {
+            this.fd = fs.openSync(this.testName, "w+")
+        } else {
+            this.buffer = fs.readFileSync(this.testName!).toString("ascii").split(/\r?\n/)
+        }
+        // console.log(`EXPECT ${name} (${this.testName})`)
+    }
+
+    protected handleIn() {
         let line = this.buffer.shift()
         if (line === "IN") {
             setTimeout(() => {
@@ -269,7 +308,7 @@ class Fake {
         }
     }
 
-    toHexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
+    protected toHexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
         let result = ""
         while (addr < length) {
             let line = addr.toString(16).padStart(4, "0")
@@ -289,7 +328,7 @@ class Fake {
         return result
     }
 
-    fromHexdump() {
+    protected fromHexdump() {
         const x: number[] = []
         while (true) {
             const line = this.buffer.shift()
