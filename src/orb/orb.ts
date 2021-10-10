@@ -61,6 +61,11 @@ export class ORB implements EventTarget, SocketUser {
 
     initialReferences: Map<string, Skeleton>
 
+    localAddress = ""
+    localPort = 0
+    remoteAddress = ""
+    remotePort = 0
+
     reqid: number // counter to assign request id's to send messages // FIXME: handle overflow
 
     listeners: Map<string, Set<EventListenerOrEventListenerObject>>

@@ -7,6 +7,10 @@ valuetype Polygon {
     public Polygon next;
 };
 
+interface GIOPSmall {
+    void call(in string value);
+};
+
 interface GIOPTest {
     string peek();
     oneway void onewayMethod();
@@ -29,6 +33,10 @@ interface GIOPTest {
 
     void sendValuePoint(in Point v0);
     void sendValuePoints(in Point v0, in Point v1);
+
+    void sendObject(in GIOPSmall obj, in string msg);
+    GIOPSmall getObject();
+    // GIOPSmall rcvdObject();
 
     // void sendAny(in any v0);
 };

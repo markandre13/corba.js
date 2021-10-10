@@ -190,3 +190,12 @@ void GIOPTest_impl::sendValuePoints(Point *v0, Point *v1) throw(::CORBA::SystemE
     lastToken = ss.str();
     cout << lastToken << endl;
 }
+
+void GIOPTest_impl::sendObject(GIOPSmall_ptr obj, const char *msg) throw(::CORBA::SystemException) {
+    cout << "sendObject(..., \"" << msg << "\")" << endl;
+    obj->call(msg);
+}
+
+GIOPSmall_ptr GIOPTest_impl::getObject() throw(::CORBA::SystemException) {
+    return 0;
+}

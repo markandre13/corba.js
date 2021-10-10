@@ -29,6 +29,17 @@ export function connect(orb: ORB, host: string, port: number): Promise<Socket> {
         orb.socketSend = (buffer: ArrayBuffer) => {
             socket.write(new Uint8Array(buffer))
         }
-        socket.connect(port, host, () => resolve(socket))
+        socket.connect(port, host, () => {
+            orb.localAddress = socket.localAddress
+            orb.localPort = socket.localPort
+            orb.remoteAddress = socket.remoteAddress!
+            orb.remotePort = socket.remotePort!
+
+            console.log(`LOCAL ADDRESS : ${socket.localAddress}`)
+            console.log(`LOCAL PORT    : ${socket.localPort}`)
+            console.log(`REMOTE ADDRESS: ${socket.remoteAddress}`)
+            console.log(`REMOTE PORT   : ${socket.remotePort}`)
+            resolve(socket)
+        })
     })
 }

@@ -166,9 +166,9 @@ export class GIOPEncoder extends GIOPBase {
         this.octet(GIOPBase.MAJOR_VERSION)
         this.octet(GIOPBase.MINOR_VERSION)
 
-        // FIXME
-        this.string("localhost")
-        this.short(8080)
+        // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
+        this.string(this.orb!.localAddress)
+        this.short(this.orb!.localPort)
         this.blob(`${object.id}`)
 
         const offsetDataEnd = this.offset

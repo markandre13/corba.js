@@ -3,6 +3,7 @@ import { Socket } from "net"
 
 import { ORB, IOR } from "corba.js"
 import { connect } from "corba.js/net/socket"
+import * as skel from "./generated/giop_skel"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
@@ -47,11 +48,17 @@ describe("CDR/GIOP", () => {
         fake = new Fake()
 
         // RECORD
-        // const socket = await connect(orb, ior.host!, ior.port!)
-        // fake.record(orb, socket)
+        const socket = await connect(orb, ior.host!, ior.port!)
+
+        console.log(`LOCAL ADDRESS : ${socket.localAddress}`)
+        console.log(`LOCAL PORT    : ${socket.localPort}`)
+        console.log(`REMOTE ADDRESS: ${socket.remoteAddress}`)
+        console.log(`REMOTE PORT   : ${socket.remotePort}`)
+
+        fake.record(orb, socket)
 
         // REPLAY
-        fake.replay(orb)
+        // fake.replay(orb)
 
         const obj = orb.iorToObject(ior)
         server = stub.GIOPTest.narrow(obj)
@@ -176,6 +183,41 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
         })
 
+        // send a local object to the peer and check if he was able to call us
+        it.only("local object", async function() {
+            // FIXME: this doesn't work yet
+            // the ORB now sends the ip & port of the current connection but MICO doesn't reuse the
+            // existing connection and instead tries to create a new one
+            // => check if there's a way to tell it to reuse the exiting connection or we're forced
+            //    to let the client create it's own port... which would be a pity in case there's
+            //    a firewall in between
+            // => since GIOP 1.2 it's possible to have bi-directional connections
+            //    9.8 Bi-Directional GIOP
+            //    Section 15.9, “Bi-directional GIOP policy"
+            //    this also affects the requestIds: client: even, server: odd requestIds
+            //    i guess there's a complication here i haven't considered yet, as i assumed the
+            //    whole thing bi-directional from the start and each side has it's own requestId
+            //    counter so that there's no conflict
+            //  struct BiDirIIOPServiceContext: sequence<{host, port}>
+
+            fake.expect(this.test!.fullTitle())
+            const small = new GIOPSmall(orb)
+            await server.sendObject(small, "foo")
+            expect(small.msg).to.equal("foo")
+        })
+
+        // get a remote object from the peer and check if we were able to call him
+        it("remote object", async function() {
+            // this does not work with the real orb because the host and port may be wrong
+            fake.expect(this.test!.fullTitle())
+            const obj = server.getObject()
+            const small = stub.GIOPSmall.narrow(obj)
+            small.call("GIOPSmall.call()")
+            expect(await server.peek()).to.equal("GIOPSmall.call()")
+        })
+
+        // send a remove object to the peer and check if he was able to call himself?
+
         // array
 
         // any
@@ -200,6 +242,19 @@ class Point implements value.Point {
     }
     toString(): string {
         return "Point: x=" + this.x + ", y=" + this.y
+    }
+}
+
+class GIOPSmall extends skel.GIOPSmall {
+    msg = ""
+
+    constructor(orb: ORB) {
+        super(orb)
+        console.log("Client_impl.constructor()")
+    }
+    
+    override async call(msg: string) {
+        this.msg = msg
     }
 }
 
@@ -239,8 +294,13 @@ class Fake {
         socket.on("data", (data: Buffer) => {
             const view = new Uint8Array(data)
             if (this.testName) {
+                const dump = this.toHexdump(view)
                 fs.writeSync(this.fd, "IN\n")
-                fs.writeSync(this.fd, this.toHexdump(view))
+                fs.writeSync(this.fd, dump)
+                if (this.verbose) {
+                    console.log("RCVD")
+                    console.log(dump)
+                }
             }
             orb.socketRcvd(data.buffer)
         })
@@ -249,8 +309,13 @@ class Fake {
         orb.socketSend = (buffer: ArrayBuffer) => {
             if (this.testName) {
                 const view = new Uint8Array(buffer)
+                const dump = this.toHexdump(view)
                 fs.writeSync(this.fd, "OUT\n")
-                fs.writeSync(this.fd, this.toHexdump(view))
+                fs.writeSync(this.fd, dump)
+                if (this.verbose) {
+                    console.log("SEND")
+                    console.log(dump)
+                }
             }
             send(buffer)
         }
