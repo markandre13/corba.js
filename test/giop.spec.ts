@@ -200,6 +200,11 @@ describe("CDR/GIOP", () => {
             //    counter so that there's no conflict
             //  struct BiDirIIOPServiceContext: sequence<{host, port}>
 
+            // GIOP 1.2 also adds fragments...
+            // MICO has GIOP 1.2 on it's TODO list but the CHANGES files states that it has been implemented
+            // in MICO, GIOP 1.2 has to be specified on the command line
+            // [ ] try to get it running 
+
             fake.expect(this.test!.fullTitle())
             const small = new GIOPSmall(orb)
             await server.sendObject(small, "foo")

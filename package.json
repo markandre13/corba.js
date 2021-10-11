@@ -30,7 +30,9 @@
     "test:run": "node --enable-source-maps ./node_modules/.bin/mocha lib/test/giop.spec.js",
     "test:run:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test ./node_modules/.bin/mocha lib/test/giop.spec.js",
 
-    "mico:run": "scp test/giop/* 192.168.1.105:test-mico/ && scp test/giop.idl 192.168.1.105:test-mico/test.idl && ssh 192.168.1.105 'cd test-mico && make runs-debug'",
+    "mico:run": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs-debug'",
+    "mico:runc": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runc'",
+    "mico:copy": "scp test/giop/*.cc test/giop/Makefile 192.168.1.105:test-mico/ && scp test/giop.idl 192.168.1.105:test-mico/test.idl",
 
     "test:mico:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test ./node_modules/.bin/mocha lib/test/giop.spec.js",
     "test:demux:run": "npm run build:idl:build && bin/corba-idl --ts-all test-mico/demux.idl && ttsc --watch & node --enable-source-maps node_modules/.bin/nodemon -q -w lib ./node_modules/.bin/mocha lib/test-mico/demux.spec.js",

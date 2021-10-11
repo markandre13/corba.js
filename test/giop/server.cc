@@ -33,6 +33,15 @@ main(int argc, char **argv) {
         // init ORB and POA Manager
         CORBA::ORB_var orb = CORBA::ORB_init(argc, argv, "mico-local-orb");
 
+        CORBA::Object_var polobj = orb->resolve_initial_references("PolicyCurrent");
+        CORBA::PolicyCurrent_var cur = CORBA::PolicyCurrent::_narrow(polobj);
+        CORBA::Any value;
+        value <<= BiDirPolicy::BOTH;
+        CORBA::PolicyList pl(1);
+        pl.length(1);
+        pl[0] = orb->create_policy(BiDirPolicy::BIDIRECTIONAL_POLICY_TYPE, value);
+        cur->set_policy_overrides(pl, CORBA::ADD_OVERRIDE);
+
         REGISTER_VALUE_TYPE(Point)
 
         CORBA::Object_var poaobj = orb->resolve_initial_references("RootPOA");
@@ -192,7 +201,8 @@ void GIOPTest_impl::sendValuePoints(Point *v0, Point *v1) throw(::CORBA::SystemE
 }
 
 void GIOPTest_impl::sendObject(GIOPSmall_ptr obj, const char *msg) throw(::CORBA::SystemException) {
-    cout << "sendObject(..., \"" << msg << "\")" << endl;
+    cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+    cout << "sendObject(..., \"" << msg << "\")roo" << endl;
     obj->call(msg);
 }
 

@@ -26,19 +26,52 @@ class Point_impl: virtual public OBV_Point, virtual public CORBA::DefaultValueRe
     }
 };
 
+void GIOPSmall_impl::call(const char * msg) throw(::CORBA::SystemException) {
+    cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+    cout << "GIOPSmall::call(\"" << msg << "\")";
+}
+
 int
 main(int argc, char **argv) {
     CORBA::ORB_var orb = CORBA::ORB_init(argc, argv);
-    CORBA::Object_ptr o = orb->resolve_initial_references("RootPOA");
-    PortableServer::POA_ptr poa = PortableServer::POA::_narrow(o);
+
+    CORBA::Object_ptr poaobj = orb->resolve_initial_references("RootPOA");
+    PortableServer::POA_ptr poa = PortableServer::POA::_narrow(poaobj);
+    PortableServer::POAManager_var poa_manager = poa->the_POAManager ();
+
+    CORBA::Object_var polobj = orb->resolve_initial_references("PolicyCurrent");
+    CORBA::PolicyCurrent_var cur = CORBA::PolicyCurrent::_narrow(polobj);
+    CORBA::Any allow_reuse;
+    allow_reuse <<= BiDirPolicy::BOTH;
+    CORBA::PolicyList pl(1);
+    pl.length(1);
+    pl[0] = orb->create_policy(BiDirPolicy::BIDIRECTIONAL_POLICY_TYPE, allow_reuse);
+    cur->set_policy_overrides(pl, CORBA::ADD_OVERRIDE);
+
+    PortableServer::POA_var child_poa = poa->create_POA ("childPOA", poa_manager.in(), policies);
+
+    // Creation of childPOA is over. Destroy the Policy objects.
+    for (CORBA::ULong i = 0; i < policies.length (); ++i) {
+        policies[i]->destroy ();
+    }
+
+    poa_manager->activate ();
 
     ifstream in( "IOR.txt");
     char s[1000];
     in >> s;
     in.close(); 
     CORBA::Object_var obj = orb->string_to_object(s);
-    Server_var server = Server::_narrow(obj);
+    GIOPTest_var server = GIOPTest::_narrow(obj);
     cout << "got Server object" << endl;
 
-    server->sendBool(false, true);
+    // server->sendBool(false, true);
+
+    GIOPSmall_impl *impl = new GIOPSmall_impl();
+    child_poa->activate_object(impl);
+    // activate the servant
+    GIOPSmall_var small = impl->_this();
+    
+    cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+    server->sendObject(small, "foo");
 }

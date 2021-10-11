@@ -7,10 +7,10 @@ runs: server
 	killall server ; ./server -ORBIIOPAddr inet:192.168.1.105:9000
 
 runs-debug: server
-	killall server ; ./server -ORBIIOPAddr inet:192.168.1.105:9000 -ORBDebug All
+	killall server ; ./server -ORBIIOPAddr inet:192.168.1.105:9000 -ORBDebug All -ORBGIOPVersion 1.2 -ORBIIOPVersion 1.2
 
 runc: client
-	LD_LIBRARY_PATH=$(MICO_DIR)/libs ./client
+	LD_LIBRARY_PATH=$(MICO_DIR)/libs ./client -ORBDebug All -ORBGIOPVersion 1.2 -ORBIIOPVersion 1.2
 
 client: client.cc test.cc test_skel.cc test.h valueimpl.hh
 	g++ -O0 -g -I. -Wno-deprecated -lmico2.3.13 -lpthread -ldl -o client client.cc test.cc test_skel.cc
