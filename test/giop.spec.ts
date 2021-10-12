@@ -21,6 +21,47 @@ import { expect } from "chai"
 // cover all of the above with a recorded fake, server and client side
 // to keep the IDL for this test small, we'll implement server and client on MICO side
 
+// CLIENT GIOP LOCATE REQUEST
+// 4749 4f50 0100 0103 1600 0000 0200 0000 GIOP............
+// 0e00 0000 fe9a c265 6100 0011 4f00 0000 .......ea...O...
+// 0000                                    ..
+
+// SERVER REPLY
+// 4749 4f50 0100 0104 0800 0000 0200 0000 GIOP............
+// 0100 0000                               ....
+
+// CLIENT TWO MESSAGES IN ONE PACKET
+
+// 4749 4f50 0100 0100 3800 0000 0000 0000 GIOP....8.......
+// 0400 0000 009a c265 0e00 0000 fe9a c265 .......e.......e
+// 6100 0011 4f00 0000 0000 6865 0d00 0000 a...O.....he....
+// 6f6e 6577 6179 4d65 7468 6f64 0020 3637 onewayMethod. 67
+// 0000 0000 4749 4f50 0100 0100 3000 0000 ....GIOP....0...
+// 0000 0000 0600 0000 019a c265 0e00 0000 ...........e....
+// fe9a c265 6100 0011 4f00 0000 0000 6865 ...ea...O.....he
+// 0500 0000 7065 656b 0079 4d65 0000 0000 ....peek.yMe....
+
+// Object does not exists
+// 0000 47 49 4f 50 01 00 01 00 38 00 00 00 00 00 00 00 GIOP....8.......
+// 0010 01 00 00 00 00 00 00 00 0e 00 00 00 ef bf bd ef ................
+// 0020 bf bd ef bf bd 65 61 00 00 10 ef bf 0d 00 00 00 .....ea.........
+// 0030 6f 6e 65 77 61 79 4d 65 74 68 6f 64 00 00 00 00 onewayMethod....
+// 0040 00 00 00 00                                     ....    
+
+// Object does not exists
+// 4749 4f50 0100 0100 3800 0000 0000 0000 GIOP....8.......
+// 0100 0000 0000 0000 0e00 0000 efbf bdef ................
+// bfbd efbf bd65 6100 0010 efbf 0d00 0000 .....ea.........
+// 6f6e 6577 6179 4d65 7468 6f64 0000 0000 onewayMethod....
+// 0000 0000 
+
+// Okay
+// 4749 4f50 0100 0100 3800 0000 0000 0000 GIOP....8.......
+// 0400 0000 00c9 c165 0e00 0000 fec9 c165 .......e.......e
+// 6100 0010 c500 0000 0000 6865 0d00 0000 a.........he....
+// 6f6e 6577 6179 4d65 7468 6f64 0020 3637 onewayMethod. 67
+// 0000 0000                               ....
+
 describe("CDR/GIOP", () => {
 
     let ior!: IOR
@@ -35,7 +76,7 @@ describe("CDR/GIOP", () => {
     // FIXME: to make the tests independent of each other when using the fake, create a new ORB for each test so that the request counter is reset
     before(async function () {
         orb = new ORB()
-        ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
+        // ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
         orb.registerStubClass(stub.GIOPTest)
 
         const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
@@ -49,12 +90,6 @@ describe("CDR/GIOP", () => {
 
         // RECORD
         const socket = await connect(orb, ior.host!, ior.port!)
-
-        console.log(`LOCAL ADDRESS : ${socket.localAddress}`)
-        console.log(`LOCAL PORT    : ${socket.localPort}`)
-        console.log(`REMOTE ADDRESS: ${socket.remoteAddress}`)
-        console.log(`REMOTE PORT   : ${socket.remotePort}`)
-
         fake.record(orb, socket)
 
         // REPLAY
@@ -64,10 +99,10 @@ describe("CDR/GIOP", () => {
         server = stub.GIOPTest.narrow(obj)
     })
 
-    it("oneway method", async function () {
+    it.only("oneway method", async function () {
         fake.expect(this.test!.fullTitle())
         server.onewayMethod()
-        expect(await server.peek()).to.equal("onewayMethod")
+        // expect(await server.peek()).to.equal("onewayMethod")
     })
 
     // [X] keep the mico file locally but build and run them remotely
@@ -158,68 +193,54 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendString(hello,you)")
         })
 
-        it("sequence", async function () {
-            fake.expect(this.test!.fullTitle())
-            await server.sendSequence(["hello", "you"], [1138, 1984, 2001])
-            expect(await server.peek()).to.equal("sendSequence([hello,you,],[1138,1984,2001,])")
-        })
+        // it("sequence", async function () {
+        //     fake.expect(this.test!.fullTitle())
+        //     await server.sendSequence(["hello", "you"], [1138, 1984, 2001])
+        //     expect(await server.peek()).to.equal("sendSequence([hello,you,],[1138,1984,2001,])")
+        // })
 
-        it("value", async function () {
-            fake.expect(this.test!.fullTitle())
-            await server.sendValuePoint(new Point({ x: 20, y: 30 }))
-            expect(await server.peek()).to.equal("sendValuePoint(Point(20,30))")
-        })
+        // it("value", async function () {
+        //     fake.expect(this.test!.fullTitle())
+        //     await server.sendValuePoint(new Point({ x: 20, y: 30 }))
+        //     expect(await server.peek()).to.equal("sendValuePoint(Point(20,30))")
+        // })
 
-        it("value (duplicate repository ID)", async function () {
-            fake.expect(this.test!.fullTitle())
-            await server.sendValuePoints(new Point({ x: 20, y: 30 }), new Point({ x: 40, y: 50 }))
-            expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(40,50))")
-        })
+        // it("value (duplicate repository ID)", async function () {
+        //     fake.expect(this.test!.fullTitle())
+        //     await server.sendValuePoints(new Point({ x: 20, y: 30 }), new Point({ x: 40, y: 50 }))
+        //     expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(40,50))")
+        // })
 
-        it("value (duplicate object)", async function () {
-            fake.expect(this.test!.fullTitle())
-            const p = new Point({ x: 20, y: 30 })
-            await server.sendValuePoints(p, p)
-            expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
-        })
+        // it("value (duplicate object)", async function () {
+        //     fake.expect(this.test!.fullTitle())
+        //     const p = new Point({ x: 20, y: 30 })
+        //     await server.sendValuePoints(p, p)
+        //     expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
+        // })
 
-        // send a local object to the peer and check if he was able to call us
-        it.only("local object", async function() {
-            // FIXME: this doesn't work yet
-            // the ORB now sends the ip & port of the current connection but MICO doesn't reuse the
-            // existing connection and instead tries to create a new one
-            // => check if there's a way to tell it to reuse the exiting connection or we're forced
-            //    to let the client create it's own port... which would be a pity in case there's
-            //    a firewall in between
-            // => since GIOP 1.2 it's possible to have bi-directional connections
-            //    9.8 Bi-Directional GIOP
-            //    Section 15.9, “Bi-directional GIOP policy"
-            //    this also affects the requestIds: client: even, server: odd requestIds
-            //    i guess there's a complication here i haven't considered yet, as i assumed the
-            //    whole thing bi-directional from the start and each side has it's own requestId
-            //    counter so that there's no conflict
-            //  struct BiDirIIOPServiceContext: sequence<{host, port}>
+        // // send a local object to the peer and check if he was able to call us
+        // it("local object", async function() {
+        //     // FIXME: this doesn't work yet because i assumed GIOP was bi-directional by design
+        //     // BiDirectional was added in CORBA 2.4, but MICO implements CORBA 2.3, there's only an unused definition for the BiDirectional policy
+        //     // OmniORB implements CORBA 2.6 along with BiDirectional GIOP
+        //     // Orbit
+        //     // GIOP is specified as one directional, for for BiDirectional are requestIds: client/initiator: even, server/receipient: odd requestIds
 
-            // GIOP 1.2 also adds fragments...
-            // MICO has GIOP 1.2 on it's TODO list but the CHANGES files states that it has been implemented
-            // in MICO, GIOP 1.2 has to be specified on the command line
-            // [ ] try to get it running 
-
-            fake.expect(this.test!.fullTitle())
-            const small = new GIOPSmall(orb)
-            await server.sendObject(small, "foo")
-            expect(small.msg).to.equal("foo")
-        })
+        //     fake.expect(this.test!.fullTitle())
+        //     const small = new GIOPSmall(orb)
+        //     await server.sendObject(small, "foo")
+        //     expect(small.msg).to.equal("foo")
+        // })
 
         // get a remote object from the peer and check if we were able to call him
-        it("remote object", async function() {
-            // this does not work with the real orb because the host and port may be wrong
-            fake.expect(this.test!.fullTitle())
-            const obj = server.getObject()
-            const small = stub.GIOPSmall.narrow(obj)
-            small.call("GIOPSmall.call()")
-            expect(await server.peek()).to.equal("GIOPSmall.call()")
-        })
+        // it("remote object", async function() {
+        //     // this does not work with the real orb because the host and port may be wrong
+        //     fake.expect(this.test!.fullTitle())
+        //     const obj = server.getObject()
+        //     const small = stub.GIOPSmall.narrow(obj)
+        //     small.call("GIOPSmall.call()")
+        //     expect(await server.peek()).to.equal("GIOPSmall.call()")
+        // })
 
         // send a remove object to the peer and check if he was able to call himself?
 
@@ -238,30 +259,30 @@ describe("CDR/GIOP", () => {
     // get object reference
 })
 
-class Point implements value.Point {
-    x!: number
-    y!: number
+// class Point implements value.Point {
+//     x!: number
+//     y!: number
 
-    constructor(init: Partial<Point>) {
-        value.initPoint(this, init)
-    }
-    toString(): string {
-        return "Point: x=" + this.x + ", y=" + this.y
-    }
-}
+//     constructor(init: Partial<Point>) {
+//         value.initPoint(this, init)
+//     }
+//     toString(): string {
+//         return "Point: x=" + this.x + ", y=" + this.y
+//     }
+// }
 
-class GIOPSmall extends skel.GIOPSmall {
-    msg = ""
+// class GIOPSmall extends skel.GIOPSmall {
+//     msg = ""
 
-    constructor(orb: ORB) {
-        super(orb)
-        console.log("Client_impl.constructor()")
-    }
+//     constructor(orb: ORB) {
+//         super(orb)
+//         console.log("Client_impl.constructor()")
+//     }
     
-    override async call(msg: string) {
-        this.msg = msg
-    }
-}
+//     override async call(msg: string) {
+//         this.msg = msg
+//     }
+// }
 
 function sleep(ms: number) {
     return new Promise((resolve) => {

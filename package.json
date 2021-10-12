@@ -22,7 +22,7 @@
     "build:idl:compile:test-mico": "bin/corba-idl -v --ts-all test-mico/mico/test.idl test-mico/demux.idl",
     "build:src:compile": "ttsc",
 
-    "test": "npm run test:mico:ior && npm run test:run",
+    "test": "npm run test:omni:ior && npm run test:run",
     "test:watch": "npm run test:mico:ior && npm run test:run:watch",
 
     "test:mico": "npm run test:mico:ior && npm run test:mico:run:watch",
@@ -33,6 +33,11 @@
     "mico:run": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs-debug'",
     "mico:runc": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runc'",
     "mico:copy": "scp test/giop/*.cc test/giop/Makefile 192.168.1.105:test-mico/ && scp test/giop.idl 192.168.1.105:test-mico/test.idl",
+
+    "omni:runs": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runs'",
+    "omni:runc": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runc'",
+    "omni:copy": "scp test/giop/*.cc test/giop/Makefile test/giop.idl 192.168.1.105:test-omni/",
+    "test:omni:ior": "scp 192.168.1.105:test-omni/IOR.txt test/giop/IOR.txt",
 
     "test:mico:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test ./node_modules/.bin/mocha lib/test/giop.spec.js",
     "test:demux:run": "npm run build:idl:build && bin/corba-idl --ts-all test-mico/demux.idl && ttsc --watch & node --enable-source-maps node_modules/.bin/nodemon -q -w lib ./node_modules/.bin/mocha lib/test-mico/demux.spec.js",

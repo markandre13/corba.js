@@ -1,15 +1,15 @@
-valuetype Point {
-    public double x, y;
-};
+// valuetype Point {
+//     public double x, y;
+// };
 
-valuetype Polygon {
-    public Point origin;
-    public Polygon next;
-};
+// valuetype Polygon {
+//     public Point origin;
+//     public Polygon next;
+// };
 
-interface GIOPSmall {
-    void call(in string value);
-};
+// interface GIOPSmall {
+//     void call(in string value);
+// };
 
 interface GIOPTest {
     string peek();
@@ -29,13 +29,13 @@ interface GIOPTest {
     void sendDouble(in double v0, in double v1);
 
     void sendString(in string v0, in string v1);
-    void sendSequence(in sequence<string> v0, in sequence<long> v1);
+    /* void sendSequence(in sequence<string> v0, in sequence<long> v1); */
 
-    void sendValuePoint(in Point v0);
-    void sendValuePoints(in Point v0, in Point v1);
+    // void sendValuePoint(in Point v0);
+    // void sendValuePoints(in Point v0, in Point v1);
 
-    void sendObject(in GIOPSmall obj, in string msg);
-    GIOPSmall getObject();
+    // void sendObject(in GIOPSmall obj, in string msg);
+    // GIOPSmall getObject();
     // GIOPSmall rcvdObject();
 
     // void sendAny(in any v0);

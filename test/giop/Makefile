@@ -1,26 +1,26 @@
-PWD=`pwd`
-MICO_DIR=$(PWD)/../mico
 
 all: client server
 
-runs: server
-	killall server ; ./server -ORBIIOPAddr inet:192.168.1.105:9000
+# -ORBoneCallPerConnection 0 -ORBofferBiDirectionalGIOP 1
 
-runs-debug: server
-	killall server ; ./server -ORBIIOPAddr inet:192.168.1.105:9000 -ORBDebug All -ORBGIOPVersion 1.2 -ORBIIOPVersion 1.2
+runs: server
+	killall server ; ./server -ORBtraceLevel 40 -ORBmaxGIOPVersion 1.0
 
 runc: client
-	LD_LIBRARY_PATH=$(MICO_DIR)/libs ./client -ORBDebug All -ORBGIOPVersion 1.2 -ORBIIOPVersion 1.2
+	./client -ORBtraceLevel 40 -ORBmaxGIOPVersion 1.0
 
-client: client.cc test.cc test_skel.cc test.h valueimpl.hh
-	g++ -O0 -g -I. -Wno-deprecated -lmico2.3.13 -lpthread -ldl -o client client.cc test.cc test_skel.cc
+client: client.cc giopSK.cc giop.hh
+	g++ -O0 -g -lomniORB4 -lomniDynamic4 -lomnithread -o client client.cc giopSK.cc
 
-server: server.cc test.cc test_skel.cc test.h valueimpl.hh
+server: server.cc giopSK.cc giop.hh
+	g++ -O0 -g -lomniORB4 -lomniDynamic4 -lomnithread -o server server.cc giopSK.cc
+
+serverx: server.cc test.cc test_skel.cc test.h valueimpl.hh
 	g++ -O0 -g -I. -Wno-deprecated -lmico2.3.13 -lpthread -ldl -o server server.cc test.cc test_skel.cc
 
-test.h test.cc test_impl.cc test_impl.h test_skel.cc: test.idl
-	rm -f test.h test.cc test_impl.cc test_impl.h test_skel.cc
-	idl --c++-skel --c++-impl test.idl
+giopSK.cc giop.hh: giop.idl
+	rm -f giopSK.cc giop.hh
+	omniidl -bcxx giop.idl
 
 clean:
-	rm -f test.h test.cc test_impl.cc test_impl.h test_skel.cc
+	rm -f giopSK.cc giop.hh

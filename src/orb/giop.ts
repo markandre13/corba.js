@@ -545,7 +545,7 @@ export class GIOPDecoder extends GIOPBase {
                         throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
                     }
                     data.host = this.string()
-                    data.port = this.short()
+                    data.port = this.ushort()
                     data.objectKey = this.blob()
 
                     // IIOP 1.1 and above
