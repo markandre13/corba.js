@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { GIOPDecoder, GIOPBase } from "./giop"
+import { GIOPDecoder } from "./giop"
 
 // ORB::object_to_string
 // ORB::string_to_object
@@ -62,7 +62,7 @@ export class IOR {
     host: string
     port: number
     oid: string
-    objectKey: string
+    objectKey: Uint8Array
 
     constructor(ior: string) {
         // 7.6.9 Stringified Object References
@@ -74,13 +74,12 @@ export class IOR {
         // convert to binary
         if (ior.length & 1)
             throw Error(`IOR has a wrong length.`)
-        const buffer = new ArrayBuffer((ior.length - 4) / 2)
-        const bytes = new Uint8Array(buffer)
+        const buffer = new Array<number>((ior.length - 4) / 2)
         for (let i = 4, j = 0; i < ior.length; i += 2, ++j) {
-            bytes[j] = Number.parseInt(ior.substr(i, 2), 16)
+            buffer[j] = Number.parseInt(ior.substring(i, i+2), 16)
         }
-    
-        const decoder = new GIOPDecoder(buffer)
+        const bytes = new Uint8Array(buffer)
+        const decoder = new GIOPDecoder(bytes.buffer)
         decoder.endian()
         const ref = decoder.reference()
         this.host = ref.host

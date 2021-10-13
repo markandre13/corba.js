@@ -22,45 +22,70 @@ import { expect } from "chai"
 // to keep the IDL for this test small, we'll implement server and client on MICO side
 
 // CLIENT GIOP LOCATE REQUEST
-// 4749 4f50 0100 0103 1600 0000 0200 0000 GIOP............
-// 0e00 0000 fe9a c265 6100 0011 4f00 0000 .......ea...O...
-// 0000                                    ..
+// 47 49 4f 50 01 00 01 03 16 00 00 00 02 00 00 00 GIOP............
+// ^           ^     ^  ^  ^  ^
+// |           |     |  |  |  requestId
+// |           |     |  |  size
+// |           |     |  message type: locate request(3)
+// |           |     byte order
+// |           GIOP version 1.0
+// GIOP magic number
+// 0e 00 00 00 fe 9a c2 65 61 00 00 11 4f 00 0 000 .......ea...O...
+// ^
+// object key
+// 00 00                                           ..
 
 // SERVER REPLY
-// 4749 4f50 0100 0104 0800 0000 0200 0000 GIOP............
-// 0100 0000                               ....
+// 47 49 4f 50 01 00 01 04 08 00 00 00 02 00 00 00 GIOP............
+// ^           ^     ^  ^  ^  ^
+// |           |     |  |  |  requestId
+// |           |     |  |  size
+// |           |     |  message type: locate reply(4)
+// |           |     byte order
+// |           GIOP version 1.0
+// GIOP magic number
+
+// 01 00 00 00                               ....
+// locate status: OBJECT_HERE(1)
 
 // CLIENT TWO MESSAGES IN ONE PACKET
 
-// 4749 4f50 0100 0100 3800 0000 0000 0000 GIOP....8.......
-// 0400 0000 009a c265 0e00 0000 fe9a c265 .......e.......e
-// 6100 0011 4f00 0000 0000 6865 0d00 0000 a...O.....he....
-// 6f6e 6577 6179 4d65 7468 6f64 0020 3637 onewayMethod. 67
-// 0000 0000 4749 4f50 0100 0100 3000 0000 ....GIOP....0...
-// 0000 0000 0600 0000 019a c265 0e00 0000 ...........e....
-// fe9a c265 6100 0011 4f00 0000 0000 6865 ...ea...O.....he
-// 0500 0000 7065 656b 0079 4d65 0000 0000 ....peek.yMe....
+// Object ID does not exist
+// 0000 47 49 4f 50 01 00 01 00 28 00 00 00 00 00 00 00 GIOP....(.......
+// 0010 01 00 00 00 00 00 00 00 00 00 00 00 0d 00 00 00 ................
+// 0020 6f 6e 65 77 61 79 4d 65 74 68 6f 64 00 00 00 00 onewayMethod....
+// 0030 00 00 00 00                                     ....
 
-// Object does not exists
+// Object ID correct
+// 0000 47 49 4f 50 01 00 01 03 16 00 00 00 02 00 00 00 GIOP............
+// 0010 0e 00 00 00 fe 17 35 67 61 00 00 04 39 00 00 00 ......5ga...9...
+// 0020 00 00                                    ..
+// omniORB: (4) 2021-10-13 20:36:34.584065: Handling a GIOP LOCATE_REQUEST.
+// omniORB: (4) 2021-10-13 20:36:34.584085: sendChunk: to giop:tcp:[::ffff:192.168.1.105]:34656 20 bytes
+// omniORB: (4) 2021-10-13 20:36:34.584095: 
+// 4749 4f50 0100 0104 0800 0000 0200 0000 GIOP............
+// 0100 0000                               ....
+// onewayMethod
+// omniORB: (4) 2021-10-13 20:36:34.584373: inputMessage: from giop:tcp:[::ffff:192.168.1.105]:34656 68 bytes
+// omniORB: (4) 2021-10-13 20:36:34.584411: 
 // 0000 47 49 4f 50 01 00 01 00 38 00 00 00 00 00 00 00 GIOP....8.......
-// 0010 01 00 00 00 00 00 00 00 0e 00 00 00 ef bf bd ef ................
-// 0020 bf bd ef bf bd 65 61 00 00 10 ef bf 0d 00 00 00 .....ea.........
-// 0030 6f 6e 65 77 61 79 4d 65 74 68 6f 64 00 00 00 00 onewayMethod....
-// 0040 00 00 00 00                                     ....    
-
-// Object does not exists
-// 4749 4f50 0100 0100 3800 0000 0000 0000 GIOP....8.......
-// 0100 0000 0000 0000 0e00 0000 efbf bdef ................
-// bfbd efbf bd65 6100 0010 efbf 0d00 0000 .....ea.........
-// 6f6e 6577 6179 4d65 7468 6f64 0000 0000 onewayMethod....
-// 0000 0000 
-
-// Okay
-// 4749 4f50 0100 0100 3800 0000 0000 0000 GIOP....8.......
-// 0400 0000 00c9 c165 0e00 0000 fec9 c165 .......e.......e
-// 6100 0010 c500 0000 0000 6865 0d00 0000 a.........he....
-// 6f6e 6577 6179 4d65 7468 6f64 0020 3637 onewayMethod. 67
-// 0000 0000                               ....
+//      ^           ^     ^  ^  ^           ^
+//      |           |     |  |  |           serviceContextListLength
+//      |           |     |  |  size
+//      |           |     |  message type: request(0)
+//      |           |     byte order
+//      |           GIOP version 1.0
+//      GIOP magic number
+// 0010 04 00 00 00 00 17 35 67 0e 00 00 00 fe 17 35 67 ......5g......5g
+//      ^           ^           ^           ^
+//      |           |           |           object key
+//      |           |           length object key
+//      |           expected response: request(0)
+//      request id
+// 0020 61 00 00 04 39 00 00 00 00 00 68 65 0d 00 00 00 a...9.....he....
+//                                       ^
+// 0030 6f 6e 65 77 61 79 4d 65 74 68 6f 64 00 20 36 37 onewayMethod. 67
+// 0040 00 00 00 00                               ....
 
 describe("CDR/GIOP", () => {
 
@@ -86,6 +111,16 @@ describe("CDR/GIOP", () => {
         //   const server = Server::narrow(obj)
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
         ior = new IOR(data)
+        console.log(`ior.objectKey.length = ${ior.objectKey.length}`)
+        console.log(ior.host)
+        console.log(ior.port)
+        console.log(ior.oid)
+        // console.log(ior.objectKey)
+        let hex = ""
+        for(let i=0 ; i<ior.objectKey.length; ++i) {
+            hex += ior.objectKey.at(i)!.toString(16) + " "
+        }
+        console.log(`io.objectKey=${hex}`)
         fake = new Fake()
 
         // RECORD
@@ -97,12 +132,17 @@ describe("CDR/GIOP", () => {
 
         const obj = orb.iorToObject(ior)
         server = stub.GIOPTest.narrow(obj)
+        hex = ""
+        for(let i=0 ; i<server.id.length; ++i) {
+            hex += server.id.at(i)!.toString(16) + " "
+        }
+        console.log(`server.id=${hex}`)
     })
 
     it.only("oneway method", async function () {
         fake.expect(this.test!.fullTitle())
         server.onewayMethod()
-        // expect(await server.peek()).to.equal("onewayMethod")
+        expect(await server.peek()).to.equal("onewayMethod")
     })
 
     // [X] keep the mico file locally but build and run them remotely

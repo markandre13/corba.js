@@ -18,6 +18,7 @@
 
 import { GIOPDecoder, GIOPEncoder, MessageType } from "./giop"
 import { IOR } from "./ior"
+import { Uint8Map } from "./uint8map"
 
 export interface ValueTypeInformation {
     attributes: Array<string>
@@ -43,16 +44,19 @@ export class PromiseHandler {
 }
 
 export class ORB implements EventTarget, SocketUser {
+    // special object ID "ORB"
+    private static orbId = new Uint8Array([0x4F, 0x52, 0x42])
+
     debug: number		// values > 0 enable debug output
     name: string        // orb name to ease debugging
 
     // socket?: any		// socket with the client/server
 
     stubsByName: Map<string, any>
-    stubsById: Map<string, Stub>
+    stubsById: Uint8Map<Stub>
 
-    servants: Array<CORBAObject | undefined>
-    unusedServantIds: Array<number>
+    servants: Uint8Map<Skeleton | undefined>
+    servantIdCounter: bigint = 0n
 
     accesibleServants: Set<Skeleton>
 
@@ -73,21 +77,19 @@ export class ORB implements EventTarget, SocketUser {
     constructor(orb?: ORB) {
         if (orb === undefined) {
             this.debug = 0
-            this.servants = []
-            this.servants.push(undefined) // reserve id 0
-            this.unusedServantIds = []
-            this.stubsByName = new Map<string, any>()
-            this.initialReferences = new Map<string, any>()
+            this.stubsByName = new Map()
+            this.servants = new Uint8Map()
+            this.initialReferences = new Map()
             this.name = ""
         } else {
             this.debug = orb.debug
             this.servants = orb.servants
-            this.unusedServantIds = orb.unusedServantIds
+            this.servantIdCounter = orb.servantIdCounter
             this.stubsByName = orb.stubsByName
             this.initialReferences = orb.initialReferences
             this.name = "spawned from '" + orb.name + "'"
         }
-        this.stubsById = new Map()
+        this.stubsById = new Uint8Map()
         this.accesibleServants = new Set<Skeleton>()
         this.reqid = 0
         this.listeners = new Map<string, Set<EventListenerOrEventListenerObject>>()
@@ -99,11 +101,11 @@ export class ORB implements EventTarget, SocketUser {
     socketSend!: (buffer: ArrayBuffer) => void
     map = new Map<number, PromiseHandler>()
 
-    onewayCall(objectId: string, method: string, encode: (encoder: GIOPEncoder) => void): void {
+    onewayCall(objectId: Uint8Array, method: string, encode: (encoder: GIOPEncoder) => void): void {
         this.callCore(++this.reqid, false, objectId, method, encode)
     }
 
-    twowayCall<T>(objectId: string, method: string,
+    twowayCall<T>(objectId: Uint8Array, method: string,
         encode: (encoder: GIOPEncoder) => void,
         decode: (decoder: GIOPDecoder) => T
     ): Promise<T> {
@@ -122,7 +124,7 @@ export class ORB implements EventTarget, SocketUser {
     protected callCore(
         requestId: number,
         responseExpected: boolean,
-        objectId: string,
+        objectId: Uint8Array,
         method: string,
         encode: (encoder: GIOPEncoder) => void) {
         // console.log(`client: send request ${requestId}`)
@@ -142,7 +144,11 @@ export class ORB implements EventTarget, SocketUser {
         switch (type) {
             case MessageType.REQUEST: {
                 const data = decoder.scanRequestHeader()
-                if (data.objectKey === "ORB") {
+                if (data.objectKey.length === ORB.orbId.length
+                    && data.objectKey.at(0) === ORB.orbId.at(0)
+                    && data.objectKey.at(1) === ORB.orbId.at(1)
+                    && data.objectKey.at(2) === ORB.orbId.at(2)
+                ) {
                     if (data.method === "resolve") {
                         const reference = decoder.string()
                         // console.log(`ORB: received ORB.resolve("${reference}")`)
@@ -162,19 +168,15 @@ export class ORB implements EventTarget, SocketUser {
                     return
                 }
 
-                const id = parseInt(data.objectKey)
-                if (id >= this.servants.length) {
-                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server for unknown servant id ${id}`)
-                }
-                let servant = this.servants[id] as any
+                const servant = this.servants.get(data.objectKey)
                 if (servant === undefined) {
-                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server for unknown servant id " + msg.id`)
+                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server for unknown object key ${data.objectKey}`)
                 }
                 if (!servant.acl.has(this)) {
-                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with id ${id}`)
+                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with object key ${data.objectKey}`)
                 }
-                if (servant[data.method] === undefined) {
-                    throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with id ${id}`)
+                if ((servant as any)[data.method] === undefined) {
+                    throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with object key ${data.objectKey}`)
                 }
 
                 const encoder = new GIOPEncoder(this)
@@ -271,21 +273,16 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     // called by the Skeleton
-    registerServant(servant: CORBAObject): number {
-        let id = this.unusedServantIds.pop()
-        if (id !== undefined) {
-            this.servants[id] = servant
-        } else {
-            id = this.servants.length
-            this.servants.push(servant)
-        }
-        return id
+    registerServant(servant: Skeleton) {
+        let id = ++this.servantIdCounter
+        const x = new BigUint64Array([id])
+        const u = new Uint8Array(x.buffer)
+        this.servants.set(u, servant)
+        return u
     }
 
     unregisterServant(servant: Skeleton) {
-        this.servants[servant.id] = undefined
-        this.unusedServantIds.push(servant.id)
-        servant.id = -1
+        this.servants.delete(servant.id)
     }
 
     registerStubClass(aStubClass: any) {
@@ -293,9 +290,10 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     releaseStub(stub: Stub): void {
-        if (!this.stubsById.has(`${stub.id}`))
-            throw Error("ORB.releaseStub(): the stub with id " + stub.id + " is unknown to this ORB")
-        this.stubsById.delete(`${stub.id}`)
+        if (!this.stubsById.has(stub.id)) {
+            throw Error(`ORB.releaseStub(): the stub with id ${stub.id} is unknown to this ORB`)
+        }
+        this.stubsById.delete(stub.id)
     }
 
     static registerValueType(name: string, valuetypeConstructor: Function): void {
@@ -342,7 +340,7 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     async resolve(id: string): Promise<Stub> {
-        const ref = await this.twowayCall("ORB", "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())
+        const ref = await this.twowayCall(ORB.orbId, "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())
 
         // if we already have a stub, return that one
         // if (oid.host === this.peerHost && oid.port === this.peerPort) {
@@ -418,8 +416,8 @@ export class ORB implements EventTarget, SocketUser {
 
 export abstract class CORBAObject {
     orb: ORB
-    id: number
-    constructor(orb: ORB, id: number) {
+    id: Uint8Array
+    constructor(orb: ORB, id: Uint8Array) {
         this.orb = orb
         this.id = id
     }
@@ -429,7 +427,7 @@ export abstract class Skeleton extends CORBAObject {
     acl: Set<ORB>
 
     constructor(orb: ORB) {
-        super(orb, 0)
+        super(orb, undefined as any)
         this.id = orb.registerServant(this)
         this.acl = new Set<ORB>()
     }
@@ -439,7 +437,7 @@ export abstract class Skeleton extends CORBAObject {
 }
 
 export abstract class Stub extends CORBAObject {
-    constructor(orb: ORB, remoteID: number) {
+    constructor(orb: ORB, remoteID: Uint8Array) {
         super(orb, remoteID)
     }
 

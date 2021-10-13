@@ -62,7 +62,7 @@ export class GIOPEncoder extends GIOPBase {
     data = new DataView(this.buffer);
     bytes = new Uint8Array(this.buffer);
 
-    protected static textEncoder = new TextEncoder();
+    public static textEncoder = new TextEncoder();
     static littleEndian?: boolean
 
     protected repositoryIds = new Map<string, number>()
@@ -100,7 +100,7 @@ export class GIOPEncoder extends GIOPBase {
         this.data.setUint32(8, this.offset - 12, GIOPEncoder.littleEndian)
     }
 
-    encodeRequest(objectKey: string, method: string, requestId = 1, responseExpected: boolean) {
+    encodeRequest(objectKey: Uint8Array, method: string, requestId = 1, responseExpected: boolean) {
         this.skipGIOPHeader()
         this.ulong(0) // serviceContextListLength
         this.ulong(requestId)
@@ -169,7 +169,7 @@ export class GIOPEncoder extends GIOPBase {
         // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
         this.string(this.orb!.localAddress)
         this.short(this.orb!.localPort)
-        this.blob(`${object.id}`)
+        this.blob(object.id)
 
         const offsetDataEnd = this.offset
         this.offset = offsetSize
@@ -220,10 +220,9 @@ export class GIOPEncoder extends GIOPBase {
         valueTypeInformation.encode(this, object)      
     }
 
-    blob(value: string) {
+    blob(value: Uint8Array) {
         this.ulong(value.length)
-        const rawString = GIOPEncoder.textEncoder.encode(value)
-        this.bytes.set(rawString, this.offset)
+        this.bytes.set(value, this.offset)
         this.offset += value.length
     }
 
@@ -372,7 +371,7 @@ export class GIOPEncoder extends GIOPBase {
 class RequestData {
     requestId!: number
     responseExpected!: boolean
-    objectKey!: string
+    objectKey!: Uint8Array
     method!: string
 }
 
@@ -385,7 +384,7 @@ class ObjectReference {
     oid!: string
     host!: string
     port!: number
-    objectKey!: string
+    objectKey!: Uint8Array
     toString(): string {
         return `ObjectReference(oid=${this.oid}, host=${this.host}, port=${this.port}, objectKey=${this.objectKey}')`
     }
@@ -652,10 +651,7 @@ export class GIOPDecoder extends GIOPBase {
     blob(length?: number) {
         if (length === undefined)
             length = this.ulong()
-        const rawString = this.bytes.subarray(this.offset, this.offset + length)
-        const value = GIOPDecoder.textDecoder.decode(rawString)
-        this.offset += length
-        return value
+        return this.bytes.subarray(this.offset, this.offset + length)
     }
 
     string(length?: number) {

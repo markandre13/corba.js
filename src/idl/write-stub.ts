@@ -117,9 +117,9 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             // out.write("/*\n")
                             // out.write("        ")
                             if (oneway) {
-                                out.write(`this.orb.onewayCall(\`\${this.id}\`, "${identifier}", `)
+                                out.write(`this.orb.onewayCall(this.id, "${identifier}", `)
                             } else {
-                                out.write(`this.orb.twowayCall(\`\${this.id}\`, "${identifier}", `)
+                                out.write(`this.orb.twowayCall(this.id, "${identifier}", `)
                             }
 
                             // encode
