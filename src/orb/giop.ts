@@ -160,7 +160,7 @@ export class GIOPEncoder extends GIOPBase {
         
         this.ulong(IOR.TAG.IOR.INTERNET_IOP)
         const offsetSize = this.offset
-        this.ulong(0) // profileLength
+        this.ulong(0) // temporary profileLength
         const offsetDataStart = this.offset
 
         this.octet(GIOPBase.MAJOR_VERSION)

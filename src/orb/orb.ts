@@ -43,6 +43,7 @@ export class PromiseHandler {
     reject: (reason?: any) => void
 }
 
+// TODO: to have only one ORB instance, split ORB into ORB, Connection (requestIds & ACL) and CrudeObjectAdapter (stubs, servants, valuetypes)
 export class ORB implements EventTarget, SocketUser {
     // special object ID "ORB"
     private static orbId = new Uint8Array([0x4F, 0x52, 0x42])
@@ -55,7 +56,7 @@ export class ORB implements EventTarget, SocketUser {
     stubsByName: Map<string, any>
     stubsById: Uint8Map<Stub>
 
-    servants: Uint8Map<Skeleton | undefined>
+    servants: Uint8Map<Skeleton>
     servantIdCounter: bigint = 0n
 
     accesibleServants: Set<Skeleton>
@@ -139,17 +140,20 @@ export class ORB implements EventTarget, SocketUser {
     // Network IN
     //
     socketRcvd(buffer: ArrayBuffer): void {
+        // TODO: split this method up
         const decoder = new GIOPDecoder(buffer, this)
         const type = decoder.scanGIOPHeader()
         switch (type) {
             case MessageType.REQUEST: {
                 const data = decoder.scanRequestHeader()
+                // FIXME: make this if expression a method
                 if (data.objectKey.length === ORB.orbId.length
                     && data.objectKey.at(0) === ORB.orbId.at(0)
                     && data.objectKey.at(1) === ORB.orbId.at(1)
                     && data.objectKey.at(2) === ORB.orbId.at(2)
                 ) {
                     if (data.method === "resolve") {
+                        // FIXME: make the 'resolve' a method
                         const reference = decoder.string()
                         // console.log(`ORB: received ORB.resolve("${reference}")`)
                         const encoder = new GIOPEncoder(this)
@@ -175,13 +179,14 @@ export class ORB implements EventTarget, SocketUser {
                 if (!servant.acl.has(this)) {
                     throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with object key ${data.objectKey}`)
                 }
-                if ((servant as any)[data.method] === undefined) {
+                const method = (servant as any)[`_orb_${data.method}`]
+                if (method === undefined) {
                     throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with object key ${data.objectKey}`)
                 }
 
                 const encoder = new GIOPEncoder(this)
                 encoder.skipReplyHeader();
-                (servant as any)[`_orb_${data.method}`].call(servant, decoder, encoder)
+                method.call(servant, decoder, encoder)
                 .then( () => {
                     if (data.responseExpected) {
                         const length = encoder.offset
@@ -331,7 +336,7 @@ export class ORB implements EventTarget, SocketUser {
     //
     bind(id: string, obj: Skeleton): void {
         if (this.initialReferences.get(id) !== undefined)
-            throw Error("ORB.bind(): the id '" + id + "' is already bound to an object")
+            throw Error(`ORB.bind(): the id '${id}' is already bound to an object`)
         this.initialReferences.set(id, obj)
     }
 
