@@ -82,12 +82,19 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                 case Type.TKN_NATIVE:
                     name = relativeName
                     break
+                case Type.TKN_SEQUENCE: // HACK!!!
+                    // console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+                    // type.printTree()
+                    // console.log("----------------------------------")
+                    name = typeIDLtoTS(type.child[0])
+                    // console.log("----------------------------------")
+                    // console.log(name)
+                    // console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+                    break
                 default:
                     throw Error(`Internal Error in typeIDLtoTS(): type ${identifierType.toString()} is not implemented`)
             }
-
             return name
-
         } break
         case Type.TKN_VOID:
             return "void"
@@ -115,99 +122,70 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
     }
 }
 
-export function typeIDLtoGIOP(type: Node | undefined) {
+export function typeIDLtoGIOP(type: Node | undefined, arg: string | undefined = undefined): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
+    // console.log(`typeIDLtoGIOP(${type.toString()}, ${arg})`)
+    let name: string
     switch (type!.type) {
-        case Type.TKN_IDENTIFIER: {
-
-            let identifierType = type.child[type.child.length - 1]!
-        //     let relativeName = ""
-        //     for (let x of type.child) {
-        //         relativeName = `${relativeName}.${x!.text!}`
-        //     }
-        //     relativeName = relativeName.substring(1)
-
-        //     let absolutePrefix = ""
-        //     for (let x: Node | undefined = type.child[0]?.typeParent; x; x = x.typeParent) {
-        //         absolutePrefix = `.${x!.text}${absolutePrefix}`
-        //     }
-
-        //     if (type.child.length > 0 &&
-        //         type.child[0]!.type === Type.TKN_NATIVE &&
-        //         type.text!.length > 4 &&
-        //         type.text!.substring(type.text!.length - 4) === "_ptr") {
-        //         return `${absolutePrefix.substring(1)} | undefined`
-        //     }
-
-        //     let name: string
-            switch (identifierType.type) {
-                case Type.TKN_VALUETYPE:
-                    return "object"
-        //             if (filetype !== FileType.VALUETYPE)
-        //                 name = `valuetype${absolutePrefix}.${relativeName}`
-        //             else
-        //                 name = relativeName
-        //             break
-                case Type.SYN_INTERFACE:
-                    return "object"
-        //             if (filetype !== FileType.INTERFACE)
-        //                 name = `_interface${absolutePrefix}.${relativeName}`
-        //             else
-        //                 name = relativeName
-        //             break
-                case Type.TKN_STRUCT:
-                    return "object"
-        //             // FIXME: struct uses a wrong identifier node structure
-        //             name = type!.text!
-        //             if (filetype !== FileType.INTERFACE)
-        //                 name = `_interface${absolutePrefix}.${name}`
-        //             break
-        //         case Type.TKN_NATIVE:
-        //             name = relativeName
-        //             break
-                default:
-                    throw Error(`Internal Error in typeIDLtoGIOP(): type ${identifierType.toString()} is not implemented`)
-            }
-
-        //     return name
-
-        } break
+        case Type.TKN_SEQUENCE:
+            return arg === undefined ?
+                `decoder.sequence(() => ${typeIDLtoGIOP(type.child[0])})` :
+                `encoder.sequence(${arg}, (item) => ${typeIDLtoGIOP(type.child[0], "item")})`
+        case Type.TKN_IDENTIFIER:
+        case Type.TKN_MODULE:
+            return typeIDLtoGIOP(type.child[0], arg)
+        case Type.SYN_INTERFACE:
+        case Type.TKN_VALUETYPE:
+        case Type.TKN_STRUCT:
+            name = "object"
+            break
         case Type.TKN_VOID:
-            return "void"
+            name = "void"
+            break
         case Type.TKN_BOOLEAN:
-            return "bool"
+            name = "bool"
+            break
         case Type.TKN_STRING:
-            return "string"
+            name = "string"
+            break
         case Type.TKN_CHAR:
-            return "char"
+            name = "char"
+            break
         case Type.TKN_OCTET:
-            return "octet"
+            name = "octet"
+            break
         case Type.TKN_SHORT:
-            return "short"
+            name = "short"
+            break
         case Type.TKN_LONG:
-            return "long"
+            name = "long"
+            break
         case Type.SYN_LONGLONG:
-            return "longlong"
+            name = "longlong"
+            break
         case Type.SYN_UNSIGNED_SHORT:
-            return "ushort"
+            name = "ushort"
+            break
         case Type.SYN_UNSIGNED_LONG:
-            return "ulong"
+            name = "ulong"
+            break
         case Type.SYN_UNSIGNED_LONGLONG:
-            return "ulonglong"
+            name = "ulonglong"
+            break
         case Type.TKN_FLOAT:
-            return "float"
+            name = "float"
+            break
         case Type.TKN_DOUBLE:
-            return "double"
+            name = "double"
+            break
         case Type.SYN_LONG_DOUBLE:
             throw Error("long double is not supported yet")
-        case Type.TKN_SEQUENCE:
-            // throw Error("sequence is not supported yet")
-            return "sequence"
-            // return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
         default:
-            throw Error(`no mapping from IDL type to GIOP type for ${type.toString()}`)
+            type.printTree()
+            throw Error(`no mapping from IDL type '${type.toString()}' to GIOP encoder/decoder`)
     }
+    return arg === undefined ? `decoder.${name}()` : `encoder.${name}(${arg})`
 }
 
 export function defaultValueIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE): string {
@@ -233,7 +211,7 @@ export function defaultValueIDLtoTS(type: Node | undefined, filetype: FileType =
         case Type.TKN_SEQUENCE:
             return `new Array<${typeIDLtoTS(type!.child[0], filetype)}>()`
         default:
-            throw Error(`no default value for IDL type in TS for type ${type.toString()}`)
+            throw Error(`no default value from IDL type '${type.toString()}' to default value`)
     }
 }
 

@@ -111,6 +111,7 @@ describe("CDR/GIOP", () => {
         //   const server = Server::narrow(obj)
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
         ior = new IOR(data)
+        console.log("connecting  to")
         console.log(`ior.objectKey.length = ${ior.objectKey.length}`)
         console.log(ior.host)
         console.log(ior.port)
@@ -125,6 +126,7 @@ describe("CDR/GIOP", () => {
 
         // RECORD
         const socket = await connect(orb, ior.host!, ior.port!)
+        console.log("connected")
         fake.record(orb, socket)
 
         // REPLAY
@@ -139,7 +141,7 @@ describe("CDR/GIOP", () => {
         console.log(`server.id=${hex}`)
     })
 
-    it.only("oneway method", async function () {
+    it("oneway method", async function () {
         fake.expect(this.test!.fullTitle())
         server.onewayMethod()
         expect(await server.peek()).to.equal("onewayMethod")
@@ -167,10 +169,16 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendBool(false,true)")
         })
 
+        // Corba 3.3, Part 1, 7.11.1.3 Char Type
+        // IDL defines a char data type that is an 8-bit quantity that (1) encodes a single-byte character
+        // from any byte-oriented code set, or (2) when used in an array, encodes a multi-byte character
+        // from a multi-byte code set.
+        // In other words, an implementation is free to use any code set internally for encoding character data,
+        // though conversion to another form may be required for transmission.
         it("char", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendChar(-128, 127)
-            expect(await server.peek()).to.equal("sendChar(-128,127)")
+            await server.sendChar(0, 255)
+            expect(await server.peek()).to.equal("sendChar(0,255)")
         })
 
         it("octet", async function () {
@@ -233,11 +241,11 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendString(hello,you)")
         })
 
-        // it("sequence", async function () {
-        //     fake.expect(this.test!.fullTitle())
-        //     await server.sendSequence(["hello", "you"], [1138, 1984, 2001])
-        //     expect(await server.peek()).to.equal("sendSequence([hello,you,],[1138,1984,2001,])")
-        // })
+        it("sequence", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.sendSequence(["hello", "you"], [1138, 1984, 2001])
+            expect(await server.peek()).to.equal("sendSequence([hello,you,],[1138,1984,2001,])")
+        })
 
         // it("value", async function () {
         //     fake.expect(this.test!.fullTitle())

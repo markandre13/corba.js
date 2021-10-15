@@ -28,15 +28,15 @@ export function writeTSSkeleton(specification: Node): void {
         out.write(`import * as valuetype from \"./${filenameLocal}_valuetype\"\n`)
     }
     out.write(`import * as _interface from \"./${filenameLocal}\"\n\n`)
-    writeTSSkeletonDefitions(out, specification)
+    writeTSSkeletonDefinitions(out, specification)
 }
 
-function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, prefix = "", indent = 0): void {
+function writeTSSkeletonDefinitions(out: fs.WriteStream, specification: Node, prefix = "", indent = 0): void {
     for (let definition of specification.child) {
         switch (definition!.type) {
             case Type.TKN_MODULE:
                 out.write(`export namespace ${definition!.text}{\n\n`)
-                writeTSSkeletonDefitions(out, definition!, prefix + definition!.text + ".", indent + 1)
+                writeTSSkeletonDefinitions(out, definition!, prefix + definition!.text + ".", indent + 1)
                 out.write(`} // namespace ${definition!.text}\n\n`)
                 break
             case Type.SYN_INTERFACE: {
@@ -96,8 +96,9 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                                     }
                                     break
                                 default:
-                                    out.write(`        encoder.${typeIDLtoGIOP(type)}(await this.${identifier}(`)
-                            }                            
+                                    out.write(`        const result = await this.${identifier}(`)
+                            }    
+
                             comma = false
                             for (let parameter_dcl of parameter_decls) {
                                 let attribute = parameter_dcl!.child[0]!.type
@@ -110,20 +111,12 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                                 } else {
                                     out.write(", ")
                                 }
-                                switch(type.type) {
-                                    case Type.TKN_SEQUENCE:
-                                        out.write(`decoder.sequence( () => decoder.${typeIDLtoGIOP(type.child[0])}())`)
-                                        break
-                                    default:
-                                        out.write(`decoder.${typeIDLtoGIOP(type)}()`)
-                                }
+                                out.write(`${typeIDLtoGIOP(type)}`)
                             }
-                            switch(type.type) {
-                                case Type.TKN_VOID:
-                                    out.write(`)\n`)
-                                    break
-                                default:
-                                    out.write(`))\n`)
+                            
+                            out.write(`)\n`)
+                            if (type.type !== Type.TKN_VOID) {
+                                out.write(`        ${typeIDLtoGIOP(type, "result")}\n`)
                             }
                             out.write(`    }\n`)
                             
@@ -131,7 +124,7 @@ function writeTSSkeletonDefitions(out: fs.WriteStream, specification: Node, pref
                         case Type.TKN_ATTRIBUTE: {
                         } break
                         default:
-                            throw Error("fuck")
+                            throw Error("yikes")
                     }
                 }
                 out.write("}\n\n")

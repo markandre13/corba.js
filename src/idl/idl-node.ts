@@ -97,6 +97,7 @@ export enum Type {
     SYN_VALUE_HEADER, // 18
     SYN_VALUE_INHERITANCE_SPEC, // 19
     SYN_STATE_MEMBER, // 22
+    SYN_TYPE_DECLARATOR, // 43
     SYN_DECLARATORS, // 49
     SYN_MEMBER_LIST, // 70
     SYN_MEMBER, // 71
@@ -209,6 +210,7 @@ export class Node
             case Type.SYN_VALUE_HEADER:           return "SYN_VALUE_HEADER" // 18
             case Type.SYN_VALUE_INHERITANCE_SPEC: return "SYN_VALUE_INHERITANCE_SPEC" // 19
             case Type.SYN_STATE_MEMBER:           return "SYN_STATE_MEMBER" // 22
+            case Type.SYN_TYPE_DECLARATOR:        return "SYN_TYPE_DECLARATOR"
             case Type.SYN_DECLARATORS:            return "SYN_DECLARATORS" // 49
             case Type.SYN_MEMBER_LIST:            return "SYN_MEMBER_LIST" // 70
             case Type.SYN_MEMBER:                 return "SYN_MEMBER" // 71

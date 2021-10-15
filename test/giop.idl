@@ -11,7 +11,11 @@
 //     void call(in string value);
 // };
 
+typedef sequence<string> StringSeq;
+typedef sequence<long> LongSeq;
+
 interface GIOPTest {
+
     string peek();
     oneway void onewayMethod();
 
@@ -29,7 +33,10 @@ interface GIOPTest {
     void sendDouble(in double v0, in double v1);
 
     void sendString(in string v0, in string v1);
-    /* void sendSequence(in sequence<string> v0, in sequence<long> v1); */
+    // the following line is accepted by MICO, but rejected by OmniORB
+    //   void sendSequence(in sequence<string> v0, in sequence<long> v1);
+    // hence we're doing it like this:
+    void sendSequence(in StringSeq v0, in LongSeq v1);
 
     // void sendValuePoint(in Point v0);
     // void sendValuePoints(in Point v0, in Point v1);

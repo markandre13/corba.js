@@ -18,6 +18,7 @@
 
 import { Type, Node } from "./idl-node"
 import { Lexer } from "./idl-lexer"
+import { CaughtException } from "mobx/dist/internal"
 
 let lexer: Lexer
 let scoper: ScopeManager
@@ -424,8 +425,12 @@ function type_dcl(): Node | undefined {
             lexer.unlex(t0)
             return undefined
         }
-        t0.append(t1)
-        return t0
+        const identifiers = t1.child[1]!.child!
+        for(const id of identifiers) {
+            scoper.addType(id!.text!, t1.child[0]!)
+        }
+        t1.type = t0.type
+        return t1
     }
     lexer.unlex(t0)
 
@@ -467,8 +472,13 @@ function type_declarator(): Node | undefined {
     if (t0 === undefined)
         return undefined
     const t1 = declarators()
-    t0.append(t1)
-    return t1
+    if (t1 == undefined) {
+        throw Error("expected at least one declarator")
+    }
+    const n = new Node(Type.SYN_TYPE_DECLARATOR)
+    n.append(t0)
+    n.append(t1)
+    return n
 }
 
 // 44
@@ -927,7 +937,7 @@ function op_dcl(): Node | undefined {
     }
     const t2 = identifier()
     if (t2 === undefined) {
-        throw Error("expected identifier")
+        throw Error(`expected identifier after '${t1.toString()}'`)
     }
     const t3 = parameter_dcls()
     if (t3 === undefined) {

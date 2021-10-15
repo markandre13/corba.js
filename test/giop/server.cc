@@ -23,6 +23,7 @@ public:
     void sendFloat(::CORBA::Float v0, ::CORBA::Float v1);
     void sendDouble(::CORBA::Double v0, ::CORBA::Double v1);
     void sendString(const char *v0, const char *v1);
+    void sendSequence(const StringSeq &v0, const LongSeq &v1);
     // void sendValuePoint(::Point *v0);
     // void sendValuePoints(::Point *v0, ::Point *v1);
     // void sendObject(::GIOPSmall_ptr obj, const char *msg);
@@ -196,20 +197,21 @@ void GIOPTest_impl::sendString(const char *v0, const char *v1)
     cout << lastToken << endl;
 }
 
+void GIOPTest_impl::sendSequence(const StringSeq &v0, const LongSeq &v1) {
 // void GIOPTest_impl::sendSequence(StringSequenceTmpl<CORBA::String_var> v0, SequenceTmpl<CORBA::Long,MICO_TID_DEF> v1) {
-//     std::stringstream ss;
-//     ss << "sendSequence([";
-//     for (CORBA::ULong i = 0; i < v0.length(); i++) {
-//         ss << v0[i] << ",";
-//     }
-//     ss << "],[";
-//     for (CORBA::ULong i = 0; i < v1.length(); i++) {
-//         ss << v1[i] << ",";
-//     }
-//     ss << "])";
-//     lastToken = ss.str();
-//     cout << lastToken << endl;
-// }
+    std::stringstream ss;
+    ss << "sendSequence([";
+    for (CORBA::ULong i = 0; i < v0.length(); i++) {
+        ss << v0[i] << ",";
+    }
+    ss << "],[";
+    for (CORBA::ULong i = 0; i < v1.length(); i++) {
+        ss << v1[i] << ",";
+    }
+    ss << "])";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
 
 // void GIOPTest_impl::sendValuePoint(Point *v0)
 // {

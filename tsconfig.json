@@ -37,6 +37,7 @@
   "include": [
     "src/orb",
     "src/net",
-    "test"
+    "src/idl",
+    "test/idl/idl.spec.ts"
   ]
 }

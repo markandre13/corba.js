@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018, 2020 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2020, 2021 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published by
@@ -127,14 +127,7 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             for (let parameter_dcl of parameter_decls) {
                                 let type = parameter_dcl!.child[1]!
                                 let identifier = parameter_dcl!.child[2]!.text
-                                out.write(`            encoder.`)
-                                switch(type.type) {
-                                    case Type.TKN_SEQUENCE:
-                                        out.write(`sequence(${identifier}, (item) => encoder.${typeIDLtoGIOP(type.child[0])}(item))\n`)
-                                        break
-                                    default:
-                                        out.write(`${typeIDLtoGIOP(type)}(${identifier})\n`)
-                                }
+                                out.write(`            ${typeIDLtoGIOP(type, identifier)}\n`)
                             }
                            
                             if (oneway) {
@@ -143,9 +136,9 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 out.write(`        },\n`)
                                 out.write(`        `)
                                 if (returnType.type !== Type.TKN_VOID) {
-                                    out.write(`(decoder) => decoder.${typeIDLtoGIOP(returnType)}() )\n`)
+                                    out.write(`(decoder) => ${typeIDLtoGIOP(returnType)})\n`)
                                 } else {
-                                    out.write(`(decoder) => {} )\n`)
+                                    out.write(`(decoder) => {})\n`)
                                 }
                             }
                             // out.write("*/\n")
@@ -155,7 +148,7 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                         case Type.TKN_ATTRIBUTE: {
                         } break
                         default:
-                            throw Error("fuck")
+                            throw Error("yikes")
                     }
                 }
                 out.write("}\n\n")
