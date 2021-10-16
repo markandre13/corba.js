@@ -3,6 +3,7 @@ import { Node, Type } from "corba.js/idl/idl-node"
 import { Lexer } from "corba.js/idl/idl-lexer"
 import { specification } from "corba.js/idl/idl-parser"
 import { typeIDLtoGIOP } from "corba.js/idl/util"
+import { hasUncaughtExceptionCaptureCallback } from "process"
 
 describe("IDL Parser", () => {
     it("SYN_SPECIFICATION", function () {
@@ -68,6 +69,45 @@ describe("IDL Parser", () => {
         expect(decls.child[1]?.text).to.equal("U")
     })
 
+    it.only("TKN_VALUETYPE", function () {
+        const tree = parse(`
+            valuetype Point {
+              public double x, y;
+              public short s;
+            };
+            interface X {
+                oneway Point f(in Point a);
+            };
+        `)
+        tree?.printTree()
+        const vt = tree!.child[0]!
+        const vhdr = vt.child[0]!
+        const member0 = vt.child[1]!
+        const member1 = vt.child[2]!
+
+        expect(vt.type).to.equal(Type.TKN_VALUETYPE)
+        expect(vhdr.child[1]!.type).to.equal(Type.TKN_IDENTIFIER)
+        expect(vhdr.child[1]!.text).to.equal("Point")
+
+        expect(member0.type).to.equal(Type.SYN_STATE_MEMBER)
+        expect(member0.child[0]!.type).to.equal(Type.TKN_PUBLIC)
+        expect(member0.child[1]!.type).to.equal(Type.TKN_DOUBLE)
+        const dcls0 = member0.child[2]!
+        expect(dcls0.type).to.equal(Type.SYN_DECLARATORS)
+        expect(dcls0.child[0]!.type).to.equal(Type.TKN_IDENTIFIER)
+        expect(dcls0.child[0]!.text).to.equal("x")
+        expect(dcls0.child[1]!.type).to.equal(Type.TKN_IDENTIFIER)
+        expect(dcls0.child[1]!.text).to.equal("y")
+
+        expect(member1.type).to.equal(Type.SYN_STATE_MEMBER)
+        expect(member1.child[0]!.type).to.equal(Type.TKN_PUBLIC)
+        expect(member1.child[1]!.type).to.equal(Type.TKN_SHORT)
+        const dcls1 = member1.child[2]!
+        expect(dcls1.type).to.equal(Type.SYN_DECLARATORS)
+        expect(dcls1.child[0]!.type).to.equal(Type.TKN_IDENTIFIER)
+        expect(dcls1.child[0]!.text).to.equal("s")
+    })
+
     // struct
     // valuetype
     // native
@@ -124,6 +164,42 @@ describe("IDL Parser", () => {
             n0.append(new Node(Type.TKN_SHORT))
             const str = typeIDLtoGIOP(n0, "a")
             expect(str).to.equal("encoder.short(a)")
+        })
+
+        it.only("encode valuetype", function () {
+            const tree = parse(`
+            typedef short T, U;
+            interface X {
+                oneway T f(in U a);
+            };
+        `)
+            const td = tree?.child[0]!
+            const type = td.child[0]!
+            const decls = td.child[1]!
+            expect(td.type).to.equal(Type.TKN_TYPEDEF)
+            expect(type.type).to.equal(Type.TKN_SHORT)
+            expect(decls.type).to.equal(Type.SYN_DECLARATORS)
+            expect(decls.child).to.be.lengthOf(2)
+            expect(decls.child[0]?.type).to.equal(Type.TKN_IDENTIFIER)
+            expect(decls.child[0]?.text).to.equal("T")
+            expect(decls.child[1]?.type).to.equal(Type.TKN_IDENTIFIER)
+            expect(decls.child[1]?.text).to.equal("U")
+        })
+
+        it.only("TKN_VALUETYPE", function () {
+            const tree = parse(`
+                valuetype Point {
+                public double x, y;
+                public short s;
+                };
+                interface X {
+                    oneway Point f(in Point a);
+                };
+            `)
+            tree?.printTree()
+            const vt = tree!.child[0]!
+            const str = typeIDLtoGIOP(vt)
+            console.log(str)
         })
     })
 })

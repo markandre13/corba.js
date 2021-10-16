@@ -28,7 +28,7 @@
     "test:mico": "npm run test:mico:ior && npm run test:mico:run:watch",
     "test:mico:ior": "scp 192.168.1.105:test-mico/IOR.txt test/giop/IOR.txt",
     "test:run": "node --enable-source-maps ./node_modules/.bin/mocha lib/test/giop.spec.js",
-    "test:run:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test ./node_modules/.bin/mocha lib/test/idl/idl.spec.js",
+    "test:run:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test ./node_modules/.bin/mocha lib/test/giop.spec.js",
 
     "mico:run": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs-debug'",
     "mico:runc": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runc'",

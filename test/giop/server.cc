@@ -24,33 +24,25 @@ public:
     void sendDouble(::CORBA::Double v0, ::CORBA::Double v1);
     void sendString(const char *v0, const char *v1);
     void sendSequence(const StringSeq &v0, const LongSeq &v1);
-    // void sendValuePoint(::Point *v0);
-    // void sendValuePoints(::Point *v0, ::Point *v1);
+    void sendValuePoint(::Point *v0);
+    void sendValuePoints(::Point *v0, ::Point *v1);
     // void sendObject(::GIOPSmall_ptr obj, const char *msg);
     // GIOPSmall_ptr getObject();
 };
-
-// #define REGISTER_VALUE_TYPE(T) \
-//   struct T ## _Factory: public CORBA::ValueFactoryBase { \
-//     CORBA::ValueBase* create_for_unmarshal() { \
-//       return new T ## _impl(); \
-//     } \
-//   }; \
-//   orb->register_value_factory("IDL:" #T ":1.0", new T ## _Factory());
-
+    
 using namespace std;
 
 const char *blank = "THIS PAGE INTENTIONALLY LEFT BLANK";
 string lastToken(blank);
 
-// class Point_impl: virtual public OBV_Point, virtual public CORBA::DefaultValueRefCountBase {
-//   public:
-//     Point_impl() {}
-//     Point_impl(double x, double y) {
-//       this->x(x);
-//       this->y(y);
-//     }
-// };
+class Point_impl: virtual public OBV_Point, virtual public CORBA::DefaultValueRefCountBase {
+  public:
+    Point_impl() {}
+    Point_impl(double x, double y) {
+      this->x(x);
+      this->y(y);
+    }
+};
 
 int main(int argc, char **argv)
 {
@@ -58,6 +50,11 @@ int main(int argc, char **argv)
     try
     {
         CORBA::ORB_var orb = CORBA::ORB_init(argc, argv);
+
+        class PointFactory: public virtual CORBA::ValueFactoryBase {
+            CORBA::ValueBase* create_for_unmarshal() { return new Point_impl(); }
+        };
+        orb->register_value_factory("IDL:Point:1.0", new PointFactory());
 
         CORBA::Object_var obj = orb->resolve_initial_references("RootPOA");
         PortableServer::POA_var poa = PortableServer::POA::_narrow(obj);
@@ -213,23 +210,23 @@ void GIOPTest_impl::sendSequence(const StringSeq &v0, const LongSeq &v1) {
     cout << lastToken << endl;
 }
 
-// void GIOPTest_impl::sendValuePoint(Point *v0)
-// {
-//     std::stringstream ss;
-//     ss << "sendValuePoint(Point(" << v0->x() << "," << v0->y() << "))";
-//     lastToken = ss.str();
-//     cout << lastToken << endl;
-// }
+void GIOPTest_impl::sendValuePoint(Point *v0)
+{
+    std::stringstream ss;
+    ss << "sendValuePoint(Point(" << v0->x() << "," << v0->y() << "))";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
 
-// void GIOPTest_impl::sendValuePoints(Point *v0, Point *v1)
-// {
-//     std::stringstream ss;
-//     ss << "sendValuePoints(Point(" << v0->x() << "," << v0->y() << "),Point(" << v1->x() << "," << v1->y() << "))";
-//     if (v0 == v1)
-//         ss << " // same object";
-//     lastToken = ss.str();
-//     cout << lastToken << endl;
-// }
+void GIOPTest_impl::sendValuePoints(Point *v0, Point *v1)
+{
+    std::stringstream ss;
+    ss << "sendValuePoints(Point(" << v0->x() << "," << v0->y() << "),Point(" << v1->x() << "," << v1->y() << "))";
+    if (v0 == v1)
+        ss << " // same object";
+    lastToken = ss.str();
+    cout << lastToken << endl;
+}
 
 // void GIOPTest_impl::sendObject(GIOPSmall_ptr obj, const char *msg)
 // {

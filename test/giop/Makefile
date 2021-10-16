@@ -4,10 +4,10 @@ all: client server
 # -ORBoneCallPerConnection 0 -ORBofferBiDirectionalGIOP 1
 
 runs: server
-	killall server ; ./server -ORBtraceLevel 40 -ORBmaxGIOPVersion 1.0
+	killall server ; ./server -ORBtraceLevel 40 -ORBmaxGIOPVersion 1.0 -ORBoneCallPerConnection 0 -ORBofferBiDirectionalGIOP 1
 
 runc: client
-	./client -ORBtraceLevel 40 -ORBmaxGIOPVersion 1.0
+	./client -ORBtraceLevel 40 -ORBmaxGIOPVersion 1.0 -ORBoneCallPerConnection 0 -ORBofferBiDirectionalGIOP 1
 
 client: client.cc giopSK.cc giop.hh
 	g++ -O0 -g -lomniORB4 -lomniDynamic4 -lomnithread -o client client.cc giopSK.cc

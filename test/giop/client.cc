@@ -9,26 +9,16 @@ using namespace std;
 const char *blank = "THIS PAGE INTENTIONALLY LEFT BLANK";
 string lastToken(blank);
 
-// #define REGISTER_VALUE_TYPE(T)                          \
-//     struct T##_Factory : public CORBA::ValueFactoryBase \
-//     {                                                   \
-//         CORBA::ValueBase *create_for_unmarshal()        \
-//         {                                               \
-//             return new T##_impl();                      \
-//         }                                               \
-//     };                                                  \
-//     orb->register_value_factory("IDL:" #T ":1.0", new T##_Factory());
-
-// class Point_impl : virtual public OBV_Point, virtual public CORBA::DefaultValueRefCountBase
-// {
-// public:
-//     Point_impl() {}
-//     Point_impl(double x, double y)
-//     {
-//         this->x(x);
-//         this->y(y);
-//     }
-// };
+class Point_impl : virtual public OBV_Point, virtual public CORBA::DefaultValueRefCountBase
+{
+public:
+    Point_impl() {}
+    Point_impl(double x, double y)
+    {
+        this->x(x);
+        this->y(y);
+    }
+};
 
 // void GIOPSmall_impl::call(const char *msg) throw(::CORBA::SystemException)
 // {
@@ -42,6 +32,11 @@ int main(int argc, char **argv)
     try
     {
         CORBA::ORB_var orb = CORBA::ORB_init(argc, argv);
+
+        class PointFactory: public virtual CORBA::ValueFactoryBase {
+            CORBA::ValueBase* create_for_unmarshal() { return new Point_impl(); }
+        };
+        orb->register_value_factory("IDL:Point:1.0", new PointFactory());
 
         ifstream in("IOR.txt");
         char s[1000];
@@ -57,8 +52,11 @@ int main(int argc, char **argv)
         PortableServer::POAManager_var pman = poa->the_POAManager();
         pman->activate();
 
-        server->onewayMethod();
-        // cout << server->peek() << endl;
+        // server->onewayMethod();
+
+        server->sendValuePoint(new Point_impl(3.1415, 2.17));
+
+        cout << server->peek() << endl;
 
         //     server->sendBool(false, true);
 

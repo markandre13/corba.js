@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018, 2020 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2020, 2021 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published by
@@ -124,10 +124,12 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                 ++indent
                 writeIndent(out, indent)
                 out.write(`if (init instanceof GIOPDecoder) {\n`)
-                writeTSValueInitFromGIOP(value_dcl, out, indent + 1)
+                writeIndent(out, indent + 1)
+                out.write(`const decoder = init\n`)
+                writeTSInitValueFromGIOP(value_dcl, out, indent + 1)
                 writeIndent(out, indent)
                 out.write(`} else {\n`)
-                writeTSValueInitFromJSON(value_dcl, out, indent + 1)
+                writeTSInitValueFromPOJO(value_dcl, out, indent + 1)
                 writeIndent(out, indent)
                 out.write("}\n")
                 --indent
@@ -158,26 +160,9 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                         let type = state_member.child[1]!
                         let declarators = state_member.child[2]!
                         for (let declarator of declarators.child) {
-                            // writeIndent(out, indent + 1)
-                            // out.write(declarator!.text + ": " + typeIDLtoTS(type, FileType.VALUETYPE) + "\n")
-                            // attributes.push(declarator!.text!)
-                            switch(type.type) {
-                                case Type.TKN_IDENTIFIER:
-                                    const identifierType = type.child[type.child.length - 1]!
-                                    switch(identifierType.type) {
-                                        case Type.TKN_NATIVE:
-                                            initCalls += `        // ${declarator!.text!}:${identifierType.toString()}\n`
-                                            break
-                                        default:
-                                            initCalls += `        encoder.${typeIDLtoGIOP(type)}(obj.${declarator!.text!})\n`
-                                    }
-                                    break
-                                case Type.TKN_SEQUENCE:
-                                    initCalls += `        encoder.sequence(obj.${declarator!.text!}, (item:any) => encoder.${typeIDLtoGIOP(type.child[0])}(item))\n`
-                                    break
-                                default:
-                                    initCalls += `        encoder.${typeIDLtoGIOP(type)}(obj.${declarator!.text!})\n`
-                            }
+                            initCalls += `        `
+                            initCalls +=  typeIDLtoGIOP(type, "obj." + declarator!.text!)
+                            initCalls += "\n"
                         }
                     }
                 }
@@ -188,87 +173,23 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
     }
 }
 
-// FIXME: there is another one in util.ts
-export function typeIDLtoGIOP2(prefix: string, type: Node | undefined): string {
-    if (type === undefined)
-        throw Error("internal error: parser delivered no type information")
-    switch (type!.type) {
-        case Type.TKN_IDENTIFIER:
-            let identifierType = type.child[type.child.length - 1]!
-            let relativeName = ""
-            for (let x of type.child) {
-                relativeName = `${relativeName}.${x!.text!}`
+function writeTSInitValueFromGIOP(value_dcl: Node, out: fs.WriteStream, indent: number) {
+    for (let i = 1; i < value_dcl.child.length; ++i) {
+        let value_element = value_dcl.child[i]!
+        if (value_element.type === Type.SYN_STATE_MEMBER) {
+            let state_member = value_element
+            let type = state_member.child[1]!
+            let declarators = state_member.child[2]!
+            for (let declarator of declarators.child) {
+                let decl_identifier = declarator!.text
+                writeIndent(out, indent)
+                out.write(`object.${decl_identifier} = ${typeIDLtoGIOP(type)}\n`)
             }
-            relativeName = relativeName.substring(1)
-
-            let absolutePrefix = ""
-            for (let x: Node | undefined = type.child[0]?.typeParent; x; x = x.typeParent) {
-                absolutePrefix = `.${x!.text}${absolutePrefix}`
-            }
-
-            if (type.child.length > 0 &&
-                type.child[0]!.type === Type.TKN_NATIVE &&
-                type.text!.length > 4 &&
-                type.text!.substring(type.text!.length - 4) === "_ptr") {
-                // FIXME: enforce type check instead of using just 'as'
-                return `${prefix}object() as ${absolutePrefix.substring(1)}`
-            }
-
-            // let name: string
-            // switch (identifierType.type) {
-            //     case Type.TKN_VALUETYPE:
-            //         name = relativeName
-            //         break
-            //     case Type.SYN_INTERFACE:
-            //         name = relativeName
-            //         break
-            //     case Type.TKN_NATIVE:
-            //         name = relativeName
-            //         break
-            //     default:
-            //         throw Error(`Internal Error in typeIDLtoTS(): not implemented identifierType ${identifierType.toString()}`)
-            // }
-
-            return `${prefix}object() as ${relativeName}` // FIXME: enforce type check instead of using just 'as'
-
-        //     return name
-
-        // } break
-        case Type.TKN_VOID:
-            return `${prefix}void()`
-        case Type.TKN_BOOLEAN:
-            return `${prefix}boolean()`
-        case Type.TKN_STRING:
-            return `${prefix}string()`
-        case Type.TKN_SHORT:
-            return `${prefix}short()`
-        case Type.TKN_LONG:
-            return `${prefix}long()`
-        case Type.SYN_LONGLONG:
-            return `${prefix}longlong()`
-        case Type.SYN_UNSIGNED_SHORT:
-            return `${prefix}ushort()`
-        case Type.SYN_UNSIGNED_LONG:
-            return `${prefix}ulong()`
-        case Type.SYN_UNSIGNED_LONGLONG:
-            return `${prefix}ulonglong()`
-        case Type.TKN_FLOAT:
-            return `${prefix}float()`
-        case Type.TKN_DOUBLE:
-            return `${prefix}double()`
-        case Type.SYN_LONG_DOUBLE:
-            return `${prefix}longdouble()`
-        case Type.TKN_SEQUENCE: {
-            // FIXME: enforce type check
-            // FIXME: decoder now has a sequence method
-            return `(function(){ const l = init.ulong(); const a = new Array(l); console.log(\`DECODE NEW ARRAY OF SIZE\${l}\`); for (let i=0 ; i<l; ++i) a[i] = ${typeIDLtoGIOP2(prefix, type!.child[0])}; return a })()`
         }
-        default:
-            throw Error(`no mapping from IDL type to TS type for ${type.toString()}`)
     }
 }
 
-function writeTSValueInitFromGIOP(value_dcl: Node, out: fs.WriteStream, indent: number) {
+function writeTSInitValueFromPOJO(value_dcl: Node, out: fs.WriteStream, indent: number) {
     for (let i = 1; i < value_dcl.child.length; ++i) {
         let value_element = value_dcl.child[i]!
         if (value_element.type === Type.SYN_STATE_MEMBER) {
@@ -278,47 +199,7 @@ function writeTSValueInitFromGIOP(value_dcl: Node, out: fs.WriteStream, indent: 
             let declarators = state_member.child[2]!
             for (let declarator of declarators.child) {
                 let decl_identifier = declarator!.text
-                writeIndent(out, indent + 1)
-                // out.write(`object.${decl_identifier} = ${typeIDLtoGIOP2("init.", type)}\n`)
-                
-                switch (type.type) {
-                //     case Type.TKN_IDENTIFIER:
-                //         // custom types
-                //         // FIXME: doesn't work for Array<Layer>()
-                //         // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?
-                //         //                                out.write(") ? new "+type.text+"() : new "+type.text+"(init."+decl_identifier+")\n")
-                //         // console.log(`writeTSValueDefinitions`, type, typeIDLtoTS(type))
-                //         if (type.child[0]?.type == Type.TKN_NATIVE &&
-                //             type.text!.length > 4 &&
-                //             type.text!.substring(type.text!.length - 4) === "_ptr") {
-                //             let name = typeIDLtoTS(type)
-                //             out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init.${decl_identifier})\n`)
-                //         } else {
-                //             out.write(`object.${decl_identifier} = ${typeIDLtoTS(type)}.narrow(init.readObject())\n`) // enforce type check
-                //         }
-                //         break
-                    case Type.TKN_SEQUENCE:
-                        out.write(`object.${decl_identifier} = init.sequence( () => init.${typeIDLtoGIOP(type.child[0]!)}())\n`)
-                        break
-                    default:
-                        out.write(`object.${decl_identifier} = ${typeIDLtoGIOP2("init.", type)}\n`)
-                }
-            }
-        }
-    }
-}
-
-function writeTSValueInitFromJSON(value_dcl: Node, out: fs.WriteStream, indent: number) {
-    for (let i = 1; i < value_dcl.child.length; ++i) {
-        let value_element = value_dcl.child[i]!
-        if (value_element.type === Type.SYN_STATE_MEMBER) {
-            let state_member = value_element
-            let attribute = state_member.child[0]!
-            let type = state_member.child[1]!
-            let declarators = state_member.child[2]!
-            for (let declarator of declarators.child) {
-                let decl_identifier = declarator!.text
-                writeIndent(out, indent + 1)
+                writeIndent(out, indent)
                 if (type.type === Type.TKN_IDENTIFIER) {
                     // FIXME: doesn't work for Array<Layer>()
                     // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?

@@ -1,6 +1,6 @@
-// valuetype Point {
-//     public double x, y;
-// };
+valuetype Point {
+    public double x, y;
+};
 
 // valuetype Polygon {
 //     public Point origin;
@@ -38,8 +38,8 @@ interface GIOPTest {
     // hence we're doing it like this:
     void sendSequence(in StringSeq v0, in LongSeq v1);
 
-    // void sendValuePoint(in Point v0);
-    // void sendValuePoints(in Point v0, in Point v1);
+    void sendValuePoint(in Point v0);
+    void sendValuePoints(in Point v0, in Point v1);
 
     // void sendObject(in GIOPSmall obj, in string msg);
     // GIOPSmall getObject();
