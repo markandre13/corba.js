@@ -157,7 +157,7 @@ export class GIOPEncoder extends GIOPBase {
         this.string(`IDL:${className}:1.0`)
 
         this.ulong(1) // profileCount
-        
+
         this.ulong(IOR.TAG.IOR.INTERNET_IOP)
         const offsetSize = this.offset
         this.ulong(0) // temporary profileLength
@@ -190,7 +190,7 @@ export class GIOPEncoder extends GIOPBase {
             this.reference(object)
             return
             // return `{"#R":"${(object.constructor as any)._idlClassName()}","#V":${object.id}}`
-        }      
+        }
 
         const position = this.objectPosition.get(object)
         if (position !== undefined) {
@@ -217,7 +217,7 @@ export class GIOPEncoder extends GIOPBase {
             throw Error(`ORB: can not serialize object of unregistered valuetype ${object.constructor.name}`)
         }
         this.objectPosition.set(object, this.offset)
-        valueTypeInformation.encode(this, object)      
+        valueTypeInformation.encode(this, object)
     }
 
     blob(value: Uint8Array) {
@@ -234,10 +234,10 @@ export class GIOPEncoder extends GIOPBase {
         this.offset++
     }
 
-    sequence<T>(array: T[], encodeItem: (a:T) => void) {
+    sequence<T>(array: T[], encodeItem: (a: T) => void) {
         // console.log(`GIOPEncoder.sequence(): ENCODE SEQUENCE WITH ${array.length} ENTRIES AT 0x${this.offset.toString(16)}`)
         this.ulong(array.length)
-        array.forEach( (value, index) => {
+        array.forEach((value, index) => {
             // console.log(`GIOPEncoder.sequence(): ENCODE ITEM ${index} AT 0x${this.offset.toString(16)}`)
             encodeItem(value)
         })
@@ -380,6 +380,26 @@ class ReplyData {
     replyStatus!: number
 }
 
+class LocateRequest {
+    requestId!: number
+    objectKey!: Uint8Array
+}
+
+export enum LocateStatusType {
+    UNKNOWN_OBJECT = 0,
+    OBJECT_HERE = 1,
+    OBJECT_FORWARD = 2,
+    // GIOP >= 1.2
+    OBJECT_FORWARD_PERM = 3,
+    LOC_SYSTEM_EXCEPTION = 4,
+    LOC_NEEDS_ADDRESSING_MODE = 5
+}
+
+class LocateReply {
+    requestId!: number
+    status!: LocateStatusType
+}
+
 class ObjectReference {
     oid!: string
     host!: string
@@ -390,11 +410,46 @@ class ObjectReference {
     }
 }
 
+export enum AddressingDisposition {
+    KeyAddr = 0,
+    ProfileAddr = 1,
+    ReferenceAddr = 2
+}
+
+export enum ServiceId {
+    TransactionService = 0,
+    CodeSets = 1,
+    ChainBypassCheck = 2,
+    ChainBypassInfo = 3,
+    LogicalThreadId = 4,
+    BI_DIR_IIOP = 5,
+    SendingContextRunTime = 6,
+    INVOCATION_POLICIES = 7,
+    FORWARDED_IDENTITY = 8,
+    UnknownExceptionInfo = 9,
+    RTCorbaPriority = 10,
+    RTCorbaPriorityRange = 11,
+    FT_GROUP_VERSION = 12,
+    FT_REQUEST = 13,
+    ExceptionDetailMessage = 14,
+    SecurityAttributeService = 15,
+    ActivityService = 16,
+    RMICustomMaxStreamFormat = 17,
+    ACCESS_SESSION_ID = 18,
+    SERVICE_SESSION_ID = 19,
+    FIREWALL_PATH = 20,
+    FIREWALL_PATH_RESP = 21
+}
+
 export class GIOPDecoder extends GIOPBase {
     buffer: ArrayBuffer
     data: DataView
     bytes: Uint8Array
 
+    type!: MessageType
+    minorVersion!: number
+    majorVersion!: number
+    length!: number
     littleEndian = true
 
     // FIXME: make protected
@@ -416,21 +471,59 @@ export class GIOPDecoder extends GIOPBase {
         }
         this.offset += 4
 
-        const giopMajorVersion = this.octet()
-        const giopMinorVersion = this.octet()
-        if (giopMajorVersion !== GIOPBase.MAJOR_VERSION && giopMinorVersion !== GIOPBase.MINOR_VERSION) {
-            throw Error(`Unsupported GIOP ${giopMajorVersion}.${giopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
-        }
+        this.majorVersion = this.octet()
+        this.minorVersion = this.octet()
+        // if (giopMajorVersion !== GIOPBase.MAJOR_VERSION && giopMinorVersion !== GIOPBase.MINOR_VERSION) {
+        //     throw Error(`Unsupported GIOP ${giopMajorVersion}.${giopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
+        // }
 
         this.endian()
-        const type = this.octet()
-        const length = this.ulong()
-        if (this.buffer.byteLength !== length + 12) {
-            throw Error(`GIOP message is ${length + 12} bytes but buffer contains ${this.buffer.byteLength}.`)
-        }
-        return type
+        this.type = this.octet()
+        this.length = this.ulong()
+        // if (this.buffer.byteLength !== length + 12) {
+        //     throw Error(`GIOP message is ${length + 12} bytes but buffer contains ${this.buffer.byteLength}.`)
+        // }
+        return this.type
     }
 
+    scanLocateRequest() {
+        const data = new LocateRequest()
+        data.requestId = this.ulong()
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            data.objectKey = this.blob()
+        } else {
+            // typedef short AddressingDisposition;
+            // const short KeyAddr = 0;
+            // const short ProfileAddr = 1;
+            // const short ReferenceAddr = 2;
+            // union TargetAddress switch(AddressingDisposition) {
+            //   case KeyAddr: IOP::ObjectKey object_key;
+            //   case ProfileAddr: IOP::TaggedProfile profile;
+            //   case ReferenceAddr: IORAddressingInfo ior;
+            // };
+            const addressingDisposition = this.ushort()
+            switch (addressingDisposition) {
+                case AddressingDisposition.KeyAddr:
+                    data.objectKey = this.blob()
+                    break
+                case AddressingDisposition.ProfileAddr:
+                case AddressingDisposition.ReferenceAddr:
+                    throw Error(`Unsupported AddressingDisposition(${AddressingDisposition[addressingDisposition]})`)
+                default:
+                    throw Error(`Unknown AddressingDisposition(${addressingDisposition})`)
+            }
+        }
+        return data
+    }
+
+    scanLocateReply() {
+        const data = new LocateReply()
+        data.requestId = this.ulong()
+        data.status = this.ulong()
+        return data
+    }
+
+    // FIXME: make this an enum
     // ReplyStatusType
     static NO_EXCEPTION = 0
     static USER_EXCEPTION = 1
@@ -441,25 +534,65 @@ export class GIOPDecoder extends GIOPBase {
     static NEEDS_ADDRESSING_MODE = 5
 
     scanRequestHeader(): RequestData {
-        const serviceContextListLength = this.ulong()
-        if (serviceContextListLength !== 0)
-            throw Error(`serviceContextList is not supported`)
-
         const data = new RequestData()
+
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            const serviceContextListLength = this.ulong()
+            if (serviceContextListLength !== 0) {
+                throw Error(`serviceContextList is not supported`)
+            }
+        }
+
         data.requestId = this.ulong()
-        data.responseExpected = this.octet() != 0
-        data.objectKey = this.blob()
+        console.log(`requestId: ${data.requestId}`)
+        data.responseExpected = this.octet() != 0 // since 1.2 reponseFlags!
+        this.offset += 3 // RequestReserved
+
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            data.objectKey = this.blob()
+        } else {
+            // FIXME: duplicated code
+            const addressingDisposition = this.ushort()
+            console.log(`addressingDisposition=${addressingDisposition}`)
+            switch (addressingDisposition) {
+                case AddressingDisposition.KeyAddr:
+                    data.objectKey = this.blob()
+                    break
+                case AddressingDisposition.ProfileAddr:
+                case AddressingDisposition.ReferenceAddr:
+                    throw Error(`Unsupported AddressingDisposition(${AddressingDisposition[addressingDisposition]})`)
+                default:
+                    throw Error(`Unknown AddressingDisposition(${addressingDisposition})`)
+            }
+        }
+
         data.method = this.string()
-        const requestingPrincipalLength = this.ulong()
+        console.log(`operation: '${data.method}'`)
+
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            const requestingPrincipalLength = this.ulong()
+            // FIXME: this.offset += requestingPrincipalLength???
+        } else {
+            const serviceContextListLength = this.ulong()
+            for(let i=0; i<serviceContextListLength; ++i) {
+                const serviceId = this.ulong()
+                console.log(`serviceContext[${i}].id = ${ServiceId[serviceId]}`)
+                const contextLength = this.ulong()
+                // const contextData = this.blob(contextLength) // FIXME: read the length, then find a handler for the serviceId and call it with offset & length
+                this.offset += contextLength
+            }
+        }
 
         // console.log(`requestId=${data.requestId}, responseExpected=${data.responseExpected}, objectKey=${data.objectKey}, method=${data.method}, requestingPrincipalLength=${requestingPrincipalLength}`)
         return data
     }
 
     scanReplyHeader(): ReplyData {
-        const serviceContextListLength = this.ulong()
-        if (serviceContextListLength !== 0)
-            throw Error(`serviceContextList is not supported`)
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            const serviceContextListLength = this.ulong()
+            if (serviceContextListLength !== 0)
+                throw Error(`serviceContextList is not supported`)
+        }
 
         const data = new ReplyData()
 
@@ -553,7 +686,7 @@ export class GIOPDecoder extends GIOPBase {
                 } break
 
                 default:
-                    // console.log(`Unhandled tag type=${profileId}`)
+                // console.log(`Unhandled tag type=${profileId}`)
             }
             this.offset = profileStart + profileLength
         }
@@ -597,7 +730,7 @@ export class GIOPDecoder extends GIOPBase {
                     throw Error(`Unregistered Repository ID '${repositoryId}' (${shortName})`)
 
                 const obj = new (valueTypeInformation.construct as any)(this)
-                this.objects.set(objectOffset+2, obj)
+                this.objects.set(objectOffset + 2, obj)
                 return obj
             }
             case 0xffffffff: {
@@ -622,7 +755,7 @@ export class GIOPDecoder extends GIOPBase {
                     let object = this.orb.stubsById.get(reference.objectKey)
                     if (object !== undefined)
                         return object
-                    const shortName = reference.oid.substring(4,reference.oid.length-4)
+                    const shortName = reference.oid.substring(4, reference.oid.length - 4)
                     let aStubClass = this.orb.stubsByName.get(shortName)
                     if (aStubClass === undefined) {
                         throw Error(`ORB: no stub registered for OID '${reference.oid} (${shortName})'`)
@@ -650,7 +783,9 @@ export class GIOPDecoder extends GIOPBase {
     blob(length?: number) {
         if (length === undefined)
             length = this.ulong()
-        return this.bytes.subarray(this.offset, this.offset + length)
+        const value = this.bytes.subarray(this.offset, this.offset + length)
+        this.offset += length
+        return value
     }
 
     string(length?: number) {
@@ -668,7 +803,7 @@ export class GIOPDecoder extends GIOPBase {
         const length = this.ulong()
         // console.log(`GIOPDecoder.sequence(): DECODE SEQUENCE WITH ${length} ENTRIES AT 0x${offset.toString(16)}`)
         const array = new Array(length)
-        for(let i=0; i<length; ++i) {
+        for (let i = 0; i < length; ++i) {
             // console.log(`GIOPDecoder.sequence(): DECODE ITEM ${i} AT 0x${this.offset.toString(16)}`)
             array[i] = decodeItem()
             // console.log(`GIOPDecoder.sequence(): DECODED ITEM ${i}`)

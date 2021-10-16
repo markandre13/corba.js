@@ -1,12 +1,13 @@
 import * as fs from "fs"
 
-import { ORB, IOR, GIOPDecoder, MessageType } from "corba.js"
+import { ORB, IOR, GIOPDecoder, MessageType, LocateStatusType } from "corba.js"
 import { connect, listen } from "corba.js/net/socket"
 import * as skel from "./generated/giop_skel"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
 import { Fake } from "./fake"
+import exp from "constants"
 
 // FIXME: this test does not work when MICO runs in debug mode; something is racy
 
@@ -310,15 +311,82 @@ describe("CDR/GIOP", () => {
     // get object reference
 
     describe("GIOP", function () {
-        it.only("OmniORB, IIOP 1.2, LocateRequest", function () {
+        it("OmniORB, IIOP 1.2, LocateRequest", function () {
             const data = new Uint8Array([
                 0x47, 0x49, 0x4f, 0x50, 0x01, 0x02, 0x01, 0x03, 0x20, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, // GIOP.... .......
                 0x00, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0xff, 0x62, 0x69, 0x64, 0x69, 0x72, 0xfe, 0xec, // .........bidir..
                 0xc3, 0x6a, 0x61, 0x01, 0x00, 0x0d, 0x6c, 0x00, 0x00, 0x00, 0x00, 0x00,                         // .ja...l.....
             ])
             const decoder = new GIOPDecoder(data.buffer)
-            const messageType = decoder.scanGIOPHeader()
-            console.log(MessageType[messageType])
+
+            const type = decoder.scanGIOPHeader()
+            expect(decoder.type).to.equal(type)
+            expect(decoder.type).to.equal(MessageType.LOCATE_REQUEST)
+            expect(decoder.majorVersion).to.equal(1)
+            expect(decoder.minorVersion).to.equal(2)
+            expect(decoder.length + 12).to.equal(data.length)
+
+            const locateRequest = decoder.scanLocateRequest()
+            expect(locateRequest.requestId).to.equal(2)
+            expect(locateRequest.objectKey).to.eql(data.subarray(24, 24 + 20))
+        })
+
+        it("OmniORB, IIOP 1.2, LocateReply", function () {
+            const data = new Uint8Array([
+                0x47, 0x49, 0x4f, 0x50, 0x01, 0x02, 0x01, 0x04, 0x08, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, // GIOP............
+                0x01, 0x00, 0x00, 0x00                                                                          // ....
+            ])
+            const decoder = new GIOPDecoder(data.buffer)
+
+            const type = decoder.scanGIOPHeader()
+            expect(decoder.type).to.equal(type)
+            expect(decoder.type).to.equal(MessageType.LOCATE_REPLY)
+            expect(decoder.majorVersion).to.equal(1)
+            expect(decoder.minorVersion).to.equal(2)
+            expect(decoder.length + 12).to.equal(data.length)
+
+            const locateReply = decoder.scanLocateReply()
+            expect(locateReply.requestId).to.equal(2)
+            expect(locateReply.status).to.equal(LocateStatusType.OBJECT_HERE)
+        })
+
+        it.only("OmniORB, IIOP 1.2, Request", function () {
+            const data = new Uint8Array([
+                0x47, 0x49, 0x4f, 0x50, 0x01, 0x02, 0x01, 0x00, 0xe0, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, // GIOP............
+                // GIOP                 version     endian type length                  requestId
+                0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0xff, 0x62, 0x69, 0x64, // .............bid
+                // flag                 target 0                objectKey
+                0x69, 0x72, 0xfe, 0xec, 0xc3, 0x6a, 0x61, 0x01, 0x00, 0x0d, 0x6c, 0x00, 0x00, 0x00, 0x00, 0x00, // ir...ja...l.....
+
+                0x0b, 0x00, 0x00, 0x00, 0x73, 0x65, 0x6e, 0x64, 0x4f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x00, 0x00, // ....sendObject..
+                // method
+                0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, // ................
+                0x01, 0x00, 0x01, 0x00, 0x09, 0x01, 0x01, 0x00, 0x12, 0x00, 0x00, 0x00, 0x49, 0x44, 0x4c, 0x3a, // ............IDL:
+                0x47, 0x49, 0x4f, 0x50, 0x53, 0x6d, 0x61, 0x6c, 0x6c, 0x3a, 0x31, 0x2e, 0x30, 0x00, 0x00, 0x00, // GIOPSmall:1.0...
+                0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x68, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x00, // ........h.......
+                0x0e, 0x00, 0x00, 0x00, 0x31, 0x39, 0x32, 0x2e, 0x31, 0x36, 0x38, 0x2e, 0x31, 0x2e, 0x31, 0x30, // ....192.168.1.10
+                0x35, 0x00, 0x97, 0x82, 0x14, 0x00, 0x00, 0x00, 0xff, 0x62, 0x69, 0x64, 0x69, 0x72, 0xfe, 0xf5, // 5........bidir..
+                0xc3, 0x6a, 0x61, 0x01, 0x00, 0x0d, 0x8b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, // .ja.............
+                0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x54, 0x54, 0x41, // .............TTA
+                0x01, 0x00, 0x00, 0x00, 0x1c, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x0, 0x100, // ................
+                0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x05, 0x09, 0x01, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, // ................
+                0x09, 0x01, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x66, 0x6f, 0x6f, 0x00,                         //........foo.
+            ])
+
+            const decoder = new GIOPDecoder(data.buffer)
+
+            const type = decoder.scanGIOPHeader()
+            expect(decoder.type).to.equal(type)
+            expect(decoder.type).to.equal(MessageType.REQUEST)
+            expect(decoder.majorVersion).to.equal(1)
+            expect(decoder.minorVersion).to.equal(2)
+            expect(decoder.length + 12).to.equal(data.length)
+
+            const request = decoder.scanRequestHeader()
+            expect(request.responseExpected).to.be.true
+            expect(request.requestId).to.equal(4)
+            expect(request.objectKey).to.eql(data.subarray(28, 28 + 20))
+            expect(request.method).to.equal("sendObject")
         })
     })
 })
