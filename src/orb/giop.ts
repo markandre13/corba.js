@@ -428,7 +428,6 @@ export class GIOPDecoder extends GIOPBase {
         if (this.buffer.byteLength !== length + 12) {
             throw Error(`GIOP message is ${length + 12} bytes but buffer contains ${this.buffer.byteLength}.`)
         }
-
         return type
     }
 

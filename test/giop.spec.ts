@@ -1,7 +1,7 @@
 import * as fs from "fs"
 
-import { ORB, IOR } from "corba.js"
-import { connect } from "corba.js/net/socket"
+import { ORB, IOR, GIOPDecoder, MessageType } from "corba.js"
+import { connect, listen } from "corba.js/net/socket"
 import * as skel from "./generated/giop_skel"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
@@ -94,12 +94,13 @@ describe("CDR/GIOP", () => {
     let server!: stub.GIOPTest
     let fake!: Fake
 
-    beforeEach(function() {
-        fake.reset()
+    beforeEach(function () {
+        // fake.reset()
     })
 
     // FIXME: to make the tests independent of each other when using the fake, create a new ORB for each test so that the request counter is reset
     before(async function () {
+        return
         orb = new ORB()
         ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
         orb.registerStubClass(stub.GIOPTest)
@@ -118,16 +119,18 @@ describe("CDR/GIOP", () => {
         console.log(ior.oid)
         // console.log(ior.objectKey)
         let hex = ""
-        for(let i=0 ; i<ior.objectKey.length; ++i) {
+        for (let i = 0; i < ior.objectKey.length; ++i) {
             hex += ior.objectKey.at(i)!.toString(16) + " "
         }
         console.log(`io.objectKey=${hex}`)
         fake = new Fake()
 
         // RECORD
-        const socket = await connect(orb, ior.host!, ior.port!)
+        const serverSocket = listen(orb, "0.0.0.0", 8080)
+        const clientSocket = await connect(orb, ior.host!, ior.port!)
         console.log("connected")
-        fake.record(orb, socket)
+
+        // fake.record(orb, clientSocket)
 
         // REPLAY
         // fake.replay(orb)
@@ -135,7 +138,7 @@ describe("CDR/GIOP", () => {
         const obj = orb.iorToObject(ior)
         server = stub.GIOPTest.narrow(obj)
         hex = ""
-        for(let i=0 ; i<server.id.length; ++i) {
+        for (let i = 0; i < server.id.length; ++i) {
             hex += server.id.at(i)!.toString(16) + " "
         }
         console.log(`server.id=${hex}`)
@@ -305,6 +308,19 @@ describe("CDR/GIOP", () => {
 
     // send object reference
     // get object reference
+
+    describe("GIOP", function () {
+        it.only("OmniORB, IIOP 1.2, LocateRequest", function () {
+            const data = new Uint8Array([
+                0x47, 0x49, 0x4f, 0x50, 0x01, 0x02, 0x01, 0x03, 0x20, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, // GIOP.... .......
+                0x00, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0xff, 0x62, 0x69, 0x64, 0x69, 0x72, 0xfe, 0xec, // .........bidir..
+                0xc3, 0x6a, 0x61, 0x01, 0x00, 0x0d, 0x6c, 0x00, 0x00, 0x00, 0x00, 0x00,                         // .ja...l.....
+            ])
+            const decoder = new GIOPDecoder(data.buffer)
+            const messageType = decoder.scanGIOPHeader()
+            console.log(MessageType[messageType])
+        })
+    })
 })
 
 class Point implements value.Point {
@@ -326,7 +342,7 @@ class Point implements value.Point {
 //         super(orb)
 //         console.log("Client_impl.constructor()")
 //     }
-    
+
 //     override async call(msg: string) {
 //         this.msg = msg
 //     }

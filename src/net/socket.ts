@@ -17,7 +17,7 @@
  */
 
 import { ORB } from "corba.js"
-import { Socket } from "net"
+import { Socket, Server, createServer, AddressInfo } from "net"
 
 export function connect(orb: ORB, host: string, port: number): Promise<Socket> {
     return new Promise<Socket>((resolve, reject) => {
@@ -29,9 +29,14 @@ export function connect(orb: ORB, host: string, port: number): Promise<Socket> {
         orb.socketSend = (buffer: ArrayBuffer) => {
             socket.write(new Uint8Array(buffer))
         }
+        // socket.on('error', (e) => {
+        //     reject(e)
+        // })
         socket.connect(port, host, () => {
-            orb.localAddress = socket.localAddress
-            orb.localPort = socket.localPort
+            if (orb.localAddress === undefined)
+                orb.localAddress = socket.localAddress
+            if (orb.localPort === undefined)
+                orb.localPort = socket.localPort
             orb.remoteAddress = socket.remoteAddress!
             orb.remotePort = socket.remotePort!
 
@@ -40,6 +45,34 @@ export function connect(orb: ORB, host: string, port: number): Promise<Socket> {
             console.log(`REMOTE ADDRESS: ${socket.remoteAddress}`)
             console.log(`REMOTE PORT   : ${socket.remotePort}`)
             resolve(socket)
+        })
+    })
+}
+
+export function listen(orb: ORB, host: string, port: number) {
+    return new Promise<Server>((resolve, reject) => {
+        const serverSocket = createServer((socket) => {
+            socket.setNoDelay()
+            const clientORB = new ORB(orb)
+            socket.on("error", (error: Error) => orb.socketError(error))
+            socket.on("close", (hadError: boolean) => orb.socketClose())
+            socket.on("data", (data: Buffer) => orb.socketRcvd(data.buffer))
+            orb.socketSend = (buffer: ArrayBuffer) => {
+                socket.write(new Uint8Array(buffer))
+            }
+            clientORB.localAddress = socket.localAddress
+            clientORB.localPort = socket.localPort
+            clientORB.remoteAddress = socket.remoteAddress!
+            clientORB.remotePort = socket.remotePort!
+        })
+        serverSocket.on('error', (e) => {
+            reject(e)
+        })
+        serverSocket.listen(port, host, () => {
+            const address = serverSocket.address() as AddressInfo
+            orb.localAddress = address.address
+            orb.localPort = address.port
+            resolve(serverSocket)
         })
     })
 }
