@@ -20,11 +20,18 @@ public:
     }
 };
 
-// void GIOPSmall_impl::call(const char *msg) throw(::CORBA::SystemException)
-// {
-//     cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-//     cout << "GIOPSmall::call(\"" << msg << "\")";
-// }
+class GIOPSmall_impl : public virtual POA_GIOPSmall
+{
+public:
+    virtual ~GIOPSmall_impl() {}
+    void call(const char *msg);
+};
+
+void GIOPSmall_impl::call(const char *msg)
+{
+    cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+    cout << "GIOPSmall::call(\"" << msg << "\")" << endl;
+}
 
 int main(int argc, char **argv)
 {
@@ -38,36 +45,47 @@ int main(int argc, char **argv)
         };
         orb->register_value_factory("IDL:Point:1.0", new PointFactory());
 
+
+        // rootPOA
+        CORBA::Object_var obj = orb->resolve_initial_references("RootPOA");
+        PortableServer::POA_var rootPOA = PortableServer::POA::_narrow(obj);
+
+        // activate POA manager
+        PortableServer::POAManager_var pman = rootPOA->the_POAManager();
+        pman->activate();
+
+        // bidirPOA
+        CORBA::PolicyList pl;
+        pl.length(1);
+        CORBA::Any a;
+        a <<= BiDirPolicy::BOTH;
+        pl[0] = orb->create_policy(BiDirPolicy::BIDIRECTIONAL_POLICY_TYPE, a);
+        PortableServer::POA_var bidirPOA = rootPOA->create_POA("bidir", pman, pl);
+
+        // create GIOPTest on bidirPOA
+        PortableServer::Servant_var<GIOPSmall_impl> servant = new GIOPSmall_impl();
+        bidirPOA->activate_object(servant);
+        GIOPSmall_var small = servant->_this();
+        // servant->_remove_ref();
+
         ifstream in("IOR.txt");
         char s[1000];
         in >> s;
         in.close();
-        CORBA::Object_var obj = orb->string_to_object(s);
+        obj = orb->string_to_object(s);
         GIOPTest_var server = GIOPTest::_narrow(obj);
         cout << "got Server object" << endl;
 
-        // Initialise the POA.
-        obj = orb->resolve_initial_references("RootPOA");
-        PortableServer::POA_var poa = PortableServer::POA::_narrow(obj);
-        PortableServer::POAManager_var pman = poa->the_POAManager();
-        pman->activate();
-
         // server->onewayMethod();
 
-        server->sendValuePoint(new Point_impl(3.1415, 2.17));
+        // server->sendValuePoint(new Point_impl(3.1415, 2.17));
 
-        cout << server->peek() << endl;
+        // cout << server->peek() << endl;
 
         //     server->sendBool(false, true);
 
-        //     GIOPSmall_impl *impl = new GIOPSmall_impl();
-        //     poa->activate_object(impl);
-        //     // activate the servant
-        //     GIOPSmall_var small = impl->_this();
-
-        //     cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-        //     server->sendObject(small, "foo");
-        //     return 0;
+        cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+        server->sendObject(small, "foo");
 
         orb->destroy();
     }

@@ -26,7 +26,7 @@ public:
     void sendSequence(const StringSeq &v0, const LongSeq &v1);
     void sendValuePoint(::Point *v0);
     void sendValuePoints(::Point *v0, ::Point *v1);
-    // void sendObject(::GIOPSmall_ptr obj, const char *msg);
+    void sendObject(::GIOPSmall_ptr obj, const char *msg);
     // GIOPSmall_ptr getObject();
 };
     
@@ -49,26 +49,42 @@ int main(int argc, char **argv)
     int rc = 0;
     try
     {
+        // create ORB
         CORBA::ORB_var orb = CORBA::ORB_init(argc, argv);
 
+        // register valuetype
         class PointFactory: public virtual CORBA::ValueFactoryBase {
             CORBA::ValueBase* create_for_unmarshal() { return new Point_impl(); }
         };
         orb->register_value_factory("IDL:Point:1.0", new PointFactory());
 
+        // rootPOA
         CORBA::Object_var obj = orb->resolve_initial_references("RootPOA");
-        PortableServer::POA_var poa = PortableServer::POA::_narrow(obj);
+        PortableServer::POA_var rootPOA = PortableServer::POA::_narrow(obj);
 
+        // activate POA manager
+        PortableServer::POAManager_var pman = rootPOA->the_POAManager();
+        pman->activate();
+
+        // bidirPOA
+        CORBA::PolicyList pl;
+        pl.length(1);
+        CORBA::Any a;
+        a <<= BiDirPolicy::BOTH;
+        pl[0] = orb->create_policy(BiDirPolicy::BIDIRECTIONAL_POLICY_TYPE, a);
+        PortableServer::POA_var bidirPOA = rootPOA->create_POA("bidir", pman, pl);
+
+        // create GIOPTest on bidirPOA
         PortableServer::Servant_var<GIOPTest_impl> servant = new GIOPTest_impl();
-
+        PortableServer::ObjectId_var oid = bidirPOA->activate_object(servant);
         obj = servant->_this();
+        servant->_remove_ref();
+
+        // store GIOPTest's IOR
         CORBA::String_var ior = orb->object_to_string(obj);
         ofstream out("IOR.txt");
         out << ior << endl;
         out.close();
-
-        PortableServer::POAManager_var pman = poa->the_POAManager();
-        pman->activate();
 
         cout << "start server ORB" << endl;
         orb->run();
@@ -228,12 +244,12 @@ void GIOPTest_impl::sendValuePoints(Point *v0, Point *v1)
     cout << lastToken << endl;
 }
 
-// void GIOPTest_impl::sendObject(GIOPSmall_ptr obj, const char *msg)
-// {
-//     cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-//     cout << "sendObject(..., \"" << msg << "\")roo" << endl;
-//     obj->call(msg);
-// }
+void GIOPTest_impl::sendObject(GIOPSmall_ptr obj, const char *msg)
+{
+    cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
+    cout << "sendObject(..., \"" << msg << "\")roo" << endl;
+    obj->call(msg);
+}
 
 // GIOPSmall_ptr GIOPTest_impl::getObject()
 // {

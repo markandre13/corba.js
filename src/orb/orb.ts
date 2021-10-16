@@ -141,6 +141,7 @@ export class ORB implements EventTarget, SocketUser {
     //
     socketRcvd(buffer: ArrayBuffer): void {
         // TODO: split this method up
+        // FIXME: buffer may contain multiple or incomplete messages
         const decoder = new GIOPDecoder(buffer, this)
         const type = decoder.scanGIOPHeader()
         switch (type) {
@@ -226,7 +227,9 @@ export class ORB implements EventTarget, SocketUser {
         }
     }
 
-    socketError(error: Error): void { }
+    socketError(error: Error): void {
+        // FIXME: no error handling implemented
+     }
     socketClose(): void { 
         this.dispatchEvent(new Event("close"))
         this.release()
