@@ -76,16 +76,13 @@ int main(int argc, char **argv)
         GIOPTest_var server = GIOPTest::_narrow(obj);
         cout << "got Server object" << endl;
 
-        // server->onewayMethod();
-
-        // server->sendValuePoint(new Point_impl(3.1415, 2.17));
-
-        // cout << server->peek() << endl;
-
-        //     server->sendBool(false, true);
-
         cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-        server->sendObject(small, "foo");
+        // server->onewayMethod();
+        server->sendBool(false, true);
+        // server->sendValuePoint(new Point_impl(3.1415, 2.17));
+        cout << server->peek() << endl;
+        // server->sendObject(small, "foo");
+        cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 
         orb->destroy();
     }

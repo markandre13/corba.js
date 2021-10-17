@@ -33,8 +33,8 @@ export enum MessageType {
 export class GIOPBase {
     offset = 0;
 
-    static MAJOR_VERSION = 1;
-    static MINOR_VERSION = 0;
+    majorVersion = 1
+    minorVersion = 2
 
     static ENDIAN_BIG = 0;
     static ENDIAN_LITTLE = 1;
@@ -91,8 +91,8 @@ export class GIOPEncoder extends GIOPBase {
     setGIOPHeader(type: MessageType) {
         this.data.setUint32(0, 0x47494f50) // magic "GIOP"
 
-        this.data.setUint8(4, GIOPEncoder.MAJOR_VERSION)
-        this.data.setUint8(5, GIOPEncoder.MINOR_VERSION)
+        this.data.setUint8(4, this.majorVersion)
+        this.data.setUint8(5, this.minorVersion)
         this.data.setUint8(6, GIOPEncoder.littleEndian ? GIOPEncoder.ENDIAN_LITTLE : GIOPEncoder.ENDIAN_BIG)
         this.data.setUint8(7, type)
 
@@ -100,24 +100,66 @@ export class GIOPEncoder extends GIOPBase {
         this.data.setUint32(8, this.offset - 12, GIOPEncoder.littleEndian)
     }
 
-    encodeRequest(objectKey: Uint8Array, method: string, requestId = 1, responseExpected: boolean) {
+    // additonal operation names b
+    // _get_<attribute>
+    // _set_<attribute>
+    // _interface
+    // _is_a
+    // _non_existent (additionally _not_existent when using GIOP <= 1.1)
+    // _domain_managers
+    // _component
+    // _repository_id
+
+    encodeRequest(objectKey: Uint8Array, operation: string, requestId = 1, responseExpected: boolean) {
         this.skipGIOPHeader()
-        this.ulong(0) // serviceContextListLength
+
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            this.serviceContext()
+        }
         this.ulong(requestId)
-        this.octet(responseExpected ? 1 : 0)
-        this.blob(objectKey!)
-        this.string(method)
-        this.ulong(0) // Requesting Principal length
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            this.octet(responseExpected ? 1 : 0)
+        } else {
+            this.octet(responseExpected ? 3 : 0)
+        }
+
+        this.offset += 3
+
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            this.blob(objectKey!)
+        } else {
+            this.ushort(AddressingDisposition.KeyAddr)
+            this.blob(objectKey!)
+        }
+        
+        this.string(operation)
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            this.ulong(0) // Requesting Principal length
+        } else {
+            this.serviceContext()
+            this.align(8)
+        }
     }
 
-    encodeReply(requestId: number, replyStatus: number = GIOPDecoder.NO_EXCEPTION) {
+    encodeReply(requestId: number, replyStatus: number = ReplyStatus.NO_EXCEPTION) {
         this.skipGIOPHeader()
-        this.ulong(0) // serviceContextListLength
+        // fixme: create and use version methods like isVersionLessThan(1,2) or isVersionVersionGreaterEqual(1,2)
+        if (this.majorVersion == 1 && this.minorVersion < 2) {
+            this.serviceContext()
+        }
         this.ulong(requestId)
         this.ulong(replyStatus)
+        if (this.majorVersion == 1 && this.minorVersion >= 2) {
+            this.serviceContext()
+        }
     }
 
-    setReplyHeader(requestId: number, replyStatus: number = GIOPDecoder.NO_EXCEPTION) {
+    serviceContext() {
+        this.ulong(0)
+    }
+
+    // FIXME: renamed into 
+    setReplyHeader(requestId: number, replyStatus: number = ReplyStatus.NO_EXCEPTION) {
         this.skipGIOPHeader()
         this.encodeReply(requestId, replyStatus)
     }
@@ -163,8 +205,9 @@ export class GIOPEncoder extends GIOPBase {
         this.ulong(0) // temporary profileLength
         const offsetDataStart = this.offset
 
-        this.octet(GIOPBase.MAJOR_VERSION)
-        this.octet(GIOPBase.MINOR_VERSION)
+        // FIXME: is the really meant to be the protocol version?
+        this.octet(this.majorVersion)
+        this.octet(this.minorVersion)
 
         // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
         this.string(this.orb!.localAddress)
@@ -306,66 +349,6 @@ export class GIOPEncoder extends GIOPBase {
         this.data.setFloat64(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 8
     }
-
-    // just in case the host doesn't support IEEE 754
-    slowDouble(value: number) {
-        this.align(8)
-
-        const sign = value < 0 ? 1 : 0
-        value = sign ? -value : value
-
-        let hi, lo
-
-        if (value === 0) {
-            if ((1 / value) > 0) {
-                lo = 0x00000000
-                hi = 0x00000000
-            } else {
-                hi = 0x80000000
-                lo = 0x00000000
-            }
-        }
-        else if (isNaN(value)) {
-            hi = 0x7fffffff
-            lo = 0xffffffff
-        }
-        else if (value > GIOPEncoder.FLOAT64_MAX) {
-            hi = ((sign << 31) | (0x7FF00000)) >>> 0
-            lo = 0
-        }
-        else if (value < GIOPEncoder.FLOAT64_MIN) {
-            const mant = value / Math.pow(2, -1074)
-            const mantHigh = (mant / GIOPEncoder.TWO_TO_32)
-            hi = ((sign << 31) | mantHigh) >>> 0
-            lo = (mant >>> 0)
-        } else {
-            const maxDoubleExponent = 1023
-            const minDoubleExponent = -1022
-            let x = value
-            let exp = 0
-            if (x >= 2) {
-                while (x >= 2 && exp < maxDoubleExponent) {
-                    exp++
-                    x = x / 2
-                }
-            } else {
-                while (x < 1 && exp > minDoubleExponent) {
-                    x = x * 2
-                    exp--
-                }
-            }
-            let mant = value * Math.pow(2, -exp)
-
-            var mantHigh = (mant * GIOPEncoder.TWO_TO_20) & 0xFFFFF
-            var mantLow = (mant * GIOPEncoder.TWO_TO_52) >>> 0
-
-            hi = ((sign << 31) | ((exp + 1023) << 20) | mantHigh) >>> 0
-            lo = mantLow
-        }
-        // ENDIAN!!!
-        this.ulong(lo)
-        this.ulong(hi)
-    }
 }
 
 class RequestData {
@@ -377,7 +360,7 @@ class RequestData {
 
 class ReplyData {
     requestId!: number
-    replyStatus!: number
+    replyStatus!: ReplyStatus
 }
 
 class LocateRequest {
@@ -416,6 +399,16 @@ export enum AddressingDisposition {
     ReferenceAddr = 2
 }
 
+export enum ReplyStatus {
+    NO_EXCEPTION = 0,
+    USER_EXCEPTION = 1,
+    SYSTEM_EXCEPTION = 2,
+    LOCATION_FORWARD = 3,
+    // since GIOP 1.2
+    LOCATION_FORWARD_PERM = 4,
+    NEEDS_ADDRESSING_MODE = 5
+}
+
 export enum ServiceId {
     TransactionService = 0,
     CodeSets = 1,
@@ -447,8 +440,6 @@ export class GIOPDecoder extends GIOPBase {
     bytes: Uint8Array
 
     type!: MessageType
-    minorVersion!: number
-    majorVersion!: number
     length!: number
     littleEndian = true
 
@@ -492,15 +483,6 @@ export class GIOPDecoder extends GIOPBase {
         if (this.majorVersion == 1 && this.minorVersion <= 1) {
             data.objectKey = this.blob()
         } else {
-            // typedef short AddressingDisposition;
-            // const short KeyAddr = 0;
-            // const short ProfileAddr = 1;
-            // const short ReferenceAddr = 2;
-            // union TargetAddress switch(AddressingDisposition) {
-            //   case KeyAddr: IOP::ObjectKey object_key;
-            //   case ProfileAddr: IOP::TaggedProfile profile;
-            //   case ReferenceAddr: IORAddressingInfo ior;
-            // };
             const addressingDisposition = this.ushort()
             switch (addressingDisposition) {
                 case AddressingDisposition.KeyAddr:
@@ -523,29 +505,31 @@ export class GIOPDecoder extends GIOPBase {
         return data
     }
 
-    // FIXME: make this an enum
-    // ReplyStatusType
-    static NO_EXCEPTION = 0
-    static USER_EXCEPTION = 1
-    static SYSTEM_EXCEPTION = 2
-    static LOCATION_FORWARD = 3
-    // since GIOP 1.2
-    static LOCATION_FORWARD_PERM = 4
-    static NEEDS_ADDRESSING_MODE = 5
-
     scanRequestHeader(): RequestData {
         const data = new RequestData()
 
         if (this.majorVersion == 1 && this.minorVersion <= 1) {
-            const serviceContextListLength = this.ulong()
-            if (serviceContextListLength !== 0) {
-                throw Error(`serviceContextList is not supported`)
+            this.serviceContext()
+        }
+        data.requestId = this.ulong()
+        const responseFlags = this.octet()
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            data.responseExpected = responseFlags != 0
+        } else {
+            // console.log(`responseFlags=${responseFlags}`)
+            switch(responseFlags) {
+                case 0: // SyncScope.NONE, WITH_TRANSPORT
+                    data.responseExpected = false
+                    break
+                case 1: // WITH_SERVER
+                    break
+                case 2:
+                    break
+                case 3: // WITH_TARGET
+                    data.responseExpected = true
+                    break
             }
         }
-
-        data.requestId = this.ulong()
-        console.log(`requestId: ${data.requestId}`)
-        data.responseExpected = this.octet() != 0 // since 1.2 reponseFlags!
         this.offset += 3 // RequestReserved
 
         if (this.majorVersion == 1 && this.minorVersion <= 1) {
@@ -553,7 +537,6 @@ export class GIOPDecoder extends GIOPBase {
         } else {
             // FIXME: duplicated code
             const addressingDisposition = this.ushort()
-            console.log(`addressingDisposition=${addressingDisposition}`)
             switch (addressingDisposition) {
                 case AddressingDisposition.KeyAddr:
                     data.objectKey = this.blob()
@@ -566,21 +549,15 @@ export class GIOPDecoder extends GIOPBase {
             }
         }
 
+        // FIXME: rename 'method' into 'operation' as it's named in the CORBA standard
         data.method = this.string()
-        console.log(`operation: '${data.method}'`)
 
         if (this.majorVersion == 1 && this.minorVersion <= 1) {
             const requestingPrincipalLength = this.ulong()
             // FIXME: this.offset += requestingPrincipalLength???
         } else {
-            const serviceContextListLength = this.ulong()
-            for(let i=0; i<serviceContextListLength; ++i) {
-                const serviceId = this.ulong()
-                console.log(`serviceContext[${i}].id = ${ServiceId[serviceId]}`)
-                const contextLength = this.ulong()
-                // const contextData = this.blob(contextLength) // FIXME: read the length, then find a handler for the serviceId and call it with offset & length
-                this.offset += contextLength
-            }
+            this.serviceContext()
+            this.align(8)
         }
 
         // console.log(`requestId=${data.requestId}, responseExpected=${data.responseExpected}, objectKey=${data.objectKey}, method=${data.method}, requestingPrincipalLength=${requestingPrincipalLength}`)
@@ -588,29 +565,31 @@ export class GIOPDecoder extends GIOPBase {
     }
 
     scanReplyHeader(): ReplyData {
-        if (this.majorVersion == 1 && this.minorVersion <= 1) {
-            const serviceContextListLength = this.ulong()
-            if (serviceContextListLength !== 0)
-                throw Error(`serviceContextList is not supported`)
-        }
-
         const data = new ReplyData()
 
+        if (this.majorVersion == 1 && this.minorVersion <= 1) {
+            this.serviceContext()
+        }
         data.requestId = this.ulong()
         data.replyStatus = this.ulong()
+        if (this.majorVersion == 1 && this.minorVersion >= 2) {
+            this.serviceContext()
+        }
+        
         switch (data.replyStatus) {
-            case GIOPDecoder.NO_EXCEPTION:
+            case ReplyStatus.NO_EXCEPTION:
                 break
-            case GIOPDecoder.USER_EXCEPTION:
-                break
-            case GIOPDecoder.SYSTEM_EXCEPTION:
+            case ReplyStatus.USER_EXCEPTION:
+                throw Error(`CORBA User Exception`)
+            case ReplyStatus.SYSTEM_EXCEPTION:
                 // 0.4.3.2 ReplyBody: SystemExceptionReplyBody
                 const exceptionId = this.string()
                 const minorCodeValue = this.ulong()
-                // const vendorMinorCodeSetId = minorCodeValue & 0xFFF00000
-                const minorCode = minorCodeValue & 0x000FFFFF
-                // org.omg.CORBA.CompletionStatus
                 const completionStatus = this.ulong()
+                const vendorId = (minorCodeValue & 0xFFFFF000) >> 12
+                const minorCode = minorCodeValue & 0x00000FFF
+                // FIXME: make org.omg.CORBA.CompletionStatus an enum
+                
                 let completionStatusName
                 switch (completionStatus) {
                     case 0:
@@ -626,19 +605,32 @@ export class GIOPDecoder extends GIOPBase {
                         completionStatusName = `${completionStatus}`
                 }
                 // A.5 Exception Codes
+                let vendorList: { [index: number]: string} = {
+                    0x4f4d0: "OMG",
+                    0x41540: "OmniORB"
+                }
+                const vendor = vendorId in vendorList ? ` ${vendorList[vendorId]}` : ""
+
                 switch (exceptionId) {
                     case "IDL:omg.org/CORBA/MARSHAL:1.0": {
-                        let minorCodeExplanation: { [index: number]: string } = {
-                            1: "Unable to locate value factory.",
-                            2: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
-                            3: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
-                            4: "Attempt to marshal local object.",
-                            5: "wchar or wstring data erroneosly sent by client over GIOP 1.0 connection",
-                            6: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
-                            7: "Unsupported RMI/IDL custom value type stream format.",
+                        let explanationList: { [index: number]: string } = {
+                            // OMG
+                            0x4f4d0001: "Unable to locate value factory.",
+                            0x4f4d0002: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
+                            0x4f4d0003: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
+                            0x4f4d0004: "Attempt to marshal local object.",
+                            0x4f4d0005: "wchar or wstring data erroneosly sent by client over GIOP 1.0 connection",
+                            0x4f4d0006: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
+                            0x4f4d0007: "Unsupported RMI/IDL custom value type stream format.",
+                            // OmniORB
+                            0x41540034: "Invalid IOR",
+                            0x4154004f: "Invalid ContextList",
+                            0x4154005a: "Invalid Indirection",
+                            0x4154005b: "Invalid TypeCodeKind",
+                            0x4154005d: "Message too long"
                         }
-                        const explanation = minorCode in minorCodeExplanation ? ` (${minorCodeExplanation[minorCode]})` : ""
-                        throw Error(`Received CORBA System Exception ${exceptionId} (encoding/decoding failed): minor code ${minorCode}${explanation}, operation completed: ${completionStatusName}`)
+                        const explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                        throw Error(`Received CORBA System Exception ${exceptionId} 0x${minorCodeValue.toString(16)}${vendor}${explanation}, operation completed: ${completionStatusName}`)
                     }
                     default: {
                         throw Error(`Received CORBA System Exception ${exceptionId}: minor code ${minorCode}, operation completed: ${completionStatusName}`)
@@ -649,6 +641,27 @@ export class GIOPDecoder extends GIOPBase {
                 throw Error(`ReplyStatusType ${data.replyStatus} is not supported`)
         }
         return data
+    }
+
+    serviceContext() {
+        const serviceContextListLength = this.ulong()
+        for(let i=0; i<serviceContextListLength; ++i) {
+            const serviceId = this.ulong()
+            console.log(`serviceContext[${i}].id = ${ServiceId[serviceId]}`)
+            const contextLength = this.ulong()
+            const nextOffset = this.offset += contextLength
+            switch(serviceId) {
+                case ServiceId.BI_DIR_IIOP:
+                    const n = this.ulong()
+                    for(let i=0; i<n; ++i) {
+                        const host = this.string()
+                        const port = this.ushort()
+                        console.log(`BiDirIIOP listenPoint[${i}] = ${host}:${port}`)
+                    }
+                    break
+            }
+            this.offset = nextOffset
+        }
     }
 
     reference(length: number | undefined = undefined): ObjectReference {
@@ -671,10 +684,10 @@ export class GIOPDecoder extends GIOPBase {
                     // console.log(`Internet IOP Component, length=${profileLength}`)
                     const iiopMajorVersion = this.octet()
                     const iiopMinorVersion = this.octet()
-                    if (iiopMajorVersion !== GIOPBase.MAJOR_VERSION &&
-                        iiopMinorVersion !== GIOPBase.MINOR_VERSION) {
-                        throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
-                    }
+                    // if (iiopMajorVersion !== GIOPBase.MAJOR_VERSION &&
+                    //     iiopMinorVersion !== GIOPBase.MINOR_VERSION) {
+                    //     throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
+                    // }
                     data.host = this.string()
                     data.port = this.ushort()
                     data.objectKey = this.blob()
@@ -769,12 +782,6 @@ export class GIOPDecoder extends GIOPBase {
         }
     }
 
-    // protected valueTypes = new Map<string, Function>()
-
-    // registerValueType(valuetypeConstructor: Function, spec: string) {
-    //     this.valueTypes.set(spec, valuetypeConstructor)
-    // }
-
     endian() {
         const byteOrder = this.octet()
         this.littleEndian = byteOrder === GIOPBase.ENDIAN_LITTLE
@@ -797,18 +804,12 @@ export class GIOPDecoder extends GIOPBase {
         return value
     }
 
-    // FIXME: the code calling this will fail on sequence within sequence
     sequence<T>(decodeItem: () => T): T[] {
-        const offset = this.offset
         const length = this.ulong()
-        // console.log(`GIOPDecoder.sequence(): DECODE SEQUENCE WITH ${length} ENTRIES AT 0x${offset.toString(16)}`)
         const array = new Array(length)
         for (let i = 0; i < length; ++i) {
-            // console.log(`GIOPDecoder.sequence(): DECODE ITEM ${i} AT 0x${this.offset.toString(16)}`)
             array[i] = decodeItem()
-            // console.log(`GIOPDecoder.sequence(): DECODED ITEM ${i}`)
         }
-        // console.log(`GIOPDecoder.sequence(): DECODED SEQUENCE WITH ${length} ENTRIES`)
         return array
     }
 
@@ -882,32 +883,8 @@ export class GIOPDecoder extends GIOPBase {
     double() {
         this.align(8)
         const value = this.data.getFloat64(this.offset, this.littleEndian)
-        console.log(`DECODED DOUBLE ${value} AT ${this.offset}`)
         this.offset += 8
         return value
-    }
-
-    // just in case the host doesn't support IEEE 754
-    slowDouble() {
-        this.align(8)
-        const lo = this.ulong()
-        const hi = this.ulong()
-
-        const sign = ((hi >> 31) * 2 + 1)
-        const exp = (hi >>> 20) & 0x7FF
-        const mant = GIOPDecoder.TWO_TO_32 * (hi & 0xFFFFF) + lo
-
-        if (exp == 0x7FF) {
-            if (mant) {
-                return NaN
-            } else {
-                return sign * Infinity
-            }
-        }
-        if (exp == 0) {
-            return sign * Math.pow(2, -1074) * mant
-        }
-        return sign * Math.pow(2, exp - 1075) * (mant + GIOPDecoder.TWO_TO_52)
     }
 }
 

@@ -73,6 +73,7 @@ int main(int argc, char **argv)
         a <<= BiDirPolicy::BOTH;
         pl[0] = orb->create_policy(BiDirPolicy::BIDIRECTIONAL_POLICY_TYPE, a);
         PortableServer::POA_var bidirPOA = rootPOA->create_POA("bidir", pman, pl);
+        // const bidirPOA = rootPOA
 
         // create GIOPTest on bidirPOA
         PortableServer::Servant_var<GIOPTest_impl> servant = new GIOPTest_impl();

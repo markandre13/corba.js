@@ -84,7 +84,7 @@ export class Fake {
 
     expect(name: string) {
         if (this.testName !== undefined) {
-            throw Error("test setup error: expect() called but earlier expect() hasn't been closed with reset()")
+            throw Error("test fake setup error: missing reset() call. try to add this to you test: beforeEach(function() { fake.reset() })")
         }
         this.testName = `test/giop/${name.replace(/\W/g, "-")}.dump`
         if (this.recordMode) {

@@ -1,13 +1,12 @@
 import * as fs from "fs"
 
-import { ORB, IOR, GIOPDecoder, MessageType, LocateStatusType } from "corba.js"
+import { ORB, IOR, GIOPDecoder, MessageType, LocateStatusType, ReplyStatus, GIOPEncoder } from "corba.js"
 import { connect, listen } from "corba.js/net/socket"
 import * as skel from "./generated/giop_skel"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
 import { Fake } from "./fake"
-import exp from "constants"
 
 // FIXME: this test does not work when MICO runs in debug mode; something is racy
 
@@ -96,12 +95,12 @@ describe("CDR/GIOP", () => {
     let fake!: Fake
 
     beforeEach(function () {
-        // fake.reset()
+        fake.reset()
     })
 
     // FIXME: to make the tests independent of each other when using the fake, create a new ORB for each test so that the request counter is reset
     before(async function () {
-        return
+        // return
         orb = new ORB()
         ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
         orb.registerStubClass(stub.GIOPTest)
@@ -113,7 +112,7 @@ describe("CDR/GIOP", () => {
         //   const server = Server::narrow(obj)
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
         ior = new IOR(data)
-        console.log("connecting  to")
+        console.log("connecting to")
         console.log(`ior.objectKey.length = ${ior.objectKey.length}`)
         console.log(ior.host)
         console.log(ior.port)
@@ -127,7 +126,7 @@ describe("CDR/GIOP", () => {
         fake = new Fake()
 
         // RECORD
-        const serverSocket = listen(orb, "0.0.0.0", 8080)
+        // const serverSocket = listen(orb, "0.0.0.0", 8080)
         const clientSocket = await connect(orb, ior.host!, ior.port!)
         console.log("connected")
 
@@ -167,7 +166,7 @@ describe("CDR/GIOP", () => {
     // we send two values to verify the padding
     describe("send values", function () {
 
-        it("bool", async function () {
+        it.only("bool", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendBool(false, true)
             expect(await server.peek()).to.equal("sendBool(false,true)")
@@ -270,19 +269,19 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
         })
 
-        // // send a local object to the peer and check if he was able to call us
-        // it("local object", async function() {
-        //     // FIXME: this doesn't work yet because i assumed GIOP was bi-directional by design
-        //     // BiDirectional was added in CORBA 2.4, but MICO implements CORBA 2.3, there's only an unused definition for the BiDirectional policy
-        //     // OmniORB implements CORBA 2.6 along with BiDirectional GIOP
-        //     // Orbit
-        //     // GIOP is specified as one directional, for for BiDirectional are requestIds: client/initiator: even, server/receipient: odd requestIds
+        // send a local object to the peer and check if he was able to call us
+        it("local object", async function () {
+            // FIXME: this doesn't work yet because i assumed GIOP was bi-directional by design
+            // BiDirectional was added in CORBA 2.4, but MICO implements CORBA 2.3, there's only an unused definition for the BiDirectional policy
+            // OmniORB implements CORBA 2.6 along with BiDirectional GIOP
+            // Orbit
+            // GIOP is specified as one directional, for for BiDirectional are requestIds: client/initiator: even, server/receipient: odd requestIds
 
-        //     fake.expect(this.test!.fullTitle())
-        //     const small = new GIOPSmall(orb)
-        //     await server.sendObject(small, "foo")
-        //     expect(small.msg).to.equal("foo")
-        // })
+            fake.expect(this.test!.fullTitle())
+            const small = new GIOPSmall(orb)
+            await server.sendObject(small, "foo")
+            expect(small.msg).to.equal("foo")
+        })
 
         // get a remote object from the peer and check if we were able to call him
         // it("remote object", async function() {
@@ -310,86 +309,206 @@ describe("CDR/GIOP", () => {
     // send object reference
     // get object reference
 
-    describe("GIOP", function () {
-        it("OmniORB, IIOP 1.2, LocateRequest", function () {
-            const data = new Uint8Array([
-                0x47, 0x49, 0x4f, 0x50, 0x01, 0x02, 0x01, 0x03, 0x20, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, // GIOP.... .......
-                0x00, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0xff, 0x62, 0x69, 0x64, 0x69, 0x72, 0xfe, 0xec, // .........bidir..
-                0xc3, 0x6a, 0x61, 0x01, 0x00, 0x0d, 0x6c, 0x00, 0x00, 0x00, 0x00, 0x00,                         // .ja...l.....
-            ])
-            const decoder = new GIOPDecoder(data.buffer)
+    describe.only("GIOP", function () {
+        describe("GIOPDecoder", function () {
+            describe("Decode OmniORB, IIOP 1.2", function () {
+                it("OmniORB, IIOP 1.2, LocateRequest", function () {
+                    const data = parseOmniDump(`
+                        4749 4f50 0102 0103 2000 0000 0200 0000 GIOP.... .......
+                        0000 0000 1400 0000 ff62 6964 6972 fe97 .........bidir..
+                        c46b 6101 000f 5700 0000 0000           .ka...W.....`)
+                    const decoder = new GIOPDecoder(data.buffer)
 
-            const type = decoder.scanGIOPHeader()
-            expect(decoder.type).to.equal(type)
-            expect(decoder.type).to.equal(MessageType.LOCATE_REQUEST)
-            expect(decoder.majorVersion).to.equal(1)
-            expect(decoder.minorVersion).to.equal(2)
-            expect(decoder.length + 12).to.equal(data.length)
+                    const type = decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(type)
+                    expect(decoder.type).to.equal(MessageType.LOCATE_REQUEST)
+                    expect(decoder.majorVersion).to.equal(1)
+                    expect(decoder.minorVersion).to.equal(2)
+                    expect(decoder.length + 12).to.equal(data.length)
 
-            const locateRequest = decoder.scanLocateRequest()
-            expect(locateRequest.requestId).to.equal(2)
-            expect(locateRequest.objectKey).to.eql(data.subarray(24, 24 + 20))
+                    const locateRequest = decoder.scanLocateRequest()
+                    expect(locateRequest.requestId).to.equal(2)
+                    expect(locateRequest.objectKey).to.eql(data.subarray(24, 24 + 20))
+                })
+
+                it("OmniORB, IIOP 1.2, LocateReply", function () {
+                    const data = parseOmniDump(`
+                        4749 4f50 0102 0104 0800 0000 0200 0000 GIOP............
+                        0100 0000                               ....`)
+                    const decoder = new GIOPDecoder(data.buffer)
+
+                    const type = decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(type)
+                    expect(decoder.type).to.equal(MessageType.LOCATE_REPLY)
+                    expect(decoder.majorVersion).to.equal(1)
+                    expect(decoder.minorVersion).to.equal(2)
+                    expect(decoder.length + 12).to.equal(data.length)
+
+                    const locateReply = decoder.scanLocateReply()
+                    expect(locateReply.requestId).to.equal(2)
+                    expect(locateReply.status).to.equal(LocateStatusType.OBJECT_HERE)
+                })
+
+                it("OmniORB, IIOP 1.2, Request", function () {
+                    const data = parseOmniDump(`
+                        4749 4f50 0102 0100 e000 0000 0400 0000 GIOP............
+                        0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
+                        6972 fe97 c46b 6101 000f 5700 0000 0000 ir...ka...W.....
+                        0b00 0000 7365 6e64 4f62 6a65 6374 0000 ....sendObject..
+                        0100 0000 0100 0000 0c00 0000 0100 0000 ................
+                        0100 0100 0901 0100 1200 0000 4944 4c3a ............IDL:
+                        4749 4f50 536d 616c 6c3a 312e 3000 0000 GIOPSmall:1.0...
+                        0100 0000 0000 0000 6800 0000 0101 0200 ........h.......
+                        0e00 0000 3139 322e 3136 382e 312e 3130 ....192.168.1.10
+                        3500 bbcf 1400 0000 ff62 6964 6972 fea8 5........bidir..
+                        c46b 6101 000f 7500 0000 0000 0200 0000 .ka...u.........
+                        0000 0000 0800 0000 0100 0000 0054 5441 .............TTA
+                        0100 0000 1c00 0000 0100 0000 0100 0100 ................
+                        0100 0000 0100 0105 0901 0100 0100 0000 ................
+                        0901 0100 0400 0000 666f 6f00           ........foo.`)
+                    const decoder = new GIOPDecoder(data.buffer)
+
+                    const type = decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(type)
+                    expect(decoder.type).to.equal(MessageType.REQUEST)
+                    expect(decoder.majorVersion).to.equal(1)
+                    expect(decoder.minorVersion).to.equal(2)
+                    expect(decoder.length + 12).to.equal(data.length)
+
+                    const request = decoder.scanRequestHeader()
+                    expect(request.responseExpected).to.be.true
+                    expect(request.requestId).to.equal(4)
+                    expect(request.objectKey).to.eql(data.subarray(28, 28 + 20))
+                    expect(request.method).to.equal("sendObject")
+                })
+
+                it("OmniORB, IIOP 1.2, Reply", function () {
+                    const data = parseOmniDump(`
+                        4749 4f50 0102 0101 0c00 0000 0400 0000 GIOP............
+                        0000 0000 0000 0000                     ........`)
+                    const decoder = new GIOPDecoder(data.buffer)
+
+                    const type = decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(type)
+                    expect(decoder.type).to.equal(MessageType.REPLY)
+                    expect(decoder.majorVersion).to.equal(1)
+                    expect(decoder.minorVersion).to.equal(2)
+                    expect(decoder.length + 12).to.equal(data.length)
+
+                    const reply = decoder.scanReplyHeader()
+                    expect(reply.requestId).to.equal(4)
+                    expect(reply.replyStatus).to.equal(ReplyStatus.NO_EXCEPTION)
+                })
+
+                it.only("request i fail to send", function() {
+                    const data = parseOmniDump(`
+                    4749 4f50 0102 0100 4e00 0000 0400 0000 GIOP....N.......
+                    0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
+                    6972 fe55 0a6c 6101 0013 9300 0000 0000 ir.U.la.........
+                    0900 0000 7365 6e64 426f 6f6c 0000 0000 ....sendBool....
+                    0100 0000 0100 0000 0c00 0000 0100 0000 ................
+                    0100 0100 0901 0100 0001                ..........`)
+
+                    const decoder = new GIOPDecoder(data.buffer)
+                    const type = decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(type)
+                    expect(decoder.type).to.equal(MessageType.REQUEST)
+                    expect(decoder.majorVersion).to.equal(1)
+                    expect(decoder.minorVersion).to.equal(2)
+                    expect(decoder.length + 12).to.equal(data.length)
+
+                    const request = decoder.scanRequestHeader()
+                    console.log(request)
+                })
+
+                it.only("my screwed up variant", function() {
+                    const data = parseOmniDump(`
+                    4749 4f50 0102 0100 3a00 0000 0100 0000 GIOP....:.......
+                    0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
+                    6972 fe55 0a6c 6101 0013 9300 0000 0000 ir.U.la.........
+                    0900 0000 7365 6e64 426f 6f6c 0000 0000 ....sendBool....
+                    0000 0000 0001                          ......`)
+                    // omniORB: (5) 2021-10-17 14:11:01.801381: getInputData requires invalid size 2 bytes to satisfy input size 0.
+                    // omniORB: (5) 2021-10-17 14:11:01.801636: throw MARSHAL from giopImpl12.cc:1046 (NO,MARSHAL_PassEndOfMessage)`)
+                })
+            })
         })
+        describe("GIOPEncoder", function () {
+            describe("IIOP 1.2", function () {
+                it("Request", function() {
+                    const encoder = new GIOPEncoder()
+                    encoder.majorVersion = 1
+                    encoder.minorVersion = 2
 
-        it("OmniORB, IIOP 1.2, LocateReply", function () {
-            const data = new Uint8Array([
-                0x47, 0x49, 0x4f, 0x50, 0x01, 0x02, 0x01, 0x04, 0x08, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, // GIOP............
-                0x01, 0x00, 0x00, 0x00                                                                          // ....
-            ])
-            const decoder = new GIOPDecoder(data.buffer)
+                    encoder.encodeRequest(new Uint8Array([1,2,3,4]), "myMethod", 4, true)
+                    encoder.setGIOPHeader(MessageType.REQUEST)
+                    const length = encoder.offset
+                 
+                    const decoder = new GIOPDecoder(encoder.buffer.slice(0, length))
+                    const type = decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(type)
+                    expect(decoder.type).to.equal(MessageType.REQUEST)
+                    expect(decoder.majorVersion).to.equal(1)
+                    expect(decoder.minorVersion).to.equal(2)
+                    expect(decoder.length + 12).to.equal(length)
 
-            const type = decoder.scanGIOPHeader()
-            expect(decoder.type).to.equal(type)
-            expect(decoder.type).to.equal(MessageType.LOCATE_REPLY)
-            expect(decoder.majorVersion).to.equal(1)
-            expect(decoder.minorVersion).to.equal(2)
-            expect(decoder.length + 12).to.equal(data.length)
+                    const request = decoder.scanRequestHeader()
+                    expect(request.requestId).to.equal(4)
+                    expect(request.objectKey).to.eql(new Uint8Array([1,2,3,4]))
+                    expect(request.method).to.equal("myMethod")
+                    expect(request.responseExpected).to.be.true
+                })
 
-            const locateReply = decoder.scanLocateReply()
-            expect(locateReply.requestId).to.equal(2)
-            expect(locateReply.status).to.equal(LocateStatusType.OBJECT_HERE)
-        })
+                it("Reply", function() {
+                    const encoder = new GIOPEncoder()
+                    encoder.majorVersion = 1
+                    encoder.minorVersion = 2
+                    encoder.skipReplyHeader();
+                    // result
+                    const length = encoder.offset
+                    encoder.setGIOPHeader(MessageType.REPLY)
+                    encoder.setReplyHeader(4, ReplyStatus.NO_EXCEPTION)
+                    
+                    const decoder = new GIOPDecoder(encoder.buffer.slice(0, length))
+                    const type = decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(type)
+                    expect(decoder.type).to.equal(MessageType.REPLY)
+                    expect(decoder.majorVersion).to.equal(1)
+                    expect(decoder.minorVersion).to.equal(2)
+                    expect(decoder.length + 12).to.equal(length)
 
-        it.only("OmniORB, IIOP 1.2, Request", function () {
-            const data = new Uint8Array([
-                0x47, 0x49, 0x4f, 0x50, 0x01, 0x02, 0x01, 0x00, 0xe0, 0x00, 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, // GIOP............
-                // GIOP                 version     endian type length                  requestId
-                0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0xff, 0x62, 0x69, 0x64, // .............bid
-                // flag                 target 0                objectKey
-                0x69, 0x72, 0xfe, 0xec, 0xc3, 0x6a, 0x61, 0x01, 0x00, 0x0d, 0x6c, 0x00, 0x00, 0x00, 0x00, 0x00, // ir...ja...l.....
+                    const reply = decoder.scanReplyHeader()
+                    expect(reply.requestId).to.equal(4)
+                    expect(reply.replyStatus).to.equal(ReplyStatus.NO_EXCEPTION)
+                })
 
-                0x0b, 0x00, 0x00, 0x00, 0x73, 0x65, 0x6e, 0x64, 0x4f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x00, 0x00, // ....sendObject..
-                // method
-                0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, // ................
-                0x01, 0x00, 0x01, 0x00, 0x09, 0x01, 0x01, 0x00, 0x12, 0x00, 0x00, 0x00, 0x49, 0x44, 0x4c, 0x3a, // ............IDL:
-                0x47, 0x49, 0x4f, 0x50, 0x53, 0x6d, 0x61, 0x6c, 0x6c, 0x3a, 0x31, 0x2e, 0x30, 0x00, 0x00, 0x00, // GIOPSmall:1.0...
-                0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x68, 0x00, 0x00, 0x00, 0x01, 0x01, 0x02, 0x00, // ........h.......
-                0x0e, 0x00, 0x00, 0x00, 0x31, 0x39, 0x32, 0x2e, 0x31, 0x36, 0x38, 0x2e, 0x31, 0x2e, 0x31, 0x30, // ....192.168.1.10
-                0x35, 0x00, 0x97, 0x82, 0x14, 0x00, 0x00, 0x00, 0xff, 0x62, 0x69, 0x64, 0x69, 0x72, 0xfe, 0xf5, // 5........bidir..
-                0xc3, 0x6a, 0x61, 0x01, 0x00, 0x0d, 0x8b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, // .ja.............
-                0x00, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x54, 0x54, 0x41, // .............TTA
-                0x01, 0x00, 0x00, 0x00, 0x1c, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x0, 0x100, // ................
-                0x01, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0x05, 0x09, 0x01, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, // ................
-                0x09, 0x01, 0x01, 0x00, 0x04, 0x00, 0x00, 0x00, 0x66, 0x6f, 0x6f, 0x00,                         //........foo.
-            ])
 
-            const decoder = new GIOPDecoder(data.buffer)
-
-            const type = decoder.scanGIOPHeader()
-            expect(decoder.type).to.equal(type)
-            expect(decoder.type).to.equal(MessageType.REQUEST)
-            expect(decoder.majorVersion).to.equal(1)
-            expect(decoder.minorVersion).to.equal(2)
-            expect(decoder.length + 12).to.equal(data.length)
-
-            const request = decoder.scanRequestHeader()
-            expect(request.responseExpected).to.be.true
-            expect(request.requestId).to.equal(4)
-            expect(request.objectKey).to.eql(data.subarray(28, 28 + 20))
-            expect(request.method).to.equal("sendObject")
+            })
         })
     })
 })
+
+// convert the dump to Uint8Array one get's from OmniORB's -ORBtraceLevel 40
+function parseOmniDump(data: string): Uint8Array {
+    const rows = data.trim().split(/\r?\n/)
+    let vec: number[] = []
+    for (let i = 0; i < rows.length; ++i) {
+        const row = rows[i].trim()
+        for (let j = 0; j < 8; ++j) {
+            let n: number
+            let idx = j * 5
+            n = parseInt(row.substring(idx, idx + 2), 16)
+            if (isNaN(n))
+                break
+            vec.push(n)
+            n = parseInt(row.substring(idx + 2, idx + 5), 16)
+            if (isNaN(n))
+                break
+            vec.push(n)
+        }
+    }
+    return new Uint8Array(vec)
+}
 
 class Point implements value.Point {
     x!: number
@@ -403,18 +522,18 @@ class Point implements value.Point {
     }
 }
 
-// class GIOPSmall extends skel.GIOPSmall {
-//     msg = ""
+class GIOPSmall extends skel.GIOPSmall {
+    msg = ""
 
-//     constructor(orb: ORB) {
-//         super(orb)
-//         console.log("Client_impl.constructor()")
-//     }
+    constructor(orb: ORB) {
+        super(orb)
+        console.log("Client_impl.constructor()")
+    }
 
-//     override async call(msg: string) {
-//         this.msg = msg
-//     }
-// }
+    override async call(msg: string) {
+        this.msg = msg
+    }
+}
 
 function sleep(ms: number) {
     return new Promise((resolve) => {

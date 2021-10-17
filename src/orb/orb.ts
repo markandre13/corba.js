@@ -16,6 +16,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { ReplyStatus } from "corba.js"
 import { GIOPDecoder, GIOPEncoder, MessageType } from "./giop"
 import { IOR } from "./ior"
 import { Uint8Map } from "./uint8map"
@@ -161,10 +162,10 @@ export class ORB implements EventTarget, SocketUser {
                         let object = this.initialReferences.get(reference)
                         if (object === undefined) {
                             // console.log(`ORB.handleResolveInitialReferences(): failed to resolve '${reference}`)
-                            encoder.encodeReply(data.requestId, GIOPDecoder.SYSTEM_EXCEPTION)
+                            encoder.encodeReply(data.requestId, ReplyStatus.SYSTEM_EXCEPTION)
                         } else {
                             this.aclAdd(object)
-                            encoder.encodeReply(data.requestId, GIOPDecoder.NO_EXCEPTION)
+                            encoder.encodeReply(data.requestId, ReplyStatus.NO_EXCEPTION)
                             encoder.reference(object)
                         }
                         encoder.setGIOPHeader(MessageType.REPLY)
@@ -192,7 +193,7 @@ export class ORB implements EventTarget, SocketUser {
                     if (data.responseExpected) {
                         const length = encoder.offset
                         encoder.setGIOPHeader(MessageType.REPLY)
-                        encoder.setReplyHeader(data.requestId, GIOPDecoder.NO_EXCEPTION)
+                        encoder.setReplyHeader(data.requestId, ReplyStatus.NO_EXCEPTION)
                         this.socketSend(encoder.buffer.slice(0, length))
                     }    
                 })
@@ -201,7 +202,7 @@ export class ORB implements EventTarget, SocketUser {
                     if (data.responseExpected) {
                         const length = encoder.offset
                         encoder.setGIOPHeader(MessageType.REPLY)
-                        encoder.setReplyHeader(data.requestId, GIOPDecoder.USER_EXCEPTION)
+                        encoder.setReplyHeader(data.requestId, ReplyStatus.USER_EXCEPTION)
                         this.socketSend(encoder.buffer.slice(0, length))
                     }
                 })
@@ -216,10 +217,10 @@ export class ORB implements EventTarget, SocketUser {
                 }
                 this.map.delete(data.requestId)
                 switch (data.replyStatus) {
-                    case GIOPDecoder.NO_EXCEPTION:
+                    case ReplyStatus.NO_EXCEPTION:
                         handler.decode(decoder)
                         break
-                    case GIOPDecoder.USER_EXCEPTION:
+                    case ReplyStatus.USER_EXCEPTION:
                         handler.reject(new Error(`User Exception`))
                         break
                 }
