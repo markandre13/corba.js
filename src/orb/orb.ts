@@ -67,8 +67,8 @@ export class ORB implements EventTarget, SocketUser {
 
     initialReferences: Map<string, Skeleton>
 
-    localAddress = ""
-    localPort = 0
+    localAddress?: string
+    localPort?: number
     remoteAddress = ""
     remotePort = 0
 

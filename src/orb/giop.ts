@@ -195,6 +195,7 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     reference(object: CORBAObject) {
+        console.log(`GIOPEncoder.object(...) ${this.orb!.localAddress}:${this.orb!.localPort}`)
         const className = (object.constructor as any)._idlClassName()
         this.string(`IDL:${className}:1.0`)
 
@@ -206,12 +207,14 @@ export class GIOPEncoder extends GIOPBase {
         const offsetDataStart = this.offset
 
         // FIXME: is the really meant to be the protocol version?
-        this.octet(this.majorVersion)
-        this.octet(this.minorVersion)
+        // this.octet(this.majorVersion)
+        // this.octet(this.minorVersion)
+        this.octet(1)
+        this.octet(1)
 
         // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
-        this.string(this.orb!.localAddress)
-        this.short(this.orb!.localPort)
+        this.string(this.orb!.localAddress!)
+        this.short(this.orb!.localPort!)
         this.blob(object.id)
 
         const offsetDataEnd = this.offset
@@ -221,6 +224,7 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     object(object: Object) {
+        console.log(`GIOPEncoder.object(...) ${this.orb!.localAddress}:${this.orb!.localPort}`)
         if (object instanceof Stub) {
             throw Error("ORB: can not serialize Stub yet")
         }
@@ -230,6 +234,7 @@ export class GIOPEncoder extends GIOPBase {
                 throw Error("GIOPEncoder has no ORB defined. Can not add object to ACL.")
             }
             this.orb.aclAdd(object)
+            console.log("GIOPEncoder.object(...) -> .reference(...)")
             this.reference(object)
             return
             // return `{"#R":"${(object.constructor as any)._idlClassName()}","#V":${object.id}}`
@@ -611,6 +616,7 @@ export class GIOPDecoder extends GIOPBase {
                 }
                 const vendor = vendorId in vendorList ? ` ${vendorList[vendorId]}` : ""
 
+                // CORBA 3.4, Part 2, A.5 Exception Codes
                 switch (exceptionId) {
                     case "IDL:omg.org/CORBA/MARSHAL:1.0": {
                         let explanationList: { [index: number]: string } = {
@@ -632,8 +638,17 @@ export class GIOPDecoder extends GIOPBase {
                         const explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
                         throw Error(`Received CORBA System Exception ${exceptionId} 0x${minorCodeValue.toString(16)}${vendor}${explanation}, operation completed: ${completionStatusName}`)
                     }
+                    case "IDL:omg.org/CORBA/TRANSIENT:1.0": {
+                        let explanationList: { [index: number]: string } = {
+                            // OMG
+                            // OmniORB
+                            0x41540002: "Connect Failed"
+                        }
+                        const explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                        throw Error(`Received CORBA System Exception ${exceptionId} 0x${minorCodeValue.toString(16)}${vendor}${explanation}, operation completed: ${completionStatusName}`)
+                    }
                     default: {
-                        throw Error(`Received CORBA System Exception ${exceptionId}: minor code ${minorCode}, operation completed: ${completionStatusName}`)
+                        throw Error(`Received CORBA System Exception ${exceptionId}: 0x${minorCodeValue.toString(16)}${vendor}, operation completed: ${completionStatusName}`)
                     }
                 }
                 break
@@ -669,6 +684,7 @@ export class GIOPDecoder extends GIOPBase {
 
         // struct IOR, field: string type_id ???
         data.oid = this.string(length)
+        console.log(`IOR: oid: '${data.oid}'`)
 
         // struct IOR, field: TaggedProfileSeq profiles ???
         const profileCount = this.ulong()
@@ -684,22 +700,54 @@ export class GIOPDecoder extends GIOPBase {
                     // console.log(`Internet IOP Component, length=${profileLength}`)
                     const iiopMajorVersion = this.octet()
                     const iiopMinorVersion = this.octet()
-                    // if (iiopMajorVersion !== GIOPBase.MAJOR_VERSION &&
-                    //     iiopMinorVersion !== GIOPBase.MINOR_VERSION) {
+                    // if (iiopMajorVersion !== 1 || iiopMinorVersion > 1) {
                     //     throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
                     // }
                     data.host = this.string()
                     data.port = this.ushort()
                     data.objectKey = this.blob()
-
-                    // IIOP 1.1 and above
-                    // TaggedComponentSeq
-
-                    // console.log(`IIOP ${iiopMajorVersion}.${iiopMinorVersion} ${this.host}:${this.port} ${this.objectKey}`)
+                    console.log(`IOR: IIOP(version: ${iiopMajorVersion}.${iiopMinorVersion}, host: ${data.host}:${data.port}, objectKey: ${data.objectKey})`)
+                    // FIXME: use utility function to compare version!!! better use hex: version >= 0x0101
+                    if (iiopMajorVersion === 1 && iiopMinorVersion !== 0) {
+                        // TaggedComponentSeq
+                        const n = this.ulong()
+                        console.log(`IOR: ${n} components`)
+                        for(i=0; i<n; ++i) {
+                            const id = this.ulong()
+                            const length = this.ulong()
+                            const nextOffset = this.offset + length
+                            switch(id) {
+                                case 0: // TAG_ORB_TYPE
+                                    const typeCount = this.ulong()
+                                    for(let j=0; j<typeCount; ++j) {
+                                        const orbType = this.ulong()
+                                        let name
+                                        switch(orbType) {
+                                            case 0x41545400:
+                                                name = "OmniORB"
+                                                break
+                                            default:
+                                                name = `0x${orbType.toString(16)}`
+                                        }
+                                        console.log(`IOR: component[${i}] = ORB_TYPE ${name}`)
+                                    }
+                                    break
+                                case 1: // TAG_CODE_SETS 
+                                    // Corba 3.4, Part 2, 7.10.2.4 CodeSet Component of IOR Multi-Component Profile
+                                    console.log(`IOR: component[${i}] = CODE_SETS`)
+                                    break
+                                case 2: // TAG_POLICIES
+                                    console.log(`IOR: component[${i}] = POLICIES`)
+                                    break
+                                default:
+                                    console.log(`IOR: component[${i}] = ${id} (0x${id.toString(16)})`)
+                            }
+                            this.offset = nextOffset
+                        }
+                    }
                 } break
-
                 default:
-                // console.log(`Unhandled tag type=${profileId}`)
+                    console.log(`IOR: Unhandled profile type=${profileId} (0x${profileId.toString(16)})`)
             }
             this.offset = profileStart + profileLength
         }

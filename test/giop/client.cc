@@ -78,10 +78,10 @@ int main(int argc, char **argv)
 
         cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
         // server->onewayMethod();
-        server->sendBool(false, true);
+        // server->sendBool(false, true);
         // server->sendValuePoint(new Point_impl(3.1415, 2.17));
-        cout << server->peek() << endl;
-        // server->sendObject(small, "foo");
+        // cout << server->peek() << endl;
+        server->sendObject(small, "foo");
         cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 
         orb->destroy();
