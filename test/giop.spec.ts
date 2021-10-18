@@ -165,7 +165,7 @@ describe("CDR/GIOP", () => {
     // we send two values to verify the padding
     describe("send values", function () {
 
-        it.only("bool", async function () {
+        it("bool", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendBool(false, true)
             expect(await server.peek()).to.equal("sendBool(false,true)")
@@ -269,7 +269,7 @@ describe("CDR/GIOP", () => {
         })
 
         // send a local object to the peer and check if he was able to call us
-        it("local object", async function () {
+        it.only("local object", async function () {
             // FIXME: this doesn't work yet because i assumed GIOP was bi-directional by design
             // BiDirectional was added in CORBA 2.4, but MICO implements CORBA 2.3, there's only an unused definition for the BiDirectional policy
             // OmniORB implements CORBA 2.6 along with BiDirectional GIOP
@@ -278,10 +278,6 @@ describe("CDR/GIOP", () => {
 
             fake.expect(this.test!.fullTitle())
             const small = new GIOPSmall(orb)
-
-            console.log(`call server.sendObject server.orb: ${server.orb!.localAddress}:${server.orb!.localPort}`)
-            console.log(`call server.sendObject orb: ${orb!.localAddress}:${orb!.localPort}`)
-
             await server.sendObject(small, "foo")
             expect(small.msg).to.equal("foo")
         })

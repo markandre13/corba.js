@@ -154,32 +154,28 @@ export class GIOPEncoder extends GIOPBase {
         }
     }
 
-    // 0100 0000 0500 0000 2400 0000 0101 0000 ........$.......
-    // 0d00 0000 3139 322e 3136 382e 312e 3130 ....192.168.1.10
-    // 0000 50c9 0800 0000 0100 0000 0000 0000 ..P.............
-    // 0400 0000 666f 6f00                     ....foo.`)
+    // Corba 3.4 Part 2, 7.7 Service Context
     serviceContext() {
         this.ulong(0)
         return
 
-        // this.align(4)
-        // console.log(`0x${this.offset.toString(16)}: SERVICE CONTEXT`)
-        // 
-        // console.log(`0x${this.offset.toString(16)}: entries: 1`)
-        this.ulong(1) // emit one service context // 1
-        
-        // console.log(`0x${this.offset.toString(16)}: BI_DIR_IIOP 5`)
-        this.ulong(ServiceId.BI_DIR_IIOP) // 2
-        // console.log(`0x${this.offset.toString(16)}: reserve size`)
-        this.reserveSize() // 3
+        // the code below results in a NO,MARSHAL_PassEndOfMessage
 
-        // console.log(`0x${this.offset.toString(16)}: one address`)
-        this.ulong(1) // one address // 4
-        // console.log(`0x${this.offset.toString(16)}: hostname`)
-        this.string(this.orb?.localAddress!) // 5
-        // console.log(`0x${this.offset.toString(16)}: port`)
-        this.ushort(this.orb?.localPort!) // 6
-        // console.log(`0x${this.offset.toString(16)}: done`)
+        // sequence length
+        this.ulong(1) // emit one service context
+        
+        // CORBA 3.4 Part 2, 9.8.1 Bi-directional IIOP
+
+        // contextId
+        this.ulong(ServiceId.BI_DIR_IIOP)
+        // contextData length
+        this.reserveSize()
+
+        // listen point list
+        this.ulong(1)
+        // listen point
+        this.string(this.orb?.localAddress!)
+        this.ushort(this.orb?.localPort!)
 
         this.fillinSize()
     }
@@ -262,7 +258,7 @@ export class GIOPEncoder extends GIOPBase {
         this.blob(object.id)
 
         // IIOP >= 1.1: components
-        this.ulong(0) // component count = 0
+        // this.ulong(0) // component count = 0
 
         this.fillinSize()
     }
@@ -659,6 +655,7 @@ export class GIOPDecoder extends GIOPBase {
                     0x41540: "OmniORB"
                 }
                 const vendor = vendorId in vendorList ? ` ${vendorList[vendorId]}` : ""
+                let explanation = ""
 
                 // CORBA 3.4, Part 2, A.5 Exception Codes
                 switch (exceptionId) {
@@ -681,32 +678,26 @@ export class GIOPDecoder extends GIOPBase {
                             0x4154005b: "Invalid TypeCodeKind",
                             0x4154005d: "Message too long"
                         }
-                        const explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                        throw Error(`Received CORBA System Exception ${exceptionId} 0x${minorCodeValue.toString(16)}${vendor}${explanation}, operation completed: ${completionStatusName}`)
-                    }
+                        explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                    } break
                     case "IDL:omg.org/CORBA/TRANSIENT:1.0": {
-                        let explanationList: { [index: number]: string } = {
+                        const explanationList: { [index: number]: string } = {
                             // OMG
                             // OmniORB
                             0x41540002: "Connect Failed"
                         }
-                        const explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                        throw Error(`Received CORBA System Exception ${exceptionId} 0x${minorCodeValue.toString(16)}${vendor}${explanation}, operation completed: ${completionStatusName}`)
-                    }
+                        explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                    } break
                     case "IDL:omg.org/CORBA/BAD_PARAM:1.0": {
-                        let explanationList: { [index: number]: string } = {
+                        const explanationList: { [index: number]: string } = {
                             // OMG
                             // OmniORB
                             0x4154001d: "Invalid initial size"
                         }
-                        const explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                        throw Error(`Received CORBA System Exception ${exceptionId} 0x${minorCodeValue.toString(16)}${vendor}${explanation}, operation completed: ${completionStatusName}`)
-                    }
-                    default: {
-                        throw Error(`Received CORBA System Exception ${exceptionId}: 0x${minorCodeValue.toString(16)}${vendor}, operation completed: ${completionStatusName}`)
-                    }
+                        explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                    } break
                 }
-                break
+                throw Error(`CORBA System Exception ${exceptionId} from ${this.orb?.remoteAddress}:${this.orb?.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${completionStatusName}`)
             default:
                 throw Error(`ReplyStatusType ${data.replyStatus} is not supported`)
         }

@@ -56,7 +56,7 @@ int main(int argc, char **argv)
         class PointFactory: public virtual CORBA::ValueFactoryBase {
             CORBA::ValueBase* create_for_unmarshal() { return new Point_impl(); }
         };
-        // orb->register_value_factory("IDL:Point:1.0", new PointFactory());
+        orb->register_value_factory("IDL:Point:1.0", new PointFactory());
 
         // rootPOA
         CORBA::Object_var obj = orb->resolve_initial_references("RootPOA");
