@@ -39,17 +39,6 @@ export function connect(orb: ORB, host: string, port: number): Promise<Socket> {
                 orb.localPort = socket.localPort
             orb.remoteAddress = socket.remoteAddress!
             orb.remotePort = socket.remotePort!
-
-            console.log(`SOCKET LOCAL ADDRESS : ${socket.localAddress}`)
-            console.log(`SOCKET LOCAL PORT    : ${socket.localPort}`)
-            console.log(`SOCKET REMOTE ADDRESS: ${socket.remoteAddress}`)
-            console.log(`SOCKET REMOTE PORT   : ${socket.remotePort}`)
-
-            console.log(`ORB LOCAL ADDRESS : ${orb.localAddress}`)
-            console.log(`ORB LOCAL PORT    : ${orb.localPort}`)
-            console.log(`ORB REMOTE ADDRESS: ${orb.remoteAddress}`)
-            console.log(`ORB REMOTE PORT   : ${orb.remotePort}`)
-
             resolve(socket)
         })
     })

@@ -154,11 +154,59 @@ export class GIOPEncoder extends GIOPBase {
         }
     }
 
+    // 0100 0000 0500 0000 2400 0000 0101 0000 ........$.......
+    // 0d00 0000 3139 322e 3136 382e 312e 3130 ....192.168.1.10
+    // 0000 50c9 0800 0000 0100 0000 0000 0000 ..P.............
+    // 0400 0000 666f 6f00                     ....foo.`)
     serviceContext() {
         this.ulong(0)
+        return
+
+        // this.align(4)
+        // console.log(`0x${this.offset.toString(16)}: SERVICE CONTEXT`)
+        // 
+        // console.log(`0x${this.offset.toString(16)}: entries: 1`)
+        this.ulong(1) // emit one service context // 1
+        
+        // console.log(`0x${this.offset.toString(16)}: BI_DIR_IIOP 5`)
+        this.ulong(ServiceId.BI_DIR_IIOP) // 2
+        // console.log(`0x${this.offset.toString(16)}: reserve size`)
+        this.reserveSize() // 3
+
+        // console.log(`0x${this.offset.toString(16)}: one address`)
+        this.ulong(1) // one address // 4
+        // console.log(`0x${this.offset.toString(16)}: hostname`)
+        this.string(this.orb?.localAddress!) // 5
+        // console.log(`0x${this.offset.toString(16)}: port`)
+        this.ushort(this.orb?.localPort!) // 6
+        // console.log(`0x${this.offset.toString(16)}: done`)
+
+        this.fillinSize()
     }
 
-    // FIXME: renamed into 
+    sizeStack: number[] = []
+
+    // FIXME: find better names and use them everywhere
+    reserveSize() {
+        this.align(4)
+        this.offset += 4
+        this.sizeStack.push(this.offset)
+    }
+
+    fillinSize() {
+        const currrentOffset = this.offset
+        const savedOffset = this.sizeStack.pop()
+        if (savedOffset === undefined)
+            throw Error(`internal error: fillinSize() misses reserveSize()`)
+        this.offset = savedOffset - 4
+        const size = currrentOffset - savedOffset
+        console.log(`0x${this.offset.toString(16)}: insert size 0x${size.toString(16)}`)
+        this.ulong(size)
+        this.offset = currrentOffset
+        console.log(`0x${this.offset.toString(16)}: END OF SERVICE CONTEXT`)
+    }
+
+    // FIXME: rename into ...?
     setReplyHeader(requestId: number, replyStatus: number = ReplyStatus.NO_EXCEPTION) {
         this.skipGIOPHeader()
         this.encodeReply(requestId, replyStatus)
@@ -194,37 +242,33 @@ export class GIOPEncoder extends GIOPBase {
         }
     }
 
+    // IOR
     reference(object: CORBAObject) {
-        console.log(`GIOPEncoder.object(...) ${this.orb!.localAddress}:${this.orb!.localPort}`)
+        // console.log(`GIOPEncoder.object(...) ${this.orb!.localAddress}:${this.orb!.localPort}`)
         const className = (object.constructor as any)._idlClassName()
         this.string(`IDL:${className}:1.0`)
 
         this.ulong(1) // profileCount
 
         this.ulong(IOR.TAG.IOR.INTERNET_IOP)
-        const offsetSize = this.offset
-        this.ulong(0) // temporary profileLength
-        const offsetDataStart = this.offset
+        this.reserveSize()
 
-        // FIXME: is the really meant to be the protocol version?
-        // this.octet(this.majorVersion)
-        // this.octet(this.minorVersion)
-        this.octet(1)
-        this.octet(1)
+        this.octet(1) // IIOP major
+        this.octet(1) // IIOP minor
 
         // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
         this.string(this.orb!.localAddress!)
         this.short(this.orb!.localPort!)
         this.blob(object.id)
 
-        const offsetDataEnd = this.offset
-        this.offset = offsetSize
-        this.ulong(offsetDataEnd - offsetDataStart)
-        this.offset = offsetDataEnd
+        // IIOP >= 1.1: components
+        this.ulong(0) // component count = 0
+
+        this.fillinSize()
     }
 
     object(object: Object) {
-        console.log(`GIOPEncoder.object(...) ${this.orb!.localAddress}:${this.orb!.localPort}`)
+        // console.log(`GIOPEncoder.object(...) ${this.orb!.localAddress}:${this.orb!.localPort}`)
         if (object instanceof Stub) {
             throw Error("ORB: can not serialize Stub yet")
         }
@@ -234,7 +278,7 @@ export class GIOPEncoder extends GIOPBase {
                 throw Error("GIOPEncoder has no ORB defined. Can not add object to ACL.")
             }
             this.orb.aclAdd(object)
-            console.log("GIOPEncoder.object(...) -> .reference(...)")
+            // console.log("GIOPEncoder.object(...) -> .reference(...)")
             this.reference(object)
             return
             // return `{"#R":"${(object.constructor as any)._idlClassName()}","#V":${object.id}}`
@@ -629,6 +673,8 @@ export class GIOPDecoder extends GIOPBase {
                             0x4f4d0006: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
                             0x4f4d0007: "Unsupported RMI/IDL custom value type stream format.",
                             // OmniORB
+                            0x4154000a: "Pass end of message",
+                            0x41540012: "Sequence is too long",
                             0x41540034: "Invalid IOR",
                             0x4154004f: "Invalid ContextList",
                             0x4154005a: "Invalid Indirection",
@@ -647,6 +693,15 @@ export class GIOPDecoder extends GIOPBase {
                         const explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
                         throw Error(`Received CORBA System Exception ${exceptionId} 0x${minorCodeValue.toString(16)}${vendor}${explanation}, operation completed: ${completionStatusName}`)
                     }
+                    case "IDL:omg.org/CORBA/BAD_PARAM:1.0": {
+                        let explanationList: { [index: number]: string } = {
+                            // OMG
+                            // OmniORB
+                            0x4154001d: "Invalid initial size"
+                        }
+                        const explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                        throw Error(`Received CORBA System Exception ${exceptionId} 0x${minorCodeValue.toString(16)}${vendor}${explanation}, operation completed: ${completionStatusName}`)
+                    }
                     default: {
                         throw Error(`Received CORBA System Exception ${exceptionId}: 0x${minorCodeValue.toString(16)}${vendor}, operation completed: ${completionStatusName}`)
                     }
@@ -660,18 +715,19 @@ export class GIOPDecoder extends GIOPBase {
 
     serviceContext() {
         const serviceContextListLength = this.ulong()
+        // console.log(`serviceContextListLength = ${serviceContextListLength}`)
         for(let i=0; i<serviceContextListLength; ++i) {
             const serviceId = this.ulong()
-            console.log(`serviceContext[${i}].id = ${ServiceId[serviceId]}`)
             const contextLength = this.ulong()
-            const nextOffset = this.offset += contextLength
+            console.log(`serviceContext[${i}].id = ${ServiceId[serviceId]}, length=${contextLength}`)
+            const nextOffset = this.offset + contextLength
             switch(serviceId) {
                 case ServiceId.BI_DIR_IIOP:
-                    const n = this.ulong()
+                    let n = this.ulong()
                     for(let i=0; i<n; ++i) {
                         const host = this.string()
                         const port = this.ushort()
-                        console.log(`BiDirIIOP listenPoint[${i}] = ${host}:${port}`)
+                        console.log(`  BiDirIIOP listenPoint[${i}] = ${host}:${port}`)
                     }
                     break
             }

@@ -7,7 +7,6 @@ import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
 import { Fake } from "./fake"
-import { hasUncaughtExceptionCaptureCallback } from "process"
 
 // FIXME: this test does not work when MICO runs in debug mode; something is racy
 
@@ -113,24 +112,21 @@ describe("CDR/GIOP", () => {
         //   const server = Server::narrow(obj)
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
         ior = new IOR(data)
-        console.log("connecting to")
-        console.log(`ior.objectKey.length = ${ior.objectKey.length}`)
-        console.log(ior.host)
-        console.log(ior.port)
-        console.log(ior.oid)
-        // console.log(ior.objectKey)
-        let hex = ""
-        for (let i = 0; i < ior.objectKey.length; ++i) {
-            hex += ior.objectKey.at(i)!.toString(16) + " "
-        }
-        console.log(`io.objectKey=${hex}`)
+        // console.log("connecting to")
+        // console.log(`ior.objectKey.length = ${ior.objectKey.length}`)
+        // console.log(ior.host)
+        // console.log(ior.port)
+        // console.log(ior.oid)
+        // let hex = ""
+        // for (let i = 0; i < ior.objectKey.length; ++i) {
+        //     hex += ior.objectKey.at(i)!.toString(16) + " "
+        // }
+        // console.log(`ior.objectKey=${hex}`)
         fake = new Fake()
 
         // RECORD
         // const serverSocket = listen(orb, "0.0.0.0", 8080)
-        console.log(`orb: before connect: ${orb!.localAddress}:${orb!.localPort}`)
         const clientSocket = await connect(orb, ior.host!, ior.port!)
-        console.log(`orb: after connect: ${orb!.localAddress}:${orb!.localPort}`)
         console.log("connected")
 
         // fake.record(orb, clientSocket)
@@ -140,11 +136,11 @@ describe("CDR/GIOP", () => {
 
         const obj = orb.iorToObject(ior)
         server = stub.GIOPTest.narrow(obj)
-        hex = ""
-        for (let i = 0; i < server.id.length; ++i) {
-            hex += server.id.at(i)!.toString(16) + " "
-        }
-        console.log(`server.id=${hex}`)
+        // hex = ""
+        // for (let i = 0; i < server.id.length; ++i) {
+        //     hex += server.id.at(i)!.toString(16) + " "
+        // }
+        // console.log(`server.id=${hex}`)
     })
 
     it("oneway method", async function () {
@@ -169,7 +165,7 @@ describe("CDR/GIOP", () => {
     // we send two values to verify the padding
     describe("send values", function () {
 
-        it("bool", async function () {
+        it.only("bool", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendBool(false, true)
             expect(await server.peek()).to.equal("sendBool(false,true)")
@@ -460,7 +456,7 @@ describe("CDR/GIOP", () => {
                     expect(reply.replyStatus).to.equal(ReplyStatus.NO_EXCEPTION)
                 })
 
-                it.only("request i fail to send", function () {
+                it("request i fail to send", function () {
                     const data = parseOmniDump(
                         `4749 4f50 0102 0100 e000 0000 0400 0000 GIOP............
                         0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
@@ -477,19 +473,6 @@ describe("CDR/GIOP", () => {
                         0100 0000 1c00 0000 0100 0000 0100 0100 ................
                         0100 0000 0100 0105 0901 0100 0100 0000 ................
                         0901 0100 0400 0000 666f 6f00           ........foo.`)
-
-                        // 246c 6101 0014 9200 0000 0000 0200 0000 $la.............
-                        //                               ^
-                        //                               component count
-                        // 0000 0000 0800 0000 0100 0000 0054 5441 .............TTA
-                        // ^         ^         ^         ^
-                        // |         |         |          
-                        // |         |         count?
-                        // |         length = 8
-                        // id = TAG_ORB_TYPE
-                        // 0100 0000 1c00 0000 0100 0000 0100 0100 ................
-                        // 0100 0000 0100 0105 0901 0100 0100 0000 ................
-                        // 0901 0100 0400 0000 666f 6f00           ........foo.`)
                     const decoder = new GIOPDecoder(data.buffer)
 
                     const type = decoder.scanGIOPHeader()
@@ -528,17 +511,27 @@ describe("CDR/GIOP", () => {
                 // but me thinks, that OmniORB might be encoding a complete IOR. me thinks i
                 // did that too but i guess that i screwed it up
                 it("my screwed up variant", function () {
+                    // const orb = new ORB()
+                    // orb.localAddress = "192.168.1.10"
+                    // orb.localPort = 8080
+                    // const encoder = new GIOPEncoder(orb)
+                    // encoder.serviceContext()
+                    // hexdump(new Uint8Array(encoder.buffer.slice(0, encoder.offset)))
+                    // return
+
                     const data = parseOmniDump(
-                        `4749 4f50 0102 0100 8c00 0000 0100 0000 GIOP............
+                        `4749 4f50 0102 0100 b000 0000 0100 0000 GIOP............
                         0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
-                        6972 fe9b 486c 6101 0015 6100 0000 0000 ir..Hla...a.....
+                        6972 fe3e c86d 6101 0005 4900 0000 0000 ir.>.ma...I.....
                         0b00 0000 7365 6e64 4f62 6a65 6374 0000 ....sendObject..
-                        0000 0000 0000 0000 1200 0000 4944 4c3a ............IDL:
-                        4749 4f50 536d 616c 6c3a 312e 3000 0000 GIOPSmall:1.0...
-                        0100 0000 0000 0000 2400 0000 0102 0000 ........$.......
+                        0100 0000 0500 0000 1800 0000 0100 0000 ................
                         0d00 0000 3139 322e 3136 382e 312e 3130 ....192.168.1.10
-                        0000 82c4 0800 0000 0100 0000 0000 0000 ................
-                        0400 0000 666f 6f00                     ....foo.`)
+                        0000 98c3 0000 0000 1200 0000 4944 4c3a ............IDL:
+                        4749 4f50 536d 616c 6c3a 312e 3000 0000 GIOPSmall:1.0...
+                        0100 0000 0000 0000 2800 0000 0101 0000 ........(.......
+                        0d00 0000 3139 322e 3136 382e 312e 3130 ....192.168.1.10
+                        0000 98c3 0800 0000 0100 0000 0000 0000 ................
+                        0000 0000 0400 0000 666f 6f00           ........foo.`)
                     const decoder = new GIOPDecoder(data.buffer)
                     const type = decoder.scanGIOPHeader()
                     expect(decoder.type).to.equal(type)
@@ -560,7 +553,7 @@ describe("CDR/GIOP", () => {
                     const ref = decoder.reference()
                     // console.log(ref)
                     expect(ref.host).to.equal("192.168.1.10")
-                    expect(ref.port).to.equal(50306)
+                    expect(ref.port).to.equal(50072)
                     expect(ref.oid).to.equal("IDL:GIOPSmall:1.0")
                     expect(ref.objectKey).to.eql(new Uint8Array([
                         1, 0, 0, 0, 0, 0, 0, 0
@@ -627,4 +620,22 @@ function sleep(ms: number) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms)
     })
+}
+
+function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
+    while (addr < length) {
+        let line = addr.toString(16).padStart(4, "0")
+        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
+            line += " " + bytes[j].toString(16).padStart(2, "0")
+        line = line.padEnd(4 + 16 * 3 + 1, " ")
+        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
+            const b = bytes[j]
+            if (b >= 32 && b  < 127)
+                line += String.fromCharCode(b)
+            else
+                line += "."
+        }
+        addr += 16
+        console.log(line)
+    }
 }
