@@ -278,8 +278,8 @@ describe("CDR/GIOP", () => {
 
             fake.expect(this.test!.fullTitle())
             const small = new GIOPSmall(orb)
-            server.sendObject(small, "foo")
-            // expect(small.msg).to.equal("foo")
+            await server.sendObject(small, "foo")
+            expect(small.msg).to.equal("foo")
         })
 
         // get a remote object from the peer and check if we were able to call him

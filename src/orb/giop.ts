@@ -154,28 +154,22 @@ export class GIOPEncoder extends GIOPBase {
         }
     }
 
+    encodeLocateReply(requestId: number, status: LocateStatusType) {
+        this.skipGIOPHeader()
+        this.ulong(requestId)
+        this.ulong(status)
+    }
+
     // Corba 3.4 Part 2, 7.7 Service Context
     serviceContext() {
-        // this.ulong(0)
-        // return
-
-        // the code below results in a NO,MARSHAL_PassEndOfMessage
-
         // sequence length
         this.ulong(1) // emit one service context
 
-        // WORKS: GARBAGE
-        // this.ulong(0xffaabbff)
-        // this.ulong(4)
-        // this.ulong(0)
-
-        // DOESN'T WORK: CORBA 3.4 Part 2, 9.8.1 Bi-directional IIOP
-
-        // // contextId
+        // CORBA 3.4 Part 2, 9.8.1 Bi-directional IIOP Service Context
+        // TODO: send listen point only once per connection
         this.ulong(ServiceId.BI_DIR_IIOP)
         this.reserveSize()
-        this.ulong(1)
-        
+        this.ulong(1) // number of listen points
         this.octet(1) // ? endian again? where's that in the spec?
         this.string(this.orb?.localAddress!)
         this.ushort(this.orb?.localPort!)

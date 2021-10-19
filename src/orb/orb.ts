@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ReplyStatus } from "corba.js"
+import { LocateStatusType, ReplyStatus } from "corba.js"
 import { GIOPDecoder, GIOPEncoder, MessageType } from "./giop"
 import { IOR } from "./ior"
 import { Uint8Map } from "./uint8map"
@@ -146,6 +146,19 @@ export class ORB implements EventTarget, SocketUser {
         const decoder = new GIOPDecoder(buffer, this)
         const type = decoder.scanGIOPHeader()
         switch (type) {
+            case MessageType.LOCATE_REQUEST: {
+                const data = decoder.scanLocateRequest()
+                const servant = this.servants.get(data.objectKey)
+                const encoder = new GIOPEncoder(this)
+                encoder.encodeLocateReply(
+                    data.requestId,
+                    servant !== undefined ?
+                        LocateStatusType.OBJECT_HERE :
+                        LocateStatusType.UNKNOWN_OBJECT
+                )
+                encoder.setGIOPHeader(MessageType.LOCATE_REPLY)
+                this.socketSend(encoder.buffer.slice(0, encoder.offset))
+            } break
             case MessageType.REQUEST: {
                 const data = decoder.scanRequestHeader()
                 // FIXME: make this if expression a method
