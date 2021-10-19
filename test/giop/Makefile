@@ -4,10 +4,10 @@ all: client server
 # -ORBmaxGIOPVersion 1.2 -ORBoneCallPerConnection 0 -ORBofferBiDirectionalGIOP 1
 
 runs: server
-	killall server ; ./server -ORBtraceLevel 40 -ORBoneCallPerConnection 0 -ORBacceptBiDirectionalGIOP 1 -ORBofferBiDirectionalGIOP 1 -ORBserverTransportRule "* unix,tcp,bidir"
+	killall server ; LD_LIBRARY_PATH=/usr/local/lib ./server -ORBtraceLevel 40 -ORBoneCallPerConnection 0 -ORBacceptBiDirectionalGIOP 1 -ORBofferBiDirectionalGIOP 1 -ORBserverTransportRule "* unix,tcp,bidir"
 
 runc: client
-	./client -ORBtraceLevel 0 -ORBtraceLevel 40 -ORBoneCallPerConnection 0 -ORBacceptBiDirectionalGIOP 1 -ORBofferBiDirectionalGIOP 1 -ORBserverTransportRule "* unix,tcp,bidir"
+	LD_LIBRARY_PATH=/usr/local/lib ./client -ORBtraceLevel 0 -ORBtraceLevel 40 -ORBoneCallPerConnection 0 -ORBacceptBiDirectionalGIOP 1 -ORBofferBiDirectionalGIOP 1 -ORBserverTransportRule "* unix,tcp,bidir"
 
 client: client.cc giopSK.cc giop.hh
 	g++ -O0 -g -lomniORB4 -lomniDynamic4 -lomnithread -o client client.cc giopSK.cc

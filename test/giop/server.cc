@@ -248,7 +248,7 @@ void GIOPTest_impl::sendValuePoints(Point *v0, Point *v1)
 void GIOPTest_impl::sendObject(GIOPSmall_ptr obj, const char *msg)
 {
     cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-    cout << "sendObject(..., \"" << msg << "\")roo" << endl;
+    cout << "sendObject(..., \"" << msg << "\")" << endl;
     obj->call(msg);
 }
 

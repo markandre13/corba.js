@@ -131,7 +131,7 @@ export class GIOPEncoder extends GIOPBase {
             this.ushort(AddressingDisposition.KeyAddr)
             this.blob(objectKey!)
         }
-        
+
         this.string(operation)
         if (this.majorVersion == 1 && this.minorVersion <= 1) {
             this.ulong(0) // Requesting Principal length
@@ -156,28 +156,59 @@ export class GIOPEncoder extends GIOPBase {
 
     // Corba 3.4 Part 2, 7.7 Service Context
     serviceContext() {
-        this.ulong(0)
-        return
+        // this.ulong(0)
+        // return
 
         // the code below results in a NO,MARSHAL_PassEndOfMessage
 
         // sequence length
         this.ulong(1) // emit one service context
-        
-        // CORBA 3.4 Part 2, 9.8.1 Bi-directional IIOP
 
-        // contextId
+        // WORKS: GARBAGE
+        // this.ulong(0xffaabbff)
+        // this.ulong(4)
+        // this.ulong(0)
+
+        // DOESN'T WORK: CORBA 3.4 Part 2, 9.8.1 Bi-directional IIOP
+
+        // // contextId
         this.ulong(ServiceId.BI_DIR_IIOP)
-        // contextData length
         this.reserveSize()
-
-        // listen point list
         this.ulong(1)
-        // listen point
         this.string(this.orb?.localAddress!)
         this.ushort(this.orb?.localPort!)
-
         this.fillinSize()
+
+/*
+        // WORKS: CODE_SETS ISO-8859-1,UTF-16
+        this.ulong(ServiceId.CodeSets)
+        this.reserveSize()
+        this.octet(0x01)
+        this.octet(0x00)
+        this.octet(0x00)
+        this.octet(0x00)
+        this.octet(0x01)
+        this.octet(0x00)
+        this.octet(0x01)
+        this.octet(0x00)
+        this.octet(0x09)
+        this.octet(0x01)
+        this.octet(0x01)
+        this.octet(0x00)
+        this.fillinSize()
+*/
+
+        // // contextData length
+        // this.reserveSize()
+
+        // // listen point list
+        // this.ulong(1)
+        // // listen point
+        // // this.string(this.orb?.localAddress!)
+        // this.string("MARK13.ORG")
+        // this.ushort(this.orb?.localPort!)
+
+        // this.fillinSize()
     }
 
     sizeStack: number[] = []
@@ -238,29 +269,53 @@ export class GIOPEncoder extends GIOPBase {
         }
     }
 
-    // IOR
+    // Interoperable Object Reference (IOR)
     reference(object: CORBAObject) {
         // console.log(`GIOPEncoder.object(...) ${this.orb!.localAddress}:${this.orb!.localPort}`)
         const className = (object.constructor as any)._idlClassName()
+        // type id
         this.string(`IDL:${className}:1.0`)
 
+        // tagged profile sequence
         this.ulong(1) // profileCount
 
+        // profile id
+        // 9.7.2 IIOP IOR Profiles
+        console.log(`IOR: write profile id at 0x${this.offset.toString(16)}`)
         this.ulong(IOR.TAG.IOR.INTERNET_IOP)
+
+        // profile data length
+        console.log(`IOR: write profile size at 0x${this.offset.toString(16)}`)
         this.reserveSize()
 
-        this.octet(1) // IIOP major
-        this.octet(1) // IIOP minor
+        console.log(`IOR: write version at 0x${this.offset.toString(16)}`)
+        this.octet(GIOPEncoder.littleEndian ? 1 : 0)
+        this.octet(this.majorVersion)
+        this.octet(this.minorVersion)
+        console.log(`IOR: write hostname at 0x${this.offset.toString(16)}`)
+
 
         // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
         this.string(this.orb!.localAddress!)
         this.short(this.orb!.localPort!)
         this.blob(object.id)
 
+        // IIOP 1.1 -> OmniORB says: Profile has garbage at end
+        // IIOP 1.2 -> OmniORB says: Invalid IOR
+        // this.ulong(0)
         // IIOP >= 1.1: components
-        // this.ulong(0) // component count = 0
-
+        if (this.majorVersion != 1 || this.minorVersion != 0) {
+            // this.ulong(0)
+            this.ulong(1) // component count = 1
+            this.ulong(0) // TAG_ORB_TYPE (3.4 P 2, 7.6.6.1)
+            // this.reserveSize()
+            this.ulong(8)
+            this.ulong(1)
+            this.ulong(0x4d313300)
+            // this.fillinSize()
+        }
         this.fillinSize()
+        // this.align(8)
     }
 
     object(object: Object) {
@@ -562,7 +617,7 @@ export class GIOPDecoder extends GIOPBase {
             data.responseExpected = responseFlags != 0
         } else {
             // console.log(`responseFlags=${responseFlags}`)
-            switch(responseFlags) {
+            switch (responseFlags) {
                 case 0: // SyncScope.NONE, WITH_TRANSPORT
                     data.responseExpected = false
                     break
@@ -620,7 +675,7 @@ export class GIOPDecoder extends GIOPBase {
         if (this.majorVersion == 1 && this.minorVersion >= 2) {
             this.serviceContext()
         }
-        
+
         switch (data.replyStatus) {
             case ReplyStatus.NO_EXCEPTION:
                 break
@@ -634,7 +689,7 @@ export class GIOPDecoder extends GIOPBase {
                 const vendorId = (minorCodeValue & 0xFFFFF000) >> 12
                 const minorCode = minorCodeValue & 0x00000FFF
                 // FIXME: make org.omg.CORBA.CompletionStatus an enum
-                
+
                 let completionStatusName
                 switch (completionStatus) {
                     case 0:
@@ -650,7 +705,7 @@ export class GIOPDecoder extends GIOPBase {
                         completionStatusName = `${completionStatus}`
                 }
                 // A.5 Exception Codes
-                let vendorList: { [index: number]: string} = {
+                let vendorList: { [index: number]: string } = {
                     0x4f4d0: "OMG",
                     0x41540: "OmniORB"
                 }
@@ -672,6 +727,7 @@ export class GIOPDecoder extends GIOPBase {
                             // OmniORB
                             0x4154000a: "Pass end of message",
                             0x41540012: "Sequence is too long",
+                            0x41540016: "Received an invalid zero length string",
                             0x41540034: "Invalid IOR",
                             0x4154004f: "Invalid ContextList",
                             0x4154005a: "Invalid Indirection",
@@ -707,15 +763,15 @@ export class GIOPDecoder extends GIOPBase {
     serviceContext() {
         const serviceContextListLength = this.ulong()
         // console.log(`serviceContextListLength = ${serviceContextListLength}`)
-        for(let i=0; i<serviceContextListLength; ++i) {
+        for (let i = 0; i < serviceContextListLength; ++i) {
             const serviceId = this.ulong()
             const contextLength = this.ulong()
             console.log(`serviceContext[${i}].id = ${ServiceId[serviceId]}, length=${contextLength}`)
             const nextOffset = this.offset + contextLength
-            switch(serviceId) {
+            switch (serviceId) {
                 case ServiceId.BI_DIR_IIOP:
                     let n = this.ulong()
-                    for(let i=0; i<n; ++i) {
+                    for (let i = 0; i < n; ++i) {
                         const host = this.string()
                         const port = this.ushort()
                         console.log(`  BiDirIIOP listenPoint[${i}] = ${host}:${port}`)
@@ -745,6 +801,7 @@ export class GIOPDecoder extends GIOPBase {
                 // CORBA 3.3 Part 2: 9.7.2 IIOP IOR Profiles
                 case IOR.TAG.IOR.INTERNET_IOP: {
                     // console.log(`Internet IOP Component, length=${profileLength}`)
+                    const endian = this.bool()
                     const iiopMajorVersion = this.octet()
                     const iiopMinorVersion = this.octet()
                     // if (iiopMajorVersion !== 1 || iiopMinorVersion > 1) {
@@ -759,22 +816,61 @@ export class GIOPDecoder extends GIOPBase {
                         // TaggedComponentSeq
                         const n = this.ulong()
                         console.log(`IOR: ${n} components`)
-                        for(i=0; i<n; ++i) {
+                        for (i = 0; i < n; ++i) {
                             const id = this.ulong()
                             const length = this.ulong()
                             const nextOffset = this.offset + length
-                            switch(id) {
+                            switch (id) {
                                 case 0: // TAG_ORB_TYPE
                                     const typeCount = this.ulong()
-                                    for(let j=0; j<typeCount; ++j) {
+                                    for (let j = 0; j < typeCount; ++j) {
                                         const orbType = this.ulong()
-                                        let name
-                                        switch(orbType) {
-                                            case 0x41545400:
-                                                name = "OmniORB"
+                                        const orbTypeNames = [
+                                            [0x48500000, 0x4850000f, "Hewlett Packard"],
+                                            [0x49424d00, 0x49424d0f, "IBM"],
+                                            [0x494c5500, 0x494c55ff, "Xerox"],
+                                            [0x49534900, 0x4953490f, "AdNovum Informatik AG"],
+                                            [0x56495300, 0x5649530f, "Borland/Inprise"],
+                                            [0x4f495300, 0x4f4953ff, "Objective Interface Systems"],
+                                            [0x46420000, 0x4642000f, "FloorBoard Software"],
+                                            [0x4E4E4E56, 0x4E4E4E56, "Rogue Wave"],
+                                            [0x4E550000, 0x4E55000f, "Nihon Unisys, Ltd"],
+                                            [0x4A424B52, 0x4A424B52, "SilverStream Software"],
+                                            [0x54414f00, 0x54414f00, "Center for Distributed Object Computing, Washington University"],
+                                            [0x4C434200, 0x4C43420F, "2AB"],
+                                            [0x41505831, 0x41505831, "Informatik 4, Univ. of Erlangen-Nuernberg"],
+                                            [0x4f425400, 0x4f425400, "ORBit"],
+                                            [0x47534900, 0x4753490f, "GemStone Systems, Inc."],
+                                            [0x464a0000, 0x464a000f, "Fujitsu Limited"],
+                                            [0x4E534440, 0x4E53444F, "Compaq Computer"],
+                                            [0x4f425f00, 0x4f425f0f, "TIBCO"],
+                                            [0x4f414b00, 0x4f414b0f, "Camros Corporation"],
+                                            [0x41545400, 0x4154540f, "AT&T Laboratories, Cambridge (OmniORB)"],
+                                            [0x4f4f4300, 0x4f4f430f, "IONA Technologies"],
+                                            [0x4e454300, 0x4e454303, "NEC Corporation"],
+                                            [0x424c5500, 0x424c550f, "Berry Software"],
+                                            [0x56495400, 0x564954ff, "Vitra"],
+                                            [0x444f4700, 0x444f47ff, "Exoffice Technologies"],
+                                            [0xcb0e0000, 0xcb0e00ff, "Chicago Board of Exchange (CBOE)"],
+                                            [0x4A414300, 0x4A41430f, "FU Berlin Institut für Informatik (JAC)"],
+                                            [0x58545240, 0x5854524F, "Xtradyne Technologies AG"],
+                                            [0x54475800, 0x54475803, "Top Graph'X"],
+                                            [0x41646100, 0x41646103, "AdaOS project"],
+                                            [0x4e4f4b00, 0x4e4f4bff, "Nokia"],
+                                            [0x53414E00, 0x53414E0f, "Sankhya Technologies Private Limited, India"],
+                                            [0x414E4400, 0x414E440f, "Androsoft GmbH"],
+                                            [0x42424300, 0x4242430f, "Bionic Buffalo Corporation"],
+                                            [0x4d313300, 0x4d313300, "corba.js"]
+                                        ]
+                                        let name: string | undefined
+                                        for(let x of orbTypeNames) {
+                                            if (x[0] <= orbType && orbType <= x[1]) {
+                                                name = x[2] as string
                                                 break
-                                            default:
-                                                name = `0x${orbType.toString(16)}`
+                                            }
+                                        }
+                                        if (name === undefined) {
+                                            name = `0x${orbType.toString(16)}`
                                         }
                                         console.log(`IOR: component[${i}] = ORB_TYPE ${name}`)
                                     }

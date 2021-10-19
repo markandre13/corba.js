@@ -481,10 +481,6 @@ describe("CDR/GIOP", () => {
                     const request = decoder.scanRequestHeader()
                     expect(request.requestId).to.equal(4)
                     expect(request.responseExpected).to.be.true
-                    // expect(request.objectKey).to.eql(new Uint8Array([
-                    //     255, 98, 105, 100, 105, 114, 254,
-                    //     41, 36, 108,  97,   1,   0,  20,
-                    //     97,  0,   0,   0,   0,   0]))
                     expect(request.method).to.equal("sendObject")
 
                     // 1st argument: IOR
@@ -492,11 +488,6 @@ describe("CDR/GIOP", () => {
                     expect(ref.host).to.equal("192.168.1.105")
                     expect(ref.port).to.equal(42839)
                     expect(ref.oid).to.equal("IDL:GIOPSmall:1.0")
-                    // expect(ref.objectKey).to.eql(new Uint8Array([
-                    //     255, 98, 105, 100, 105, 114, 254,
-                    //     179, 36, 108,  97,   1,   0,  20,
-                    //     146,  0,   0,   0,   0,   0
-                    // ]))
 
                     // 2nd: argument: message
                     const msg = decoder.string()
