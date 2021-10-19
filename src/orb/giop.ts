@@ -175,6 +175,8 @@ export class GIOPEncoder extends GIOPBase {
         this.ulong(ServiceId.BI_DIR_IIOP)
         this.reserveSize()
         this.ulong(1)
+        
+        this.octet(1) // ? endian again? where's that in the spec?
         this.string(this.orb?.localAddress!)
         this.ushort(this.orb?.localPort!)
         this.fillinSize()
@@ -197,18 +199,6 @@ export class GIOPEncoder extends GIOPBase {
         this.octet(0x00)
         this.fillinSize()
 */
-
-        // // contextData length
-        // this.reserveSize()
-
-        // // listen point list
-        // this.ulong(1)
-        // // listen point
-        // // this.string(this.orb?.localAddress!)
-        // this.string("MARK13.ORG")
-        // this.ushort(this.orb?.localPort!)
-
-        // this.fillinSize()
     }
 
     sizeStack: number[] = []
@@ -308,11 +298,11 @@ export class GIOPEncoder extends GIOPBase {
             // this.ulong(0)
             this.ulong(1) // component count = 1
             this.ulong(0) // TAG_ORB_TYPE (3.4 P 2, 7.6.6.1)
-            // this.reserveSize()
-            this.ulong(8)
-            this.ulong(1)
-            this.ulong(0x4d313300)
-            // this.fillinSize()
+            this.reserveSize()
+            // this.ulong(8)
+            this.ulong(1) // where's that in the spec? would an octet also work? endian again?
+            this.ulong(0x4d313300) // "M13\0" as ORB Type ID for corba.js
+            this.fillinSize()
         }
         this.fillinSize()
         // this.align(8)
