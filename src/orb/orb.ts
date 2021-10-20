@@ -52,8 +52,6 @@ export class ORB implements EventTarget, SocketUser {
     debug: number		// values > 0 enable debug output
     name: string        // orb name to ease debugging
 
-    // socket?: any		// socket with the client/server
-
     stubsByName: Map<string, any>
     stubsById: Uint8Map<Stub>
 
@@ -73,6 +71,7 @@ export class ORB implements EventTarget, SocketUser {
     remotePort = 0
 
     reqid: number // counter to assign request id's to send messages // FIXME: handle overflow
+    reqidStep: number
 
     listeners: Map<string, Set<EventListenerOrEventListenerObject>>
 
@@ -91,9 +90,10 @@ export class ORB implements EventTarget, SocketUser {
             this.initialReferences = orb.initialReferences
             this.name = "spawned from '" + orb.name + "'"
         }
+        this.reqid = (orb == undefined) ? 0 : 1 // BiDirectionalIIOP uses even requestIds for the initiator
+        this.reqidStep = 2
         this.stubsById = new Uint8Map()
         this.accesibleServants = new Set<Skeleton>()
-        this.reqid = 0
         this.listeners = new Map<string, Set<EventListenerOrEventListenerObject>>()
     }
 
@@ -104,15 +104,18 @@ export class ORB implements EventTarget, SocketUser {
     map = new Map<number, PromiseHandler>()
 
     onewayCall(objectId: Uint8Array, method: string, encode: (encoder: GIOPEncoder) => void): void {
-        this.callCore(++this.reqid, false, objectId, method, encode)
+        const requestId = this.reqid
+        this.reqid += this.reqidStep
+        this.callCore(requestId, false, objectId, method, encode)
     }
 
     twowayCall<T>(objectId: Uint8Array, method: string,
         encode: (encoder: GIOPEncoder) => void,
         decode: (decoder: GIOPDecoder) => T
     ): Promise<T> {
+        const requestId = this.reqid
+        this.reqid += this.reqidStep
         return new Promise<T>((resolve, reject) => {
-            const requestId = ++this.reqid
             this.map.set(
                 requestId,
                 new PromiseHandler(
@@ -238,12 +241,16 @@ export class ORB implements EventTarget, SocketUser {
                         break
                 }
             } break
+            default: {
+                throw Error(`Received ${MessageType[type]} which is not implemented in corba.js`)
+            }
         }
     }
 
     socketError(error: Error): void {
-        // FIXME: no error handling implemented
-     }
+        // FIXME: no error handling implemented yet
+    }
+
     socketClose(): void { 
         this.dispatchEvent(new Event("close"))
         this.release()

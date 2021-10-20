@@ -145,12 +145,14 @@ export class GIOPEncoder extends GIOPBase {
         this.skipGIOPHeader()
         // fixme: create and use version methods like isVersionLessThan(1,2) or isVersionVersionGreaterEqual(1,2)
         if (this.majorVersion == 1 && this.minorVersion < 2) {
-            this.serviceContext()
+            // this.serviceContext()
+            this.ulong(0) // skipReplyHeader needs a fixed size service context
         }
         this.ulong(requestId)
         this.ulong(replyStatus)
         if (this.majorVersion == 1 && this.minorVersion >= 2) {
-            this.serviceContext()
+            // this.serviceContext()
+            this.ulong(0) // skipReplyHeader needs a fixed size service context
         }
     }
 
@@ -174,7 +176,6 @@ export class GIOPEncoder extends GIOPBase {
         this.string(this.orb?.localAddress!)
         this.ushort(this.orb?.localPort!)
         this.fillinSize()
-
 /*
         // WORKS: CODE_SETS ISO-8859-1,UTF-16
         this.ulong(ServiceId.CodeSets)
@@ -211,10 +212,8 @@ export class GIOPEncoder extends GIOPBase {
             throw Error(`internal error: fillinSize() misses reserveSize()`)
         this.offset = savedOffset - 4
         const size = currrentOffset - savedOffset
-        console.log(`0x${this.offset.toString(16)}: insert size 0x${size.toString(16)}`)
         this.ulong(size)
         this.offset = currrentOffset
-        console.log(`0x${this.offset.toString(16)}: END OF SERVICE CONTEXT`)
     }
 
     // FIXME: rename into ...?
@@ -224,7 +223,7 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     skipReplyHeader() {
-        this.offset = 24
+        this.offset = 24 // this does not work!!! anymore with having a variable length service context!!!
     }
 
     repositoryId(name: string) {
@@ -265,41 +264,28 @@ export class GIOPEncoder extends GIOPBase {
 
         // profile id
         // 9.7.2 IIOP IOR Profiles
-        console.log(`IOR: write profile id at 0x${this.offset.toString(16)}`)
         this.ulong(IOR.TAG.IOR.INTERNET_IOP)
-
-        // profile data length
-        console.log(`IOR: write profile size at 0x${this.offset.toString(16)}`)
         this.reserveSize()
-
-        console.log(`IOR: write version at 0x${this.offset.toString(16)}`)
         this.octet(GIOPEncoder.littleEndian ? 1 : 0)
         this.octet(this.majorVersion)
         this.octet(this.minorVersion)
-        console.log(`IOR: write hostname at 0x${this.offset.toString(16)}`)
-
 
         // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
         this.string(this.orb!.localAddress!)
         this.short(this.orb!.localPort!)
         this.blob(object.id)
 
-        // IIOP 1.1 -> OmniORB says: Profile has garbage at end
-        // IIOP 1.2 -> OmniORB says: Invalid IOR
-        // this.ulong(0)
         // IIOP >= 1.1: components
         if (this.majorVersion != 1 || this.minorVersion != 0) {
             // this.ulong(0)
             this.ulong(1) // component count = 1
             this.ulong(0) // TAG_ORB_TYPE (3.4 P 2, 7.6.6.1)
             this.reserveSize()
-            // this.ulong(8)
             this.ulong(1) // where's that in the spec? would an octet also work? endian again?
             this.ulong(0x4d313300) // "M13\0" as ORB Type ID for corba.js
             this.fillinSize()
         }
         this.fillinSize()
-        // this.align(8)
     }
 
     object(object: Object) {
@@ -672,8 +658,8 @@ export class GIOPDecoder extends GIOPBase {
                 const completionStatus = this.ulong()
                 const vendorId = (minorCodeValue & 0xFFFFF000) >> 12
                 const minorCode = minorCodeValue & 0x00000FFF
-                // FIXME: make org.omg.CORBA.CompletionStatus an enum
 
+                // FIXME: make org.omg.CORBA.CompletionStatus an enum
                 let completionStatusName
                 switch (completionStatus) {
                     case 0:
@@ -705,7 +691,7 @@ export class GIOPDecoder extends GIOPBase {
                             0x4f4d0002: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
                             0x4f4d0003: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
                             0x4f4d0004: "Attempt to marshal local object.",
-                            0x4f4d0005: "wchar or wstring data erroneosly sent by client over GIOP 1.0 connection",
+                            0x4f4d0005: "wchar or wstring data erroneously sent by client over GIOP 1.0 connection.",
                             0x4f4d0006: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
                             0x4f4d0007: "Unsupported RMI/IDL custom value type stream format.",
                             // OmniORB
@@ -814,7 +800,7 @@ export class GIOPDecoder extends GIOPBase {
                                             [0x49424d00, 0x49424d0f, "IBM"],
                                             [0x494c5500, 0x494c55ff, "Xerox"],
                                             [0x49534900, 0x4953490f, "AdNovum Informatik AG"],
-                                            [0x56495300, 0x5649530f, "Borland/Inprise"],
+                                            [0x56495300, 0x5649530f, "Borland (VisiBroker)"],
                                             [0x4f495300, 0x4f4953ff, "Objective Interface Systems"],
                                             [0x46420000, 0x4642000f, "FloorBoard Software"],
                                             [0x4E4E4E56, 0x4E4E4E56, "Rogue Wave"],
