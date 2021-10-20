@@ -37,7 +37,7 @@ interface GIOPTest {
     void sendValuePoints(in Point v0, in Point v1);
 
     void sendObject(in GIOPSmall obj, in string msg);
-    // GIOPSmall getObject();
+    GIOPSmall getObject();
     // GIOPSmall rcvdObject();
 
     // void sendAny(in any v0);

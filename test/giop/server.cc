@@ -27,13 +27,22 @@ public:
     void sendValuePoint(::Point *v0);
     void sendValuePoints(::Point *v0, ::Point *v1);
     void sendObject(::GIOPSmall_ptr obj, const char *msg);
-    // GIOPSmall_ptr getObject();
+    GIOPSmall_ptr getObject();
 };
-    
+
+class GIOPSmall_impl : public virtual POA_GIOPSmall
+{
+public:
+    virtual ~GIOPSmall_impl() {}
+    void call(const char *msg);
+};
+
 using namespace std;
 
 const char *blank = "THIS PAGE INTENTIONALLY LEFT BLANK";
 string lastToken(blank);
+
+GIOPSmall_var small;
 
 class Point_impl: virtual public OBV_Point, virtual public CORBA::DefaultValueRefCountBase {
   public:
@@ -80,6 +89,10 @@ int main(int argc, char **argv)
         PortableServer::ObjectId_var oid = bidirPOA->activate_object(servant);
         obj = servant->_this();
         // servant->_remove_ref();
+
+        PortableServer::Servant_var<GIOPSmall_impl> smallServant = new GIOPSmall_impl();
+        bidirPOA->activate_object(smallServant);
+        small = smallServant->_this();
 
         // store GIOPTest's IOR
         CORBA::String_var ior = orb->object_to_string(obj);
@@ -252,7 +265,13 @@ void GIOPTest_impl::sendObject(GIOPSmall_ptr obj, const char *msg)
     obj->call(msg);
 }
 
-// GIOPSmall_ptr GIOPTest_impl::getObject()
-// {
-//     return 0;
-// }
+GIOPSmall_ptr GIOPTest_impl::getObject()
+{
+    return GIOPSmall::_duplicate(small);
+}
+
+void GIOPSmall_impl::call(const char *msg)
+{
+    lastToken = string(msg);
+    cout << lastToken << endl;
+}

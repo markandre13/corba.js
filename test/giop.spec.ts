@@ -48,6 +48,7 @@ describe("CDR/GIOP", () => {
         orb = new ORB()
         ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
         orb.registerStubClass(stub.GIOPTest)
+        orb.registerStubClass(stub.GIOPSmall)
 
         const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
 
@@ -58,7 +59,7 @@ describe("CDR/GIOP", () => {
         ior = new IOR(data)
         fake = new Fake()
 
-        if (false) {
+        if (true) {
             // RECORD
             const serverSocket = listen(orb, "0.0.0.0", 8080)
             const clientSocket = await connect(orb, ior.host!, ior.port!)
@@ -189,7 +190,7 @@ describe("CDR/GIOP", () => {
         })
 
         // send a local object to the peer and check if he was able to call us
-        it("local object", async function () {
+        it("send local object", async function () {
             fake.expect(this.test!.fullTitle())
             const small = new GIOPSmall(orb)
             await server.sendObject(small, "foo")
@@ -197,18 +198,25 @@ describe("CDR/GIOP", () => {
         })
 
         // get a remote object from the peer and check if we were able to call him
-        // it("remote object", async function() {
-        //     // this does not work with the real orb because the host and port may be wrong
-        //     fake.expect(this.test!.fullTitle())
-        //     const obj = server.getObject()
-        //     const small = stub.GIOPSmall.narrow(obj)
-        //     small.call("GIOPSmall.call()")
-        //     expect(await server.peek()).to.equal("GIOPSmall.call()")
-        // })
+        it.only("get remote object", async function() {
+            // this does not work with the real orb because the host and port may be wrong
+            fake.expect(this.test!.fullTitle())
+            const obj = await server.getObject()
+            console.log(obj)
+            const small = stub.GIOPSmall.narrow(obj)
+            small.call("GIOPSmall.call()")
+            expect(await server.peek()).to.equal("GIOPSmall.call()")
+        })
 
-        // send a remove object to the peer and check if he was able to call himself?
+        it("send local object and get it back")
+        // send it, get it back, call it, check if it was executed locally
+
+        it("get remote object and send it back")
+        // get it, send it back, let peer call itself, check if it was executed run the peer
 
         // array
+        // union
+        // anytype
 
         // any
     })
