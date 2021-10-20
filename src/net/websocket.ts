@@ -61,7 +61,7 @@ export function listen(orb: ORB, port: number): Promise<WebSocketServer> {
             const clientORB = new ORB(orb)
             clientORB.socketSend = (buffer: ArrayBuffer) => { connection.sendBytes(Buffer.from(buffer)) }
             connection.on("error", (error: Error) => { clientORB.socketError(error) })
-            connection.on("close", (code: number, desc: string) => { clientORB.socketClose() })
+            connection.on("close", (code: number, desc: string) => { clientORB.socketClosed() })
             connection.on("message", (message: Message) => {
                 switch (message.type) {
                     case "binary":
@@ -89,7 +89,7 @@ export function connect(orb: ORB, url: string): Promise<WebSocketConnection> {
         client.once("connect", (connection: WebSocketConnection) => {
             orb.socketSend = (buffer: ArrayBuffer) => connection.sendBytes(Buffer.from(buffer))
             connection.on("error", (error: Error) => orb.socketError(error))
-            connection.on("close", (code: number, desc: string) => orb.socketClose())
+            connection.on("close", (code: number, desc: string) => orb.socketClosed())
             connection.on("message", (m: Message) => {
                 switch (m.type) {
                     case "binary":

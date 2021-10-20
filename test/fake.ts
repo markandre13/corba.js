@@ -28,7 +28,7 @@ export class Fake {
 
         socket.removeAllListeners()
         socket.on("error", (error: Error) => orb.socketError(error))
-        socket.on("close", (hadError: boolean) => orb.socketClose())
+        socket.on("close", (hadError: boolean) => orb.socketClosed())
         socket.on("data", (data: Buffer) => {
             const view = new Uint8Array(data)
             if (this.testName) {

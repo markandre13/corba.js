@@ -32,7 +32,7 @@ interface SocketUser {
     socketSend: (buffer: ArrayBuffer) => void
     socketRcvd(buffer: ArrayBuffer): void
     socketError(error: Error): void
-    socketClose(): void
+    socketClosed(): void
 }
 
 export class PromiseHandler {
@@ -101,6 +101,7 @@ export class ORB implements EventTarget, SocketUser {
     // Network OUT
     //
     socketSend!: (buffer: ArrayBuffer) => void
+    socketClose!: () => void
     map = new Map<number, PromiseHandler>()
 
     onewayCall(objectId: Uint8Array, method: string, encode: (encoder: GIOPEncoder) => void): void {
@@ -242,6 +243,7 @@ export class ORB implements EventTarget, SocketUser {
                 }
             } break
             default: {
+                // NOTE: OmniORB closes idle connections after 30s
                 throw Error(`Received ${MessageType[type]} which is not implemented in corba.js`)
             }
         }
@@ -251,14 +253,15 @@ export class ORB implements EventTarget, SocketUser {
         // FIXME: no error handling implemented yet
     }
 
-    socketClose(): void { 
-        this.dispatchEvent(new Event("close"))
+    socketClosed(): void { 
+        this.dispatchEvent(new Event("closed"))
         this.release()
     }
 
     //
     // EventTarget methods 
     //
+    // FIXME: on() & once() are much nicer event APIs :)
     addEventListener(type: "close",
         listener: EventListenerOrEventListenerObject | null,
         options?: boolean | AddEventListenerOptions): void {
@@ -296,6 +299,7 @@ export class ORB implements EventTarget, SocketUser {
         return true
     }
 
+    // FIXME: on("close", () => ...)
     set onclose(listener: EventListenerOrEventListenerObject | null) {
         this.listeners.delete("close")
         this.addEventListener("close", listener)

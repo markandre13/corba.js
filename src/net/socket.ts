@@ -19,19 +19,30 @@
 import { ORB } from "corba.js"
 import { Socket, Server, createServer, AddressInfo } from "net"
 
+// FIXME: some ORBs (OmniORB) terminate connections after being idle, hence the ORB
+//        needs to be able to re-establish the connection
+//        we would also want to do that anyway in case network errors bring the connection down
+// FIXME: the ORB should also check for timeouts
+// FIXME: there are basically 4 connection modes for IIOP
+//        * unidirectional
+//          * server listens
+//          * in case of callback: server connects to client's server port
+//        * bidirectional
+//        => the orb needs a connect(hostname, port) to be able to initiate
+//           connections on it's own
 export function connect(orb: ORB, host: string, port: number): Promise<Socket> {
     return new Promise<Socket>((resolve, reject) => {
         const socket = new Socket()
         socket.setNoDelay()
-        socket.on("error", (error: Error) => orb.socketError(error))
-        socket.on("close", (hadError: boolean) => orb.socketClose())
-        socket.on("data", (data: Buffer) => orb.socketRcvd(data.buffer))
         orb.socketSend = (buffer: ArrayBuffer) => {
             socket.write(new Uint8Array(buffer))
         }
-        // socket.on('error', (e) => {
-        //     reject(e)
-        // })
+        orb.socketClose = () => {
+            socket.destroy()
+        }
+        socket.once("error", (error: Error) => {
+            reject(error)
+        })
         socket.connect(port, host, () => {
             if (orb.localAddress === undefined)
                 orb.localAddress = socket.localAddress
@@ -39,6 +50,11 @@ export function connect(orb: ORB, host: string, port: number): Promise<Socket> {
                 orb.localPort = socket.localPort
             orb.remoteAddress = socket.remoteAddress!
             orb.remotePort = socket.remotePort!
+
+            socket.on("error", (error: Error) => orb.socketError(error))
+            socket.on("close", (hadError: boolean) => orb.socketClosed())
+            socket.on("data", (data: Buffer) => orb.socketRcvd(data.buffer))
+    
             resolve(socket)
         })
     })
@@ -50,7 +66,7 @@ export function listen(orb: ORB, host: string, port: number) {
             socket.setNoDelay()
             const clientORB = new ORB(orb)
             socket.on("error", (error: Error) => orb.socketError(error))
-            socket.on("close", (hadError: boolean) => orb.socketClose())
+            socket.on("close", (hadError: boolean) => orb.socketClosed())
             socket.on("data", (data: Buffer) => orb.socketRcvd(data.buffer))
             orb.socketSend = (buffer: ArrayBuffer) => {
                 socket.write(new Uint8Array(buffer))

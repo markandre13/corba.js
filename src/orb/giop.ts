@@ -164,6 +164,10 @@ export class GIOPEncoder extends GIOPBase {
 
     // Corba 3.4 Part 2, 7.7 Service Context
     serviceContext() {
+        if (!this.orb) {
+            this.ulong(0)
+            return
+        }
         // sequence length
         this.ulong(1) // emit one service context
 

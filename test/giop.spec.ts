@@ -8,8 +8,6 @@ import * as value from "./generated/giop_value"
 import { expect } from "chai"
 import { Fake } from "./fake"
 
-// FIXME: this test does not work when MICO runs in debug mode; something is racy
-
 // WHAT'S NEXT:
 // things to test with a real CORBA instance are basically for the validation of the GIOP
 // send/receive arguments passed to method and result returned from method
@@ -21,71 +19,17 @@ import { Fake } from "./fake"
 // cover all of the above with a recorded fake, server and client side
 // to keep the IDL for this test small, we'll implement server and client on MICO side
 
-// CLIENT GIOP LOCATE REQUEST
-// 47 49 4f 50 01 00 01 03 16 00 00 00 02 00 00 00 GIOP............
-// ^           ^     ^  ^  ^  ^
-// |           |     |  |  |  requestId
-// |           |     |  |  size
-// |           |     |  message type: locate request(3)
-// |           |     byte order
-// |           GIOP version 1.0
-// GIOP magic number
-// 0e 00 00 00 fe 9a c2 65 61 00 00 11 4f 00 0 000 .......ea...O...
-// ^
-// object key
-// 00 00                                           ..
-
-// SERVER REPLY
-// 47 49 4f 50 01 00 01 04 08 00 00 00 02 00 00 00 GIOP............
-// ^           ^     ^  ^  ^  ^
-// |           |     |  |  |  requestId
-// |           |     |  |  size
-// |           |     |  message type: locate reply(4)
-// |           |     byte order
-// |           GIOP version 1.0
-// GIOP magic number
-
-// 01 00 00 00                               ....
-// locate status: OBJECT_HERE(1)
-
-// CLIENT TWO MESSAGES IN ONE PACKET
-
-// Object ID does not exist
-// 0000 47 49 4f 50 01 00 01 00 28 00 00 00 00 00 00 00 GIOP....(.......
-// 0010 01 00 00 00 00 00 00 00 00 00 00 00 0d 00 00 00 ................
-// 0020 6f 6e 65 77 61 79 4d 65 74 68 6f 64 00 00 00 00 onewayMethod....
-// 0030 00 00 00 00                                     ....
-
-// Object ID correct
-// 0000 47 49 4f 50 01 00 01 03 16 00 00 00 02 00 00 00 GIOP............
-// 0010 0e 00 00 00 fe 17 35 67 61 00 00 04 39 00 00 00 ......5ga...9...
-// 0020 00 00                                    ..
-// omniORB: (4) 2021-10-13 20:36:34.584065: Handling a GIOP LOCATE_REQUEST.
-// omniORB: (4) 2021-10-13 20:36:34.584085: sendChunk: to giop:tcp:[::ffff:192.168.1.105]:34656 20 bytes
-// omniORB: (4) 2021-10-13 20:36:34.584095: 
-// 4749 4f50 0100 0104 0800 0000 0200 0000 GIOP............
-// 0100 0000                               ....
-// onewayMethod
-// omniORB: (4) 2021-10-13 20:36:34.584373: inputMessage: from giop:tcp:[::ffff:192.168.1.105]:34656 68 bytes
-// omniORB: (4) 2021-10-13 20:36:34.584411: 
-// 0000 47 49 4f 50 01 00 01 00 38 00 00 00 00 00 00 00 GIOP....8.......
-//      ^           ^     ^  ^  ^           ^
-//      |           |     |  |  |           serviceContextListLength
-//      |           |     |  |  size
-//      |           |     |  message type: request(0)
-//      |           |     byte order
-//      |           GIOP version 1.0
-//      GIOP magic number
-// 0010 04 00 00 00 00 17 35 67 0e 00 00 00 fe 17 35 67 ......5g......5g
-//      ^           ^           ^           ^
-//      |           |           |           object key
-//      |           |           length object key
-//      |           expected response: request(0)
-//      request id
-// 0020 61 00 00 04 39 00 00 00 00 00 68 65 0d 00 00 00 a...9.....he....
-//                                       ^
-// 0030 6f 6e 65 77 61 79 4d 65 74 68 6f 64 00 20 36 37 onewayMethod. 67
-// 0040 00 00 00 00                               ....
+// [X] keep the mico file locally but build and run them remotely
+// [X] implement a versatile network fake for corba.js
+//   [X] use a variant of connect which records and prints a hexdump, then use the dump to set an expectation
+//   [X] use the dump to test the server side
+//   [ ] wrap it all into one nice package
+// [ ] implement the server side (this also means the client side in C++)
+// [ ] implement any (just for fun, for this we also need the client side in C++ to see how it's done)
+// [ ] implement array
+// [ ] implement exceptions
+// [ ] find out where the race condition comes from in the tests, because of the await there shouldn't be one
+// [ ] add a watch mode to the idl compiler to ease testing
 
 describe("CDR/GIOP", () => {
 
@@ -112,35 +56,23 @@ describe("CDR/GIOP", () => {
         //   const server = Server::narrow(obj)
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
         ior = new IOR(data)
-        // console.log("connecting to")
-        // console.log(`ior.objectKey.length = ${ior.objectKey.length}`)
-        // console.log(ior.host)
-        // console.log(ior.port)
-        // console.log(ior.oid)
-        // let hex = ""
-        // for (let i = 0; i < ior.objectKey.length; ++i) {
-        //     hex += ior.objectKey.at(i)!.toString(16) + " "
-        // }
-        // console.log(`ior.objectKey=${hex}`)
         fake = new Fake()
 
-        // RECORD
-        // const serverSocket = listen(orb, "0.0.0.0", 8080)
-        const clientSocket = await connect(orb, ior.host!, ior.port!)
-        console.log("connected")
-
-        // fake.record(orb, clientSocket)
-
-        // REPLAY
-        // fake.replay(orb)
+        if (false) {
+            // RECORD
+            const serverSocket = listen(orb, "0.0.0.0", 8080)
+            const clientSocket = await connect(orb, ior.host!, ior.port!)
+            console.log("connected")
+            fake.record(orb, clientSocket)
+        } else {
+            // REPLAY
+            orb.localAddress = "192.168.1.10"
+            orb.localPort = 51376
+            fake.replay(orb)
+        }
 
         const obj = orb.iorToObject(ior)
         server = stub.GIOPTest.narrow(obj)
-        // hex = ""
-        // for (let i = 0; i < server.id.length; ++i) {
-        //     hex += server.id.at(i)!.toString(16) + " "
-        // }
-        // console.log(`server.id=${hex}`)
     })
 
     it("oneway method", async function () {
@@ -148,18 +80,6 @@ describe("CDR/GIOP", () => {
         server.onewayMethod()
         expect(await server.peek()).to.equal("onewayMethod")
     })
-
-    // [X] keep the mico file locally but build and run them remotely
-    // [X] implement a versatile network fake for corba.js
-    //   [X] use a variant of connect which records and prints a hexdump, then use the dump to set an expectation
-    //   [X] use the dump to test the server side
-    //   [ ] wrap it all into one nice package
-    // [ ] implement the server side (this also means the client side in C++)
-    // [ ] implement any (just for fun, for this we also need the client side in C++ to see how it's done)
-    // [ ] implement array
-    // [ ] implement exceptions
-    // [ ] find out where the race condition comes from in the tests, because of the await there shouldn't be one
-    // [ ] add a watch mode to the idl compiler to ease testing
 
     // one test for each argument type (short, ushort, ... string, sequence, valuetype)
     // we send two values to verify the padding
@@ -269,13 +189,7 @@ describe("CDR/GIOP", () => {
         })
 
         // send a local object to the peer and check if he was able to call us
-        it.only("local object", async function () {
-            // FIXME: this doesn't work yet because i assumed GIOP was bi-directional by design
-            // BiDirectional was added in CORBA 2.4, but MICO implements CORBA 2.3, there's only an unused definition for the BiDirectional policy
-            // OmniORB implements CORBA 2.6 along with BiDirectional GIOP
-            // Orbit
-            // GIOP is specified as one directional, for for BiDirectional are requestIds: client/initiator: even, server/receipient: odd requestIds
-
+        it("local object", async function () {
             fake.expect(this.test!.fullTitle())
             const small = new GIOPSmall(orb)
             await server.sendObject(small, "foo")
@@ -401,8 +315,11 @@ describe("CDR/GIOP", () => {
                     expect(reply.requestId).to.equal(4)
                     expect(reply.replyStatus).to.equal(ReplyStatus.NO_EXCEPTION)
                 })
+
+                // CloseMessage
             })
         })
+
         describe("GIOPEncoder", function () {
             describe("IIOP 1.2", function () {
                 it("Request", function () {
@@ -452,105 +369,8 @@ describe("CDR/GIOP", () => {
                     expect(reply.replyStatus).to.equal(ReplyStatus.NO_EXCEPTION)
                 })
 
-                it("request i fail to send", function () {
-                    const data = parseOmniDump(
-                        `4749 4f50 0102 0100 e000 0000 0400 0000 GIOP............
-                        0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
-                        6972 fe40 5c6c 6101 0017 0500 0000 0000 ir.@\la.........
-                        0b00 0000 7365 6e64 4f62 6a65 6374 0000 ....sendObject..
-                        0100 0000 0100 0000 0c00 0000 0100 0000 ................
-                        0100 0100 0901 0100 1200 0000 4944 4c3a ............IDL:
-                        4749 4f50 536d 616c 6c3a 312e 3000 0000 GIOPSmall:1.0...
-                        0100 0000 0000 0000 6800 0000 0101 0200 ........h.......
-                        0e00 0000 3139 322e 3136 382e 312e 3130 ....192.168.1.10
-                        3500 57a7 1400 0000 ff62 6964 6972 fe56 5.W......bidir.V
-                        5c6c 6101 0017 2400 0000 0000 0200 0000 \la...$.........
-                        0000 0000 0800 0000 0100 0000 0054 5441 .............TTA
-                        0100 0000 1c00 0000 0100 0000 0100 0100 ................
-                        0100 0000 0100 0105 0901 0100 0100 0000 ................
-                        0901 0100 0400 0000 666f 6f00           ........foo.`)
-                    const decoder = new GIOPDecoder(data.buffer)
-
-                    const type = decoder.scanGIOPHeader()
-                    expect(decoder.type).to.equal(type)
-                    expect(decoder.type).to.equal(MessageType.REQUEST)
-                    expect(decoder.majorVersion).to.equal(1)
-                    expect(decoder.minorVersion).to.equal(2)
-                    expect(decoder.length + 12).to.equal(data.length)
-
-                    const request = decoder.scanRequestHeader()
-                    expect(request.requestId).to.equal(4)
-                    expect(request.responseExpected).to.be.true
-                    expect(request.method).to.equal("sendObject")
-
-                    // 1st argument: IOR
-                    const ref = decoder.reference()
-                    expect(ref.host).to.equal("192.168.1.105")
-                    expect(ref.port).to.equal(42839)
-                    expect(ref.oid).to.equal("IDL:GIOPSmall:1.0")
-
-                    // 2nd: argument: message
-                    const msg = decoder.string()
-                    expect(msg).to.equal("foo")
-                }) 
-
-                // my implementation calls object(), which is proven to work with valuetypes
-                // but me thinks, that OmniORB might be encoding a complete IOR. me thinks i
-                // did that too but i guess that i screwed it up
-                it("my screwed up variant", function () {
-                    // const orb = new ORB()
-                    // orb.localAddress = "192.168.1.10"
-                    // orb.localPort = 8080
-                    // const encoder = new GIOPEncoder(orb)
-                    // encoder.serviceContext()
-                    // hexdump(new Uint8Array(encoder.buffer.slice(0, encoder.offset)))
-                    // return
-
-                    const data = parseOmniDump(
-                        `4749 4f50 0102 0100 b000 0000 0100 0000 GIOP............
-                        0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
-                        6972 fe3e c86d 6101 0005 4900 0000 0000 ir.>.ma...I.....
-                        0b00 0000 7365 6e64 4f62 6a65 6374 0000 ....sendObject..
-                        0100 0000 0500 0000 1800 0000 0100 0000 ................
-                        0d00 0000 3139 322e 3136 382e 312e 3130 ....192.168.1.10
-                        0000 98c3 0000 0000 1200 0000 4944 4c3a ............IDL:
-                        4749 4f50 536d 616c 6c3a 312e 3000 0000 GIOPSmall:1.0...
-                        0100 0000 0000 0000 2800 0000 0101 0000 ........(.......
-                        0d00 0000 3139 322e 3136 382e 312e 3130 ....192.168.1.10
-                        0000 98c3 0800 0000 0100 0000 0000 0000 ................
-                        0000 0000 0400 0000 666f 6f00           ........foo.`)
-                    const decoder = new GIOPDecoder(data.buffer)
-                    const type = decoder.scanGIOPHeader()
-                    expect(decoder.type).to.equal(type)
-                    expect(decoder.type).to.equal(MessageType.REQUEST)
-                    expect(decoder.majorVersion).to.equal(1)
-                    expect(decoder.minorVersion).to.equal(2)
-                    expect(decoder.length + 12).to.equal(data.length)
-
-                    const request = decoder.scanRequestHeader()
-                    console.log(request)
-                    expect(request.requestId).to.equal(1)
-                    expect(request.responseExpected).to.be.true
-                    // expect(request.objectKey).to.eql(new Uint8Array([
-                    //     1, 0, 0, 0, 0, 0, 0, 0
-                    // ]))
-                    expect(request.method).to.equal("sendObject")
-
-                    // 1st argument: IOR
-                    const ref = decoder.reference()
-                    // console.log(ref)
-                    expect(ref.host).to.equal("192.168.1.10")
-                    expect(ref.port).to.equal(50072)
-                    expect(ref.oid).to.equal("IDL:GIOPSmall:1.0")
-                    expect(ref.objectKey).to.eql(new Uint8Array([
-                        1, 0, 0, 0, 0, 0, 0, 0
-                    ]))
-
-                    // 2nd: argument: message
-                    const msg = decoder.string()
-                    expect(msg).to.equal("foo")
-                })
-
+                // LocateRequest
+                // LocateReply
             })
         })
     })
@@ -595,11 +415,9 @@ class GIOPSmall extends skel.GIOPSmall {
 
     constructor(orb: ORB) {
         super(orb)
-        console.log("Client_impl.constructor()")
     }
 
     override async call(msg: string) {
-        console.log(`GIOPSmall.call('${msg}') <<<<< CALLBACK !!!`)
         this.msg = msg
     }
 }
@@ -618,7 +436,7 @@ function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
         line = line.padEnd(4 + 16 * 3 + 1, " ")
         for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
             const b = bytes[j]
-            if (b >= 32 && b  < 127)
+            if (b >= 32 && b < 127)
                 line += String.fromCharCode(b)
             else
                 line += "."
