@@ -105,12 +105,10 @@ function _interface(): Node | undefined {
 function interface_dcl(): Node | undefined {
     let t0 = interface_header()
     if (!t0) {
-
         t0 = lexer.lex()
         if (t0) {
             lexer.unlex(t0)
         }
-
         return undefined
     }
     let t1 = lexer.lex()
@@ -119,7 +117,12 @@ function interface_dcl(): Node | undefined {
     if (t1.type !== Type.TKN_TEXT && t1.text != '{')
         throw Error(`expected { after interface header but got ${t0}`)
 
+    let node = new Node(Type.SYN_INTERFACE, t0.child[1]!.text)
+    scoper.addType(t0.child[1]!.text!, node)
+    node.append(t0)
+
     let t2 = interface_body()
+    node.append(t2)
 
     let t3 = lexer.lex()
     if (!t3)
@@ -127,10 +130,6 @@ function interface_dcl(): Node | undefined {
     if (t3.type !== Type.TKN_TEXT && t3.text != '}')
         throw Error(`expected } after interface body but got '${t3}'`)
 
-    let node = new Node(Type.SYN_INTERFACE, t0.child[1]!.text)
-    node.append(t0)
-    node.append(t2)
-    scoper.addType(t0.child[1]!.text!, node)
     return node
 }
 
