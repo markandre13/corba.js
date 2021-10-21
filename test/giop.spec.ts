@@ -71,7 +71,7 @@ describe("CDR/GIOP", () => {
         } else {
             // REPLAY
             orb.localAddress = "192.168.1.10"
-            orb.localPort = 51376
+            orb.localPort = 52846
             fake.replay(orb)
         }
 
@@ -92,7 +92,7 @@ describe("CDR/GIOP", () => {
     // TODO: let the methods also return a value and call this section 'outgoing calls' and remove the 'CDR' from this test suite
 
     // these cover the encoder
-    describe("send values", function () {
+    describe.only("send values", function () {
 
         it("bool", async function () {
             fake.expect(this.test!.fullTitle())
@@ -120,50 +120,50 @@ describe("CDR/GIOP", () => {
 
         it("short", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendShort(-80, 80)
-            expect(await server.peek()).to.equal("sendShort(-80,80)")
+            await server.sendShort(-32768, 32767)
+            expect(await server.peek()).to.equal("sendShort(-32768,32767)")
         })
 
         it("unsigned short", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendUShort(0, 256)
-            expect(await server.peek()).to.equal("sendUShort(0,256)")
+            await server.sendUShort(0, 65535)
+            expect(await server.peek()).to.equal("sendUShort(0,65535)")
         })
 
         it("long", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendLong(-80, 80)
-            expect(await server.peek()).to.equal("sendLong(-80,80)")
+            await server.sendLong(-2147483648, 2147483647)
+            expect(await server.peek()).to.equal("sendLong(-2147483648,2147483647)")
         })
 
         it("unsigned long", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendULong(0, 256)
-            expect(await server.peek()).to.equal("sendULong(0,256)")
+            await server.sendULong(0, 4294967295)
+            expect(await server.peek()).to.equal("sendULong(0,4294967295)")
         })
 
         it("long long", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendLongLong(-80n, 80n)
-            expect(await server.peek()).to.equal("sendLongLong(-80,80)")
+            await server.sendLongLong(-9223372036854775808n, 9223372036854775807n)
+            expect(await server.peek()).to.equal("sendLongLong(-9223372036854775808,9223372036854775807)")
         })
 
         it("unsigned long long", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendULongLong(0n, 256n)
-            expect(await server.peek()).to.equal("sendULongLong(0,256)")
+            await server.sendULongLong(0n, 18446744073709551615n)
+            expect(await server.peek()).to.equal("sendULongLong(0,18446744073709551615)")
         })
 
         it("float", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendFloat(-80, 80)
-            expect(await server.peek()).to.equal("sendFloat(-80,80)")
+            await server.sendFloat(1.17549e-38, 3.40282e+38)
+            expect(await server.peek()).to.equal("sendFloat(1.17549e-38,3.40282e+38)")
         })
 
         it("double", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendDouble(-80, 80)
-            expect(await server.peek()).to.equal("sendDouble(-80,80)")
+            await server.sendDouble(4.94066e-324, 1.79769e+308)
+            expect(await server.peek()).to.equal("sendDouble(4.94066e-324,1.79769e+308)")
         })
 
         it("string", async function () {
@@ -206,7 +206,7 @@ describe("CDR/GIOP", () => {
         })
 
         // get a remote object from the peer and check if we were able to call him
-        it("get remote object", async function() {
+        it("get remote object", async function () {
             // this does not work with the real orb because the host and port may be wrong
             fake.expect(this.test!.fullTitle())
             const obj = await server.getObject()
@@ -229,17 +229,78 @@ describe("CDR/GIOP", () => {
     })
 
     // these cover the decoder
-    describe("receive values", function() {
-        it.only("bool", async function () {
+    describe.only("receive values", function () {
+
+        it("bool", async function () {
             fake.expect(this.test!.fullTitle())
             await server.call(myserver, api.CallbackType.CB_BOOL)
             expect(await myserver.peek()).to.equal("sendBool(false,true)")
         })
-        it.only("octet", async function () {
+
+        it("char", async function () {
             fake.expect(this.test!.fullTitle())
-            // await server.sendBool(false, true)
+            await server.call(myserver, api.CallbackType.CB_CHAR)
+            expect(await myserver.peek()).to.equal("sendChar(0,255)")
+        })
+
+        it("octet", async function () {
+            fake.expect(this.test!.fullTitle())
             await server.call(myserver, api.CallbackType.CB_OCTET)
             expect(await myserver.peek()).to.equal("sendOctet(0,255)")
+        })
+
+        it("short", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_SHORT)
+            expect(await myserver.peek()).to.equal("sendShort(-32768,32767)")
+        })
+
+        it("ushort", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_USHORT)
+            expect(await myserver.peek()).to.equal("sendUShort(0,65535)")
+        })
+
+        it("long", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_LONG)
+            expect(await myserver.peek()).to.equal("sendLong(-2147483648,2147483647)")
+        })
+
+        it("ulong", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_ULONG)
+            expect(await myserver.peek()).to.equal("sendULong(0,4294967295)")
+        })
+
+        it("longlong", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_LONGLONG)
+            expect(await myserver.peek()).to.equal("sendLongLong(-9223372036854775808,9223372036854775807)")
+        })
+
+        it("ulonglong", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_ULONGLONG)
+            expect(await myserver.peek()).to.equal("sendULongLong(0,18446744073709551615)")
+        })
+
+        it("float", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_FLOAT)
+            expect(await myserver.peek()).to.equal("sendFloat(1.1754900067970481e-38,3.402820018375656e+38)")
+        })
+
+        it("double", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_DOUBLE)
+            expect(await myserver.peek()).to.equal("sendDouble(5e-324,1.79769e+308)")
+        })
+
+        it("string", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_STRING)
+            expect(await myserver.peek()).to.equal("sendString(hello,you)")
         })
     })
 
@@ -448,39 +509,61 @@ class GIOPTest_impl extends skel.GIOPTest {
     }
 
     override async peek() {
-        return this.msg;
+        return this.msg
     }
     override async call(callback: api.GIOPTest, method: api.CallbackType) {
-        switch(method) {
+        switch (method) {
             case api.CallbackType.CB_BOOL:
                 callback.sendBool(false, true)
                 break
             case api.CallbackType.CB_OCTET:
                 callback.sendOctet(0, 255)
-                break  
-            }
+                break
+        }
     }
-    override async onewayMethod() {}
+    override async onewayMethod() {
+        this.msg = `onewayMethod()`
+    }
     override async sendBool(v0: boolean, v1: boolean) {
         this.msg = `sendBool(${v0},${v1})`
     }
-    override async sendChar(v0: number, v1: number) {}
+    override async sendChar(v0: number, v1: number) {
+        this.msg = `sendChar(${v0},${v1})`
+    }
     override async sendOctet(v0: number, v1: number) {
         this.msg = `sendOctet(${v0},${v1})`
     }
-    override async sendShort(v0: number, v1: number) {}
-    override async sendUShort(v0: number, v1: number) {}
-    override async sendLong(v0: number, v1: number) {}
-    override async sendULong(v0: number, v1: number) {}
-    override async sendLongLong(v0: bigint, v1: bigint) {}
-    override async sendULongLong(v0: bigint, v1: bigint) {}
-    override async sendFloat(v0: number, v1: number) {}
-    override async sendDouble(v0: number, v1: number) {}
-    override async sendString(v0: string, v1: string) {}
-    override async sendSequence(v0: Array<string>, v1: Array<number>) {}
-    override async sendValuePoint(v0: Point) {}
-    override async sendValuePoints(v0: Point, v1: Point) {}
-    override async sendObject(obj: GIOPSmall, msg: string) {}
+    override async sendShort(v0: number, v1: number) {
+        this.msg = `sendShort(${v0},${v1})`
+    }
+    override async sendUShort(v0: number, v1: number) {
+        this.msg = `sendUShort(${v0},${v1})`
+    }
+    override async sendLong(v0: number, v1: number) {
+        this.msg = `sendLong(${v0},${v1})`
+    }
+    override async sendULong(v0: number, v1: number) {
+        this.msg = `sendULong(${v0},${v1})`
+    }
+    override async sendLongLong(v0: bigint, v1: bigint) {
+        this.msg = `sendLongLong(${v0},${v1})`
+    }
+    override async sendULongLong(v0: bigint, v1: bigint) {
+        this.msg = `sendULongLong(${v0},${v1})`
+    }
+    override async sendFloat(v0: number, v1: number) {
+        this.msg = `sendFloat(${v0},${v1})`
+    }
+    override async sendDouble(v0: number, v1: number) {
+        this.msg = `sendDouble(${v0},${v1})`
+    }
+    override async sendString(v0: string, v1: string) {
+        this.msg = `sendString(${v0},${v1})`
+    }
+    override async sendSequence(v0: Array<string>, v1: Array<number>) { }
+    override async sendValuePoint(v0: Point) { }
+    override async sendValuePoints(v0: Point, v1: Point) { }
+    override async sendObject(obj: GIOPSmall, msg: string) { }
     override async getObject(): Promise<GIOPSmall> {
         return new GIOPSmall(this.orb)
     }

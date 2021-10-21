@@ -6,12 +6,12 @@ import { ORB } from "corba.js"
 export class Fake {
     orb!: ORB
     socket!: Socket
-    verbose = true;
+    verbose = false
 
     testName?: string
-    recordMode = false;
+    recordMode = false
     fd: number = -1;
-    buffer: string[] = [];
+    buffer: string[] = []
 
     reset() {
         this.testName = undefined

@@ -130,8 +130,68 @@ void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method) {
             cout << "GIOPTest_impl::call(...,CB_BOOL)" << endl;
             callback->sendBool(false, true);
             break;
+        case CB_CHAR:
+            cout << "GIOPTest_impl::call(...,CB_CHAR)" << endl;
+            callback->sendChar(0, 255);
+            break;
         case CB_OCTET:
             cout << "GIOPTest_impl::call(...,CB_OCTET)" << endl;
+            callback->sendOctet(0, 255);
+            break;
+        case CB_SHORT:
+            cout << "GIOPTest_impl::call(...,CB_SHORT)" << endl;
+            callback->sendShort(-32768, 32767);
+            break;
+        case CB_USHORT:
+            cout << "GIOPTest_impl::call(...,CB_USHORT)" << endl;
+            callback->sendUShort(0, 65535);
+            break;
+        case CB_LONG:
+            cout << "GIOPTest_impl::call(...,CB_LONG)" << endl;
+            callback->sendLong(-2147483648L, 2147483647L);
+            break;
+        case CB_ULONG:
+            cout << "GIOPTest_impl::call(...,CB_ULONG)" << endl;
+            callback->sendULong(0, 4294967295L);
+            break;
+        case CB_LONGLONG:
+            cout << "GIOPTest_impl::call(...,CB_LONGLONG)" << endl;
+            callback->sendLongLong(-9223372036854775808LL, 9223372036854775807LL);
+            break;
+        case CB_ULONGLONG:
+            cout << "GIOPTest_impl::call(...,CB_ULONGLONG)" << endl;
+            callback->sendULongLong(0, 18446744073709551615LLU);
+            break;
+        case CB_FLOAT:
+            cout << "GIOPTest_impl::call(...,CB_FLOAT)" << endl;
+            callback->sendFloat(1.17549e-38, 3.40282e+38);
+            break;
+        case CB_DOUBLE:
+            cout << "GIOPTest_impl::call(...,CB_DOUBLE)" << endl;
+            callback->sendDouble(4.94066e-324, 1.79769e+308);
+            break;
+        case CB_STRING:
+            cout << "GIOPTest_impl::call(...,CB_STRING)" << endl;
+            callback->sendString("hello", "you");
+            break;
+        case CB_SEQUENCE:
+            cout << "GIOPTest_impl::call(...,CB_SEQUENCE)" << endl;
+            callback->sendOctet(0, 255);
+            break;
+        case CB_VALUE_POINT:
+            cout << "GIOPTest_impl::call(...,CB_VALUE_POINT)" << endl;
+            callback->sendOctet(0, 255);
+            break;
+        case CB_VALUE_POINTS:
+            cout << "GIOPTest_impl::call(...,CB_VALUE_POINTS)" << endl;
+            callback->sendOctet(0, 255);
+            break;
+        case CB_SEND_OBJECT:
+            cout << "GIOPTest_impl::call(...,CB_SEND_OBJECT)" << endl;
+            callback->sendOctet(0, 255);
+            break;
+        case CB_GET_OBJECT:
+            cout << "GIOPTest_impl::call(...,CB_GET_OBJECT)" << endl;
             callback->sendOctet(0, 255);
             break;
         default:

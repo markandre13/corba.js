@@ -181,21 +181,12 @@ export class GIOPEncoder extends GIOPBase {
         this.ushort(this.orb?.localPort!)
         this.fillinSize()
 /*
-        // WORKS: CODE_SETS ISO-8859-1,UTF-16
         this.ulong(ServiceId.CodeSets)
         this.reserveSize()
-        this.octet(0x01)
-        this.octet(0x00)
-        this.octet(0x00)
-        this.octet(0x00)
-        this.octet(0x01)
-        this.octet(0x00)
-        this.octet(0x01)
-        this.octet(0x00)
-        this.octet(0x09)
-        this.octet(0x01)
-        this.octet(0x01)
-        this.octet(0x00)
+        this.octet(1) // little endian
+        // this.ulong(0x00010001) // ISO-8859-1
+        this.ulong(0x05010001) // charset_id : UTF-8
+        this.ulong(0x00010109) // wcharset_id: UTF-16
         this.fillinSize()
 */
     }
