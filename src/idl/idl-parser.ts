@@ -442,9 +442,9 @@ function type_dcl(): Node | undefined {
     // if (t0 !== undefined)
     //     return t0;
 
-    // t0 = enum_type()
-    // if (t0 !== undefined)
-    //     return t0;
+    t0 = enum_type()
+    if (t0 !== undefined)
+        return t0;
 
     t0 = lexer.lex()
     if (t0 !== undefined && t0.type === Type.TKN_NATIVE) {
@@ -554,9 +554,9 @@ function constr_type_spec() {
     /*
     if (t0 === undefined)
         t0 = union_type()
+    */
     if (t0 === undefined)
         t0 = enum_type()
-    */
     return t0
 }
 
@@ -849,6 +849,38 @@ function member(): Node | undefined {
     node.append(t0)
     node.append(t1)
     return node
+}
+
+// 78
+function enum_type(): Node | undefined {
+    let t0 = lexer.lex()
+    if (t0 !== undefined && t0.type == Type.TKN_ENUM) {
+        const t1 = identifier()
+        if (t1 === undefined)
+            throw Error("expected identifier after 'enum'")
+        t0.text = t1.text
+        expect("{")
+        while (true) {
+            // node.append(t0)
+            let t2 = lexer.lex()
+            if (t2 === undefined)
+                throw Error("unexpected end of file")
+            if (t2.type !== Type.TKN_IDENTIFIER)
+                throw Error("expected identifier but got ${t2}")
+            t0.append(t2)
+            let t3 = lexer.lex()
+            if (t3 === undefined)
+                throw Error("unexpected end of file")
+            if (t3.type !== Type.TKN_TEXT)
+                throw Error("expected ',' or '}' but got ${t2}")
+            if (t3.text === "}")
+                break              
+        }
+        scoper.addType(t0!.text!, t0)
+        return t0
+    }
+    lexer.unlex(t0)
+    return undefined
 }
 
 // 80
