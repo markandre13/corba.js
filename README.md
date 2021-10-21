@@ -41,12 +41,16 @@ where it handles
 * persisting objects to files (using CORBA's binary encoding GIOP)
 
 In the 90ties CORBA was quite the hype but design-by-committee made it bloated, slow
-and no fun to use.
+and no fun to use. (See [What's Wrong With CORBA](https://wiki.c2.com/?WhatsWrongWithCorba).)
 
 Still, stripped to it's core, one finds a fast and lightweight system, which made it ideal for
 modern WebApps. This might be in part attributed to CORBA's roots in the experimental object
 oriented [Spring](https://en.wikipedia.org/wiki/Spring_(operating_system)) operating system
 and some sole individuals undermining the design-by-committee with their expertise. 😁
+
+A group of former CORBA developer's has also implemented a much improved successor of CORBA,
+the [Internet Communications Engine](https://zeroc.com/products/ice) (ICE), which is
+also available for JavaScript/TypeScript under the GNU GPLv2.
 
 ## Interfaces
 
