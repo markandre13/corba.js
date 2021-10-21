@@ -86,7 +86,7 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                     name = typeIDLtoTS(type.child[0])
                     break
                 case Type.TKN_ENUM:
-                    name = "number" // FIXNE: hack until we emit the enum's definition
+                    name = type!.text!
                     break
                 default:
                     throw Error(`Internal Error in typeIDLtoTS(): type ${identifierType.toString()} is not implemented`)

@@ -109,6 +109,18 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                 writeIndent(out, indent)
                 out.write("}\n\n")
             } break
+
+            case Type.TKN_ENUM: {
+                const identifier = definition!.text!
+                writeIndent(out, indent)
+                out.write(`export enum ${identifier} {\n`)
+                for (const enumerator of definition!.child) {
+                    writeIndent(out, indent + 1)
+                    out.write(`${enumerator!.text},\n`)
+                }
+                writeIndent(out, indent)
+                out.write("}\n\n")
+            } break
         }
     }
 }
