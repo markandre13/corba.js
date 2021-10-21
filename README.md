@@ -41,7 +41,7 @@ where it handles
 * persisting objects to files (using CORBA's binary encoding GIOP)
 
 In the 90ties CORBA was quite the hype but design-by-committee made it bloated, slow
-and no fun to use. (See [What's Wrong With CORBA](https://wiki.c2.com/?WhatsWrongWithCorba).)
+and no fun to use. (See [The Rise and Fall of CORBA](https://queue.acm.org/detail.cfm?id=1142044) and [What's Wrong With CORBA](https://wiki.c2.com/?WhatsWrongWithCorba).)
 
 Still, stripped to it's core, one finds a fast and lightweight system, which made it ideal for
 modern WebApps. This might be in part attributed to CORBA's roots in the experimental object
