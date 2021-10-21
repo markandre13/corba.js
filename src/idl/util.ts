@@ -82,14 +82,11 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                 case Type.TKN_NATIVE:
                     name = relativeName
                     break
-                case Type.TKN_SEQUENCE: // HACK!!!
-                    // console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-                    // type.printTree()
-                    // console.log("----------------------------------")
+                case Type.TKN_SEQUENCE:
                     name = typeIDLtoTS(type.child[0])
-                    // console.log("----------------------------------")
-                    // console.log(name)
-                    // console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+                    break
+                case Type.TKN_ENUM:
+                    name = "number" // FIXNE: hack until we emit the enum's definition
                     break
                 default:
                     throw Error(`Internal Error in typeIDLtoTS(): type ${identifierType.toString()} is not implemented`)
@@ -168,6 +165,7 @@ export function typeIDLtoGIOP(type: Node | undefined, arg: string | undefined = 
             name = "ushort"
             break
         case Type.SYN_UNSIGNED_LONG:
+        case Type.TKN_ENUM:
             name = "ulong"
             break
         case Type.SYN_UNSIGNED_LONGLONG:
