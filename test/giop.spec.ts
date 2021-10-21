@@ -2,6 +2,7 @@ import * as fs from "fs"
 
 import { ORB, IOR, GIOPDecoder, MessageType, LocateStatusType, ReplyStatus, GIOPEncoder } from "corba.js"
 import { connect, listen } from "corba.js/net/socket"
+import * as api from "./generated/giop"
 import * as skel from "./generated/giop_skel"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
@@ -35,7 +36,9 @@ describe("CDR/GIOP", () => {
 
     let ior!: IOR
     let orb!: ORB
-    let server!: stub.GIOPTest
+    let server!: api.GIOPTest
+    let myserver!: api.GIOPTest
+
     let fake!: Fake
 
     beforeEach(function () {
@@ -74,6 +77,8 @@ describe("CDR/GIOP", () => {
 
         const obj = orb.iorToObject(ior)
         server = stub.GIOPTest.narrow(obj)
+
+        myserver = new GIOPTest_impl(orb)
     })
 
     it("oneway method", async function () {
@@ -84,6 +89,7 @@ describe("CDR/GIOP", () => {
 
     // one test for each argument type (short, ushort, ... string, sequence, valuetype)
     // we send two values to verify the padding
+    // TODO: let the methods also return a value and call this section 'outgoing calls' and remove the 'CDR' from this test suite
     describe("send values", function () {
 
         it("bool", async function () {
@@ -202,7 +208,6 @@ describe("CDR/GIOP", () => {
             // this does not work with the real orb because the host and port may be wrong
             fake.expect(this.test!.fullTitle())
             const obj = await server.getObject()
-            console.log(obj)
             const small = stub.GIOPSmall.narrow(obj)
             small.call("GIOPSmall.call()")
             expect(await server.peek()).to.equal("GIOPSmall.call()")
@@ -219,6 +224,15 @@ describe("CDR/GIOP", () => {
         // anytype
 
         // any
+    })
+
+    describe("receive values", function() {
+        it("bool", async function () {
+            fake.expect(this.test!.fullTitle())
+            // await server.sendBool(false, true)
+            await server.call(myserver, 1)
+            expect(await myserver.peek()).to.equal("sendBool(false,true)")
+        })
     })
 
     // one test for each return type (short, ushort, ... string, sequence, valuetype)
@@ -417,6 +431,49 @@ class Point implements value.Point {
         return "Point: x=" + this.x + ", y=" + this.y
     }
 }
+
+class GIOPTest_impl extends skel.GIOPTest {
+    msg = ""
+
+    constructor(orb: ORB) {
+        super(orb)
+    }
+
+    override async peek() {
+        return "peek()"
+    }
+    override async call(callback: api.GIOPTest, method: api.CallbackType) {
+        switch(method) {
+            case api.CallbackType.CB_BOOL:
+                callback.sendBool(false, true)
+                break
+            case api.CallbackType.CB_OCTET:
+                callback.sendOctet(0, 255)
+                break  
+            }
+    }
+    override async onewayMethod() {}
+    override async sendBool(v0: boolean, v1: boolean) {}
+    override async sendChar(v0: number, v1: number) {}
+    override async sendOctet(v0: number, v1: number) {}
+    override async sendShort(v0: number, v1: number) {}
+    override async sendUShort(v0: number, v1: number) {}
+    override async sendLong(v0: number, v1: number) {}
+    override async sendULong(v0: number, v1: number) {}
+    override async sendLongLong(v0: bigint, v1: bigint) {}
+    override async sendULongLong(v0: bigint, v1: bigint) {}
+    override async sendFloat(v0: number, v1: number) {}
+    override async sendDouble(v0: number, v1: number) {}
+    override async sendString(v0: string, v1: string) {}
+    override async sendSequence(v0: Array<string>, v1: Array<number>) {}
+    override async sendValuePoint(v0: Point) {}
+    override async sendValuePoints(v0: Point, v1: Point) {}
+    override async sendObject(obj: GIOPSmall, msg: string) {}
+    override async getObject(): Promise<GIOPSmall> {
+        return new GIOPSmall(this.orb)
+    }
+}
+
 
 class GIOPSmall extends skel.GIOPSmall {
     msg = ""

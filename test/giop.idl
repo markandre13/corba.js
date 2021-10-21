@@ -9,11 +9,18 @@ interface GIOPSmall {
 typedef sequence<string> StringSeq;
 typedef sequence<long> LongSeq;
 
+enum CallbackType {
+    CB_BOOL, CB_CHAR, CB_OCTET, CB_SHORT, CB_USHORT, CB_LONG, CB_ULONG,
+    CB_LONGLONG, CB_ULONGLONG, CB_FLOAT, CB_DOUBLE, CB_STRING, CB_SEQUENCE,
+    CB_VALUE_POINT, CB_VALUE_POINTS, CB_SEND_OBJECT, CB_GET_OBJECT
+};
+
 interface GIOPTest {
 
     string peek();
-    oneway void onewayMethod();
+    void call(in GIOPTest callback, in CallbackType method);
 
+    oneway void onewayMethod();
     void sendBool(in boolean v0, in boolean v1);
     void sendChar(in char v0, in char v1);
     void sendOctet(in octet v0, in octet v1);

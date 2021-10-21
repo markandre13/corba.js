@@ -10,6 +10,7 @@ public:
     virtual ~GIOPTest_impl() {}
 
     char *peek();
+    void call(::GIOPTest_ptr callback, CallbackType method);
     void onewayMethod();
     void sendBool(::CORBA::Boolean v0, ::CORBA::Boolean v1);
     void sendChar(::CORBA::Char v0, ::CORBA::Char v1);
@@ -26,6 +27,7 @@ public:
     void sendSequence(const StringSeq &v0, const LongSeq &v1);
     void sendValuePoint(::Point *v0);
     void sendValuePoints(::Point *v0, ::Point *v1);
+
     void sendObject(::GIOPSmall_ptr obj, const char *msg);
     GIOPSmall_ptr getObject();
 };
@@ -120,6 +122,18 @@ char *GIOPTest_impl::peek()
 {
     cout << "GIOPTest_impl::peek() " << lastToken << endl;
     return CORBA::string_dup(lastToken.c_str());
+}
+
+void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method) {
+    switch(method) {
+        case CB_BOOL:
+            callback->sendBool(false, true);
+            break;
+        case CB_OCTET:
+            callback->sendOctet(0, 255);
+            break;
+        // ...
+    }
 }
 
 void GIOPTest_impl::onewayMethod()
