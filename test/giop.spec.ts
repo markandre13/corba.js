@@ -90,6 +90,8 @@ describe("CDR/GIOP", () => {
     // one test for each argument type (short, ushort, ... string, sequence, valuetype)
     // we send two values to verify the padding
     // TODO: let the methods also return a value and call this section 'outgoing calls' and remove the 'CDR' from this test suite
+
+    // these cover the encoder
     describe("send values", function () {
 
         it("bool", async function () {
@@ -204,7 +206,7 @@ describe("CDR/GIOP", () => {
         })
 
         // get a remote object from the peer and check if we were able to call him
-        it.only("get remote object", async function() {
+        it("get remote object", async function() {
             // this does not work with the real orb because the host and port may be wrong
             fake.expect(this.test!.fullTitle())
             const obj = await server.getObject()
@@ -226,12 +228,18 @@ describe("CDR/GIOP", () => {
         // any
     })
 
+    // these cover the decoder
     describe("receive values", function() {
-        it("bool", async function () {
+        it.only("bool", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_BOOL)
+            expect(await myserver.peek()).to.equal("sendBool(false,true)")
+        })
+        it.only("octet", async function () {
             fake.expect(this.test!.fullTitle())
             // await server.sendBool(false, true)
-            await server.call(myserver, 1)
-            expect(await myserver.peek()).to.equal("sendBool(false,true)")
+            await server.call(myserver, api.CallbackType.CB_OCTET)
+            expect(await myserver.peek()).to.equal("sendOctet(0,255)")
         })
     })
 
@@ -440,7 +448,7 @@ class GIOPTest_impl extends skel.GIOPTest {
     }
 
     override async peek() {
-        return "peek()"
+        return this.msg;
     }
     override async call(callback: api.GIOPTest, method: api.CallbackType) {
         switch(method) {
@@ -453,9 +461,13 @@ class GIOPTest_impl extends skel.GIOPTest {
             }
     }
     override async onewayMethod() {}
-    override async sendBool(v0: boolean, v1: boolean) {}
+    override async sendBool(v0: boolean, v1: boolean) {
+        this.msg = `sendBool(${v0},${v1})`
+    }
     override async sendChar(v0: number, v1: number) {}
-    override async sendOctet(v0: number, v1: number) {}
+    override async sendOctet(v0: number, v1: number) {
+        this.msg = `sendOctet(${v0},${v1})`
+    }
     override async sendShort(v0: number, v1: number) {}
     override async sendUShort(v0: number, v1: number) {}
     override async sendLong(v0: number, v1: number) {}

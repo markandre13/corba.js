@@ -120,19 +120,22 @@ int main(int argc, char **argv)
 
 char *GIOPTest_impl::peek()
 {
-    cout << "GIOPTest_impl::peek() " << lastToken << endl;
+    cout << "GIOPTest_impl::peek() -> " << lastToken << endl;
     return CORBA::string_dup(lastToken.c_str());
 }
 
 void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method) {
     switch(method) {
         case CB_BOOL:
+            cout << "GIOPTest_impl::call(...,CB_BOOL)" << endl;
             callback->sendBool(false, true);
             break;
         case CB_OCTET:
+            cout << "GIOPTest_impl::call(...,CB_OCTET)" << endl;
             callback->sendOctet(0, 255);
             break;
-        // ...
+        default:
+            cout << "GIOPTest_impl::call(...," << method << ") ;; not implemented" << endl;
     }
 }
 

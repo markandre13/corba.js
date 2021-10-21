@@ -68,6 +68,7 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                         name = relativeName
                     break
                 case Type.SYN_INTERFACE:
+                case Type.TKN_ENUM:
                     if (filetype !== FileType.INTERFACE)
                         name = `_interface${absolutePrefix}.${relativeName}`
                     else
@@ -84,9 +85,6 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                     break
                 case Type.TKN_SEQUENCE:
                     name = typeIDLtoTS(type.child[0])
-                    break
-                case Type.TKN_ENUM:
-                    name = type!.text!
                     break
                 default:
                     throw Error(`Internal Error in typeIDLtoTS(): type ${identifierType.toString()} is not implemented`)
