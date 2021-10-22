@@ -54,6 +54,7 @@ class Point_impl: virtual public OBV_Point, virtual public CORBA::DefaultValueRe
       this->x(x);
       this->y(y);
     }
+    ~Point_impl() {}
 };
 
 int main(int argc, char **argv)
@@ -188,12 +189,19 @@ void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method) {
             seq1[2] = 2001;
             callback->sendSequence(seq0, seq1);
         } break;
-        case CB_VALUE_POINT:
-            cout << "GIOPTest_impl::call(...,CB_VALUE_POINT)" << endl;
+        case CB_VALUE: {
+            cout << endl << "-------------------------------------" << endl;
+            cout << "GIOPTest_impl::value(...,CB_VALUE)" << endl;
+            Point_impl *point = new Point_impl(20, 30);
+            CORBA::add_ref(point);
+            callback->sendValuePoint(point);
+        } break;
+        case CB_VALUES_DUPLICATE_REPOSITORY_ID:
+            cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_REPOSITORY_ID)" << endl;
             callback->sendOctet(0, 255);
             break;
-        case CB_VALUE_POINTS:
-            cout << "GIOPTest_impl::call(...,CB_VALUE_POINTS)" << endl;
+        case CB_VALUES_DUPLICATE_OBJECT:
+            cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_OBJECT)" << endl;
             callback->sendOctet(0, 255);
             break;
         case CB_SEND_OBJECT:

@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018, 2020 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2020, 2021 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published by
@@ -18,7 +18,6 @@
 
 import { Type, Node } from "./idl-node"
 import { Lexer } from "./idl-lexer"
-import { CaughtException } from "mobx/dist/internal"
 
 let lexer: Lexer
 let scoper: ScopeManager
@@ -859,6 +858,7 @@ function enum_type(): Node | undefined {
             throw Error("expected identifier after 'enum'")
         t0.text = t1.text
         expect("{")
+        const set = new Set<string>()
         while (true) {
             // node.append(t0)
             let t2 = lexer.lex()
@@ -866,6 +866,10 @@ function enum_type(): Node | undefined {
                 throw Error("unexpected end of file")
             if (t2.type !== Type.TKN_IDENTIFIER)
                 throw Error("expected identifier but got ${t2}")
+            if (set.has(t2.text!)) {
+                throw Error(`Declaration of enumerator '${t2.text}' clashes with earlier declaration of enumerator '${t2.text}'`)
+            }
+            set.add(t2.text!)
             t0.append(t2)
             let t3 = lexer.lex()
             if (t3 === undefined)

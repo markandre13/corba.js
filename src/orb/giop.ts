@@ -871,6 +871,41 @@ export class GIOPDecoder extends GIOPBase {
         const code = this.ulong()
         const objectOffset = this.offset - 4
 
+        // 9.3.4.1 Partial Type Information and Versioning
+        // FIXME: OmniORB sends us 0x7fffff00, so we need more code here
+        // NOTE: when there's no repositoryID, take the one from the IDL file
+        //       better: point to the entry in ORB.valueTypeByName.get(...) to avoid
+        //       to lookup the valuetype at runtime
+        // TODO: add test for sending a subclassed valuetype, as in that case i'd expect
+        //       a repositoryID to be send
+        // TODO: add two tests which also check that has been and hasn't been a repository id
+
+        // NOTE: 9.3.4.1 closes with:
+        // CORBA RepositoryIDs may contain standard version identification (major and minor version
+        // numbers or a hash code information). The ORB run time may use this information to check
+        // whether the version of the value being transmitted is compatible with the version expected.
+        // In the event of a version mismatch, the ORB may apply product-specific truncation/conversion
+        // rules (with the help of a local interface repository or the SendingContext::RunTime service).
+        // For example, the Java serialization model of truncation/conversion across versions can be supported. See the JDK 1.1 documentation for a detailed specification of this model.
+        //
+        // => versioning approaches
+        // truncation  : when a later version is send, add new entries add the end
+        //               this approach matches the one used in REST
+        // conversation: have a look into what Java does here and check how it matches
+        //               the version-less configuration files i invented for the mGuard
+        // also compare this with ICE!
+
+        if ((code & 0xffffff00) === 0x7fffff00) {
+            if (code & 1) {
+                // parse codebase_URL
+            }
+            if ((code & 2) === 4) {
+                // parse single repository id
+            }
+            if ((code & 6) === 6) {
+                // parse list of repository ids                
+            }
+        }
         switch (code) {
             case 0x7fffff02: {
                 let repositoryId
