@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <climits>
 
 class GIOPTest_impl : public virtual POA_GIOPTest
 {
@@ -156,7 +157,7 @@ void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method) {
             break;
         case CB_LONGLONG:
             cout << "GIOPTest_impl::call(...,CB_LONGLONG)" << endl;
-            callback->sendLongLong(-9223372036854775808LL, 9223372036854775807LL);
+            callback->sendLongLong(LLONG_MAX, LLONG_MIN);
             break;
         case CB_ULONGLONG:
             cout << "GIOPTest_impl::call(...,CB_ULONGLONG)" << endl;
@@ -174,10 +175,19 @@ void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method) {
             cout << "GIOPTest_impl::call(...,CB_STRING)" << endl;
             callback->sendString("hello", "you");
             break;
-        case CB_SEQUENCE:
+        case CB_SEQUENCE: {
             cout << "GIOPTest_impl::call(...,CB_SEQUENCE)" << endl;
-            callback->sendOctet(0, 255);
-            break;
+            StringSeq seq0; // yeah... CORBA's C++ mapping has it's own containers
+            seq0.length(2); // yeah, CORBA's C++ mapping has no no append() nor seq0(2) work here
+            seq0[0] = CORBA::string_dup("hello"); // yeah, CORBA's C++ mapping needs a duplicate of the string
+            seq0[1] = CORBA::string_dup("you");
+            LongSeq seq1;
+            seq1.length(3);
+            seq1[0] = 1138;
+            seq1[1] = 1984;
+            seq1[2] = 2001;
+            callback->sendSequence(seq0, seq1);
+        } break;
         case CB_VALUE_POINT:
             cout << "GIOPTest_impl::call(...,CB_VALUE_POINT)" << endl;
             callback->sendOctet(0, 255);

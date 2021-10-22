@@ -92,7 +92,7 @@ describe("CDR/GIOP", () => {
     // TODO: let the methods also return a value and call this section 'outgoing calls' and remove the 'CDR' from this test suite
 
     // these cover the encoder
-    describe.only("send values", function () {
+    describe("send values", function () {
 
         it("bool", async function () {
             fake.expect(this.test!.fullTitle())
@@ -229,7 +229,7 @@ describe("CDR/GIOP", () => {
     })
 
     // these cover the decoder
-    describe.only("receive values", function () {
+    describe("receive values", function () {
 
         it("bool", async function () {
             fake.expect(this.test!.fullTitle())
@@ -301,6 +301,12 @@ describe("CDR/GIOP", () => {
             fake.expect(this.test!.fullTitle())
             await server.call(myserver, api.CallbackType.CB_STRING)
             expect(await myserver.peek()).to.equal("sendString(hello,you)")
+        })
+
+        it.only("sequence", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_SEQUENCE)
+            expect(await myserver.peek()).to.equal("sendSequence([hello,you,],[1138,1984,2001,])")
         })
     })
 
@@ -560,7 +566,13 @@ class GIOPTest_impl extends skel.GIOPTest {
     override async sendString(v0: string, v1: string) {
         this.msg = `sendString(${v0},${v1})`
     }
-    override async sendSequence(v0: Array<string>, v1: Array<number>) { }
+    override async sendSequence(v0: Array<string>, v1: Array<number>) {
+        this.msg = `sendSequence([`
+        v0.forEach( v => this.msg += `${v},`)
+        this.msg += `],[`
+        v1.forEach( v => this.msg += `${v},`)
+        this.msg += `])`
+    }
     override async sendValuePoint(v0: Point) { }
     override async sendValuePoints(v0: Point, v1: Point) { }
     override async sendObject(obj: GIOPSmall, msg: string) { }

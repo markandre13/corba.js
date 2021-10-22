@@ -692,6 +692,7 @@ export class GIOPDecoder extends GIOPBase {
                             // OmniORB
                             0x4154000a: "Pass end of message",
                             0x41540012: "Sequence is too long",
+                            0x41540015: "Index out of range",
                             0x41540016: "Received an invalid zero length string",
                             0x41540034: "Invalid IOR",
                             0x4154004f: "Invalid ContextList",
