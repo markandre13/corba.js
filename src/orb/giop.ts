@@ -180,7 +180,7 @@ export class GIOPEncoder extends GIOPBase {
         this.string(this.orb?.localAddress!)
         this.ushort(this.orb?.localPort!)
         this.fillinSize()
-/*
+        /*
         this.ulong(ServiceId.CodeSets)
         this.reserveSize()
         this.octet(1) // little endian
@@ -188,7 +188,7 @@ export class GIOPEncoder extends GIOPBase {
         this.ulong(0x05010001) // charset_id : UTF-8
         this.ulong(0x00010109) // wcharset_id: UTF-16
         this.fillinSize()
-*/
+        */
     }
 
     sizeStack: number[] = []
@@ -829,7 +829,7 @@ export class GIOPDecoder extends GIOPBase {
                                             [0x4d313300, 0x4d313300, "corba.js"]
                                         ]
                                         let name: string | undefined
-                                        for(let x of orbTypeNames) {
+                                        for (let x of orbTypeNames) {
                                             if (x[0] <= orbType && orbType <= x[1]) {
                                                 name = x[2] as string
                                                 break
@@ -864,7 +864,7 @@ export class GIOPDecoder extends GIOPBase {
     }
 
     // TODO: rather 'value' than 'object' as this is for valuetypes?
-    object(): any {
+    object(typeInfo: string | undefined = undefined): any {
         // console.log(`GIOPDecoder.object() at 0x${this.offset.toString(16)}`)
         // const objectOffset = this.offset + 6
 
@@ -896,33 +896,28 @@ export class GIOPDecoder extends GIOPBase {
         // also compare this with ICE!
 
         if ((code & 0xffffff00) === 0x7fffff00) {
+            let valueTypeInformation: any
             if (code & 1) {
                 // parse codebase_URL
+                throw Error(`value_tag contains unsupported codebase URL`)
             }
             if ((code & 2) === 4) {
                 // parse single repository id
-            }
-            if ((code & 6) === 6) {
-                // parse list of repository ids                
-            }
-        }
-        switch (code) {
-            case 0x7fffff02: {
                 let repositoryId
                 const len = this.ulong()
                 if (len !== 0xffffffff) {
                     repositoryId = this.string(len)
-                    console.log(`GIOPDecoder.object(): at 0x${(objectOffset).toString(16)} got repository ID '${repositoryId}'`)
+                    // console.log(`GIOPDecoder.object(): at 0x${(objectOffset).toString(16)} got repository ID '${repositoryId}'`)
                 } else {
                     const indirection = this.long()
                     const savedOffset = this.offset
                     this.offset = this.offset + indirection - 4 - 6
-                    console.log(`GIOPDecoder.object(): at 0x${(objectOffset).toString(16)} got indirect repository ID ${indirection} pointing to 0x${this.offset.toString(16)}`)
+                    // console.log(`GIOPDecoder.object(): at 0x${(objectOffset).toString(16)} got indirect repository ID ${indirection} pointing to 0x${this.offset.toString(16)}`)
                     this.offset += 4 // skip marker
                     this.offset += 2
-                    console.log(`=====> fetch string at 0x${this.offset.toString(16)}`)
+                    // console.log(`=====> fetch string at 0x${this.offset.toString(16)}`)
                     repositoryId = this.string()
-                    console.log(`==> repositoryId is '${repositoryId}'`)
+                    // console.log(`==> repositoryId is '${repositoryId}'`)
                     this.offset = savedOffset
                 }
                 // console.log(`repositoryID '${name}' at 0x${memo.toString(16)}`)
@@ -930,49 +925,63 @@ export class GIOPDecoder extends GIOPBase {
                     throw Error(`Unsupported CORBA GIOP Repository ID '${repositoryId}'`)
                 const shortName = repositoryId.substring(4, repositoryId.length - 4)
 
-                let valueTypeInformation = ORB.valueTypeByName.get(shortName)
+                valueTypeInformation = ORB.valueTypeByName.get(shortName)
                 if (valueTypeInformation === undefined)
                     throw Error(`Unregistered Repository ID '${repositoryId}' (${shortName})`)
-
-                const obj = new (valueTypeInformation.construct as any)(this)
-                this.objects.set(objectOffset + 2, obj)
-                return obj
             }
-            case 0xffffffff: {
-                let indirection = this.long()
-                indirection += 2
-                const position = this.offset + indirection
-                console.log(`GIOPDecoder.object(): at 0x${objectOffset.toString(16)} got indirect object ${indirection} pointing to 0x${position.toString(16)}`)
-                const obj = this.objects.get(position)
-                if (obj === undefined) {
-                    throw Error("IDL:omg.org/CORBA/MARSHAL:1.0")
-                }
-                return obj
+            if ((code & 6) === 6) {
+                // parse list of repository ids
+                throw Error(`value_tag contains unsupported list of repository IDs`)
             }
-            default:
-                // TODO: this looks like a hack... plus: can't the IDL compiler not already use reference instead of object?
-                if (code < 0x7fffff00) {
-                    if (this.orb === undefined)
-                        throw Error("GIOPDecoder has no ORB defined. Can not resolve resolve reference to stub object.")
-                    const reference = this.reference(code)
 
-                    // TODO: this belongs elsewhere
-                    let object = this.orb.stubsById.get(reference.objectKey)
-                    if (object !== undefined)
-                        return object
-                    const shortName = reference.oid.substring(4, reference.oid.length - 4)
-                    let aStubClass = this.orb.stubsByName.get(shortName)
-                    if (aStubClass === undefined) {
-                        throw Error(`ORB: no stub registered for OID '${reference.oid} (${shortName})'`)
-                    }
-                    object = new aStubClass(this.orb, reference.objectKey)
-                    this.orb.stubsById.set(reference.objectKey, object!)
-                    return object
-                } else {
-                    throw Error(`GIOPDecoder: Unsupported value with CORBA tag 0x${code.toString(16)}`)
-                }
+            if (valueTypeInformation === undefined && typeInfo !== undefined) {
+                valueTypeInformation = ORB.valueTypeByName.get(typeInfo)
+            }
+
+            if (valueTypeInformation === undefined) {
+                throw Error(`insufficient value type information`)
+            }
+
+            const obj = new (valueTypeInformation.construct as any)(this)
+            this.objects.set(objectOffset + 2, obj)
+            return obj
         }
+
+        if (code === 0xffffffff) {
+            let indirection = this.long()
+            indirection += 2
+            const position = this.offset + indirection
+            console.log(`GIOPDecoder.object(): at 0x${objectOffset.toString(16)} got indirect object ${indirection} pointing to 0x${position.toString(16)}`)
+            const obj = this.objects.get(position)
+            if (obj === undefined) {
+                throw Error("IDL:omg.org/CORBA/MARSHAL:1.0")
+            }
+            return obj
+        }
+
+        // TODO: this looks like a hack... plus: can't the IDL compiler not already use reference instead of object?
+        if (code < 0x7fffff00) {
+            if (this.orb === undefined)
+                throw Error("GIOPDecoder has no ORB defined. Can not resolve resolve reference to stub object.")
+            const reference = this.reference(code)
+
+            // TODO: this belongs elsewhere
+            let object = this.orb.stubsById.get(reference.objectKey)
+            if (object !== undefined)
+                return object
+            const shortName = reference.oid.substring(4, reference.oid.length - 4)
+            let aStubClass = this.orb.stubsByName.get(shortName)
+            if (aStubClass === undefined) {
+                throw Error(`ORB: no stub registered for OID '${reference.oid} (${shortName})'`)
+            }
+            object = new aStubClass(this.orb, reference.objectKey)
+            this.orb.stubsById.set(reference.objectKey, object!)
+            return object
+        }
+
+        throw Error(`GIOPDecoder: Unsupported value with CORBA tag 0x${code.toString(16)}`)
     }
+
 
     endian() {
         const byteOrder = this.octet()

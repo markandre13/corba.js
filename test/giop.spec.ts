@@ -309,7 +309,7 @@ describe("CDR/GIOP", () => {
             expect(await myserver.peek()).to.equal("sendSequence([hello,you,],[1138,1984,2001,])")
         })
 
-        it.only("value", async function () {
+        it("value", async function () {
             fake.expect(this.test!.fullTitle())
             await server.call(myserver, api.CallbackType.CB_VALUE)
             expect(await myserver.peek()).to.equal("sendValuePoint(Point(20,30))")
@@ -580,8 +580,7 @@ class GIOPTest_impl extends skel.GIOPTest {
         this.msg += `])`
     }
     override async sendValuePoint(v0: Point) {
-        console.log("========================================================")
-        console.log(`sendValuePoint(${v0})`)
+        this.msg = `sendValuePoint(${(v0 as any).constructor.name}(${v0.x},${v0.y}))`
     }
     override async sendValuePoints(v0: Point, v1: Point) { }
     override async sendObject(obj: GIOPSmall, msg: string) { }

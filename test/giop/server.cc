@@ -158,7 +158,7 @@ void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method) {
             break;
         case CB_LONGLONG:
             cout << "GIOPTest_impl::call(...,CB_LONGLONG)" << endl;
-            callback->sendLongLong(LLONG_MAX, LLONG_MIN);
+            callback->sendLongLong(LLONG_MIN, LLONG_MAX);
             break;
         case CB_ULONGLONG:
             cout << "GIOPTest_impl::call(...,CB_ULONGLONG)" << endl;
@@ -196,22 +196,22 @@ void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method) {
             CORBA::add_ref(point);
             callback->sendValuePoint(point);
         } break;
-        case CB_VALUES_DUPLICATE_REPOSITORY_ID:
-            cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_REPOSITORY_ID)" << endl;
-            callback->sendOctet(0, 255);
-            break;
-        case CB_VALUES_DUPLICATE_OBJECT:
-            cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_OBJECT)" << endl;
-            callback->sendOctet(0, 255);
-            break;
-        case CB_SEND_OBJECT:
-            cout << "GIOPTest_impl::call(...,CB_SEND_OBJECT)" << endl;
-            callback->sendOctet(0, 255);
-            break;
-        case CB_GET_OBJECT:
-            cout << "GIOPTest_impl::call(...,CB_GET_OBJECT)" << endl;
-            callback->sendOctet(0, 255);
-            break;
+        // case CB_VALUES_DUPLICATE_REPOSITORY_ID:
+        //     cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_REPOSITORY_ID)" << endl;
+        //     callback->sendOctet(0, 255);
+        //     break;
+        // case CB_VALUES_DUPLICATE_OBJECT:
+        //     cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_OBJECT)" << endl;
+        //     callback->sendOctet(0, 255);
+        //     break;
+        // case CB_SEND_OBJECT:
+        //     cout << "GIOPTest_impl::call(...,CB_SEND_OBJECT)" << endl;
+        //     callback->sendOctet(0, 255);
+        //     break;
+        // case CB_GET_OBJECT:
+        //     cout << "GIOPTest_impl::call(...,CB_GET_OBJECT)" << endl;
+        //     callback->sendOctet(0, 255);
+        //     break;
         default:
             cout << "GIOPTest_impl::call(...," << method << ") ;; not implemented" << endl;
     }
