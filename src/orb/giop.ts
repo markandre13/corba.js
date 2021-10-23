@@ -325,6 +325,7 @@ export class GIOPEncoder extends GIOPBase {
             throw Error(`ORB: can not serialize object of unregistered valuetype ${object.constructor.name}`)
         }
         this.objectPosition.set(object, this.offset)
+        this.repositoryId(valueTypeInformation.name!)
         valueTypeInformation.encode(this, object)
     }
 
@@ -698,7 +699,8 @@ export class GIOPDecoder extends GIOPBase {
                             0x4154004f: "Invalid ContextList",
                             0x4154005a: "Invalid Indirection",
                             0x4154005b: "Invalid TypeCodeKind",
-                            0x4154005d: "Message too long"
+                            0x4154005d: "Message too long",
+                            0x41540070: "Invalid value tag"
                         }
                         explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
                     } break

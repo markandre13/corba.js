@@ -53,7 +53,16 @@ public:
     Point_impl() : OBV_Point() {}
     Point_impl(CORBA::Long x, CORBA::Long y) : OBV_Point(x, y) {}
     ~Point_impl() {}
+
+    char* toString();
 };
+
+char* Point_impl::toString() {
+    std::stringstream ss;
+    ss << "Point(" << this->x() << "," << this->y() << ")";
+    lastToken = ss.str();
+    return (char*)lastToken.c_str();
+}
 
 class NamedPoint_impl : public virtual OBV_NamedPoint, public virtual CORBA::DefaultValueRefCountBase
 {
@@ -62,7 +71,15 @@ public:
     // yeah, you'd guess that OBV_NamedPoint(x, y, name) would initialize x and y... but it doesn't
     NamedPoint_impl(CORBA::Long x, CORBA::Long y, const char *name) : OBV_Point(x,y), OBV_NamedPoint(x, y, name) {}
     ~NamedPoint_impl() {}
+    char* toString();
 };
+
+char* NamedPoint_impl::toString() {
+    std::stringstream ss;
+    ss << "NamedPoint(" << this->x() << "," << this->y() << ",\"" << this->name() << "\")";
+    lastToken = ss.str();
+    return (char*)lastToken.c_str();
+}
 
 int main(int argc, char **argv)
 {
@@ -212,15 +229,16 @@ void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method)
     {
         cout << "GIOPTest_impl::call(...,CB_VALUE)" << endl;
         Point_var point = new Point_impl(20, 30);
+        cout << "send " << point->toString() << endl;
         callback->sendValuePoint(point);
     }
     break;
     case CB_SUBCLASSED_VALUE:
     {
         cout << "GIOPTest_impl::call(...,CB_SUBCLASSED_VALUE)" << endl;
-        // CORBA: one can also use OBV_NamedPoint directly
-        OBV_NamedPoint *point = new OBV_NamedPoint(40, 50, "foo");
-        cout << "  send NamedPoint(" << point->x() << "," << point->y() << "," << point->name() << ")" << endl;
+        NamedPoint_impl *point = new NamedPoint_impl(40, 50, "foo");
+        // cout << "  send NamedPoint(" << point->x() << "," << point->y() << "," << point->name() << ")" << endl;
+        cout << "send " << point->toString() << endl;
         callback->sendValuePoint(point);
     }
     break;
@@ -369,7 +387,7 @@ void GIOPTest_impl::sendSequence(const StringSeq &v0, const LongSeq &v1)
 void GIOPTest_impl::sendValuePoint(Point *v0)
 {
     std::stringstream ss;
-    ss << "sendValuePoint(Point(" << v0->x() << "," << v0->y() << "))";
+    ss << "sendValuePoint(" << v0->toString() << ")";
     lastToken = ss.str();
     cout << lastToken << endl;
 }

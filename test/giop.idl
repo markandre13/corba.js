@@ -1,5 +1,6 @@
 valuetype Point {
     public long x, y;
+    string toString();
 };
 
 valuetype NamedPoint: Point {

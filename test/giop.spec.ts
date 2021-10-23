@@ -186,6 +186,12 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendValuePoint(Point(20,30))")
         })
 
+        it("value (subclassed)", async function() {
+            fake.expect(this.test!.fullTitle())
+            await server.sendValuePoint(new NamedPoint({ x: 20, y: 30, name: "foo" }))
+            expect(await server.peek()).to.equal("sendValuePoint(NamedPoint(20,30,\"foo\"))")
+        })
+
         it("value (duplicate repository ID)", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendValuePoints(new Point({ x: 20, y: 30 }), new Point({ x: 40, y: 50 }))
@@ -317,7 +323,7 @@ describe("CDR/GIOP", () => {
             expect(await myserver.peek()).to.equal("sendValuePoint(Point(20,30))")
         })
 
-        it("subclassed value", async function () {
+        it("value (subclassed)", async function () {
             fake.expect(this.test!.fullTitle())
             await server.call(myserver, api.CallbackType.CB_SUBCLASSED_VALUE)
             expect(await myserver.peek()).to.equal(`sendValuePoint(NamedPoint(40,50,"foo"))`)

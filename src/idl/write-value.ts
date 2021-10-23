@@ -49,7 +49,7 @@ export function writeTSValue(specification: Node): void {
 
     writeTSValueDefinitions(out, specification)
 
-    out.write("\nlet initialized = false\n")
+    out.write("let initialized = false\n")
     out.write("export function _init() {\n")
     out.write("    if (initialized)\n")
     out.write("        return\n")
@@ -117,7 +117,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                     }
                 }
                 writeIndent(out, indent)
-                out.write("}\n\n")
+                out.write("}\n")
 
                 writeIndent(out, indent)
                 out.write(`export function init${identifier}(object: ${identifier}, init?: Partial<${identifier}> | GIOPDecoder) {\n`)
@@ -136,6 +136,30 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                 writeIndent(out, indent)
                 out.write("}\n")
 
+                writeIndent(out, indent)
+                out.write(`export function encode${identifier}(encoder: GIOPEncoder, obj: ${identifier}) {\n`)
+                ++indent
+                if (inheritance_spec !== undefined) {
+                    writeIndent(out, indent)
+                    out.write(`encode${inheritance_spec.child[1]!.text}(encoder, obj)\n`)
+                }
+                for (let i = 1; i < value_dcl.child.length; ++i) {
+                    let value_element = value_dcl.child[i]!
+                    if (value_element.type === Type.SYN_STATE_MEMBER) {
+                        let state_member = value_element
+                        let attribute = state_member.child[0]!
+                        let type = state_member.child[1]!
+                        let declarators = state_member.child[2]!
+                        for (let declarator of declarators.child) {
+                            writeIndent(out, indent)
+                            out.write(`${typeIDLtoGIOP(type, "obj." + declarator!.text!)}\n`)
+                        }
+                    }
+                }
+                --indent
+                writeIndent(out, indent)
+                out.write("}\n\n")
+
                 initCalls += `    ORB.valueTypeByName.set("${prefix}${identifier}", {attributes:[`
                 let comma = false
                 for (let attribute of attributes) {
@@ -146,28 +170,8 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                     }
                     initCalls += `"${attribute}"`
                 }
+                initCalls += `],encode:encode${identifier}})\n`
 
-                initCalls += `],encode:(encoder:GIOPEncoder, obj:any)=>{\n`
-                initCalls += `        encoder.repositoryId("${identifier}")\n`
-                if (inheritance_spec !== undefined) {
-                    // FIXME: call super classes
-                }
-                for (let i = 1; i < value_dcl.child.length; ++i) {
-                    let value_element = value_dcl.child[i]!
-                    if (value_element.type === Type.SYN_STATE_MEMBER) {
-                        let state_member = value_element
-                        let attribute = state_member.child[0]!
-                        let type = state_member.child[1]!
-                        let declarators = state_member.child[2]!
-                        for (let declarator of declarators.child) {
-                            initCalls += `        `
-                            initCalls +=  typeIDLtoGIOP(type, "obj." + declarator!.text!)
-                            initCalls += "\n"
-                        }
-                    }
-                }
-
-                initCalls += "    }})\n"
             } break
         }
     }
