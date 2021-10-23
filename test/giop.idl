@@ -1,5 +1,9 @@
 valuetype Point {
-    public double x, y;
+    public long x, y;
+};
+
+valuetype NamedPoint: Point {
+    public string name;
 };
 
 interface GIOPSmall {
@@ -12,7 +16,7 @@ typedef sequence<long> LongSeq;
 enum CallbackType {
     CB_BOOL, CB_CHAR, CB_OCTET, CB_SHORT, CB_USHORT, CB_LONG, CB_ULONG,
     CB_LONGLONG, CB_ULONGLONG, CB_FLOAT, CB_DOUBLE, CB_STRING, CB_SEQUENCE,
-    CB_VALUE, CB_VALUES_DUPLICATE_REPOSITORY_ID, CB_VALUES_DUPLICATE_OBJECT,
+    CB_VALUE, CB_SUBCLASSED_VALUE, CB_VALUES_DUPLICATE_REPOSITORY_ID, CB_VALUES_DUPLICATE_OBJECT,
     CB_SEND_OBJECT, CB_GET_OBJECT
 };
 

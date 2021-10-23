@@ -47,14 +47,21 @@ string lastToken(blank);
 
 GIOPSmall_var small;
 
-class Point_impl: virtual public OBV_Point, virtual public CORBA::DefaultValueRefCountBase {
-  public:
-    Point_impl() {}
-    Point_impl(double x, double y) {
-      this->x(x);
-      this->y(y);
-    }
+class Point_impl : public virtual OBV_Point, public virtual CORBA::DefaultValueRefCountBase
+{
+public:
+    Point_impl() : OBV_Point() {}
+    Point_impl(CORBA::Long x, CORBA::Long y) : OBV_Point(x, y) {}
     ~Point_impl() {}
+};
+
+class NamedPoint_impl : public virtual OBV_NamedPoint, public virtual CORBA::DefaultValueRefCountBase
+{
+public:
+    NamedPoint_impl() {}
+    // yeah, you'd guess that OBV_NamedPoint(x, y, name) would initialize x and y... but it doesn't
+    NamedPoint_impl(CORBA::Long x, CORBA::Long y, const char *name) : OBV_Point(x,y), OBV_NamedPoint(x, y, name) {}
+    ~NamedPoint_impl() {}
 };
 
 int main(int argc, char **argv)
@@ -66,10 +73,18 @@ int main(int argc, char **argv)
         CORBA::ORB_var orb = CORBA::ORB_init(argc, argv);
 
         // register valuetype
-        class PointFactory: public virtual CORBA::ValueFactoryBase {
-            CORBA::ValueBase* create_for_unmarshal() { return new Point_impl(); }
+        class PointFactory : public virtual CORBA::ValueFactoryBase
+        {
+            CORBA::ValueBase *create_for_unmarshal() { return new Point_impl(); }
         };
         orb->register_value_factory("IDL:Point:1.0", new PointFactory());
+
+        // register valuetype
+        class NamedPointFactory : public virtual CORBA::ValueFactoryBase
+        {
+            CORBA::ValueBase *create_for_unmarshal() { return new NamedPoint_impl(); }
+        };
+        orb->register_value_factory("IDL:NamedPoint:1.0", new NamedPointFactory());
 
         // rootPOA
         CORBA::Object_var obj = orb->resolve_initial_references("RootPOA");
@@ -126,94 +141,108 @@ char *GIOPTest_impl::peek()
     return CORBA::string_dup(lastToken.c_str());
 }
 
-void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method) {
-    switch(method) {
-        case CB_BOOL:
-            cout << "GIOPTest_impl::call(...,CB_BOOL)" << endl;
-            callback->sendBool(false, true);
-            break;
-        case CB_CHAR:
-            cout << "GIOPTest_impl::call(...,CB_CHAR)" << endl;
-            callback->sendChar(0, 255);
-            break;
-        case CB_OCTET:
-            cout << "GIOPTest_impl::call(...,CB_OCTET)" << endl;
-            callback->sendOctet(0, 255);
-            break;
-        case CB_SHORT:
-            cout << "GIOPTest_impl::call(...,CB_SHORT)" << endl;
-            callback->sendShort(-32768, 32767);
-            break;
-        case CB_USHORT:
-            cout << "GIOPTest_impl::call(...,CB_USHORT)" << endl;
-            callback->sendUShort(0, 65535);
-            break;
-        case CB_LONG:
-            cout << "GIOPTest_impl::call(...,CB_LONG)" << endl;
-            callback->sendLong(-2147483648L, 2147483647L);
-            break;
-        case CB_ULONG:
-            cout << "GIOPTest_impl::call(...,CB_ULONG)" << endl;
-            callback->sendULong(0, 4294967295L);
-            break;
-        case CB_LONGLONG:
-            cout << "GIOPTest_impl::call(...,CB_LONGLONG)" << endl;
-            callback->sendLongLong(LLONG_MIN, LLONG_MAX);
-            break;
-        case CB_ULONGLONG:
-            cout << "GIOPTest_impl::call(...,CB_ULONGLONG)" << endl;
-            callback->sendULongLong(0, 18446744073709551615LLU);
-            break;
-        case CB_FLOAT:
-            cout << "GIOPTest_impl::call(...,CB_FLOAT)" << endl;
-            callback->sendFloat(1.17549e-38, 3.40282e+38);
-            break;
-        case CB_DOUBLE:
-            cout << "GIOPTest_impl::call(...,CB_DOUBLE)" << endl;
-            callback->sendDouble(4.94066e-324, 1.79769e+308);
-            break;
-        case CB_STRING:
-            cout << "GIOPTest_impl::call(...,CB_STRING)" << endl;
-            callback->sendString("hello", "you");
-            break;
-        case CB_SEQUENCE: {
-            cout << "GIOPTest_impl::call(...,CB_SEQUENCE)" << endl;
-            StringSeq seq0; // yeah... CORBA's C++ mapping has it's own containers
-            seq0.length(2); // yeah, CORBA's C++ mapping has no no append() nor seq0(2) work here
-            seq0[0] = CORBA::string_dup("hello"); // yeah, CORBA's C++ mapping needs a duplicate of the string
-            seq0[1] = CORBA::string_dup("you");
-            LongSeq seq1;
-            seq1.length(3);
-            seq1[0] = 1138;
-            seq1[1] = 1984;
-            seq1[2] = 2001;
-            callback->sendSequence(seq0, seq1);
-        } break;
-        case CB_VALUE: {
-            cout << endl << "-------------------------------------" << endl;
-            cout << "GIOPTest_impl::value(...,CB_VALUE)" << endl;
-            Point_impl *point = new Point_impl(20, 30);
-            CORBA::add_ref(point);
-            callback->sendValuePoint(point);
-        } break;
-        // case CB_VALUES_DUPLICATE_REPOSITORY_ID:
-        //     cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_REPOSITORY_ID)" << endl;
-        //     callback->sendOctet(0, 255);
-        //     break;
-        // case CB_VALUES_DUPLICATE_OBJECT:
-        //     cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_OBJECT)" << endl;
-        //     callback->sendOctet(0, 255);
-        //     break;
-        // case CB_SEND_OBJECT:
-        //     cout << "GIOPTest_impl::call(...,CB_SEND_OBJECT)" << endl;
-        //     callback->sendOctet(0, 255);
-        //     break;
-        // case CB_GET_OBJECT:
-        //     cout << "GIOPTest_impl::call(...,CB_GET_OBJECT)" << endl;
-        //     callback->sendOctet(0, 255);
-        //     break;
-        default:
-            cout << "GIOPTest_impl::call(...," << method << ") ;; not implemented" << endl;
+void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method)
+{
+    switch (method)
+    {
+    case CB_BOOL:
+        cout << "GIOPTest_impl::call(...,CB_BOOL)" << endl;
+        callback->sendBool(false, true);
+        break;
+    case CB_CHAR:
+        cout << "GIOPTest_impl::call(...,CB_CHAR)" << endl;
+        callback->sendChar(0, 255);
+        break;
+    case CB_OCTET:
+        cout << "GIOPTest_impl::call(...,CB_OCTET)" << endl;
+        callback->sendOctet(0, 255);
+        break;
+    case CB_SHORT:
+        cout << "GIOPTest_impl::call(...,CB_SHORT)" << endl;
+        callback->sendShort(-32768, 32767);
+        break;
+    case CB_USHORT:
+        cout << "GIOPTest_impl::call(...,CB_USHORT)" << endl;
+        callback->sendUShort(0, 65535);
+        break;
+    case CB_LONG:
+        cout << "GIOPTest_impl::call(...,CB_LONG)" << endl;
+        callback->sendLong(-2147483648L, 2147483647L);
+        break;
+    case CB_ULONG:
+        cout << "GIOPTest_impl::call(...,CB_ULONG)" << endl;
+        callback->sendULong(0, 4294967295L);
+        break;
+    case CB_LONGLONG:
+        cout << "GIOPTest_impl::call(...,CB_LONGLONG)" << endl;
+        callback->sendLongLong(LLONG_MIN, LLONG_MAX);
+        break;
+    case CB_ULONGLONG:
+        cout << "GIOPTest_impl::call(...,CB_ULONGLONG)" << endl;
+        callback->sendULongLong(0, 18446744073709551615LLU);
+        break;
+    case CB_FLOAT:
+        cout << "GIOPTest_impl::call(...,CB_FLOAT)" << endl;
+        callback->sendFloat(1.17549e-38, 3.40282e+38);
+        break;
+    case CB_DOUBLE:
+        cout << "GIOPTest_impl::call(...,CB_DOUBLE)" << endl;
+        callback->sendDouble(4.94066e-324, 1.79769e+308);
+        break;
+    case CB_STRING:
+        cout << "GIOPTest_impl::call(...,CB_STRING)" << endl;
+        callback->sendString("hello", "you");
+        break;
+    case CB_SEQUENCE:
+    {
+        cout << "GIOPTest_impl::call(...,CB_SEQUENCE)" << endl;
+        StringSeq seq0;                       // yeah... CORBA's C++ mapping has it's own containers
+        seq0.length(2);                       // yeah, CORBA's C++ mapping has no no append() nor seq0(2) work here
+        seq0[0] = CORBA::string_dup("hello"); // yeah, CORBA's C++ mapping needs a duplicate of the string
+        seq0[1] = CORBA::string_dup("you");
+        LongSeq seq1;
+        seq1.length(3);
+        seq1[0] = 1138;
+        seq1[1] = 1984;
+        seq1[2] = 2001;
+        callback->sendSequence(seq0, seq1);
+    }
+    break;
+    case CB_VALUE:
+    {
+        cout << "GIOPTest_impl::call(...,CB_VALUE)" << endl;
+        Point_var point = new Point_impl(20, 30);
+        callback->sendValuePoint(point);
+    }
+    break;
+    case CB_SUBCLASSED_VALUE:
+    {
+        cout << "GIOPTest_impl::call(...,CB_SUBCLASSED_VALUE)" << endl;
+        // CORBA: one can also use OBV_NamedPoint directly
+        OBV_NamedPoint *point = new OBV_NamedPoint(40, 50, "foo");
+        cout << "  send NamedPoint(" << point->x() << "," << point->y() << "," << point->name() << ")" << endl;
+        callback->sendValuePoint(point);
+    }
+    break;
+
+    // case CB_VALUES_DUPLICATE_REPOSITORY_ID:
+    //     cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_REPOSITORY_ID)" << endl;
+    //     callback->sendOctet(0, 255);
+    //     break;
+    // case CB_VALUES_DUPLICATE_OBJECT:
+    //     cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_OBJECT)" << endl;
+    //     callback->sendOctet(0, 255);
+    //     break;
+    // case CB_SEND_OBJECT:
+    //     cout << "GIOPTest_impl::call(...,CB_SEND_OBJECT)" << endl;
+    //     callback->sendOctet(0, 255);
+    //     break;
+    // case CB_GET_OBJECT:
+    //     cout << "GIOPTest_impl::call(...,CB_GET_OBJECT)" << endl;
+    //     callback->sendOctet(0, 255);
+    //     break;
+    default:
+        cout << "GIOPTest_impl::call(...," << method << ") ;; not implemented" << endl;
     }
 }
 
@@ -319,15 +348,17 @@ void GIOPTest_impl::sendString(const char *v0, const char *v1)
     cout << lastToken << endl;
 }
 
-void GIOPTest_impl::sendSequence(const StringSeq &v0, const LongSeq &v1) {
-// void GIOPTest_impl::sendSequence(StringSequenceTmpl<CORBA::String_var> v0, SequenceTmpl<CORBA::Long,MICO_TID_DEF> v1) {
+void GIOPTest_impl::sendSequence(const StringSeq &v0, const LongSeq &v1)
+{
     std::stringstream ss;
     ss << "sendSequence([";
-    for (CORBA::ULong i = 0; i < v0.length(); i++) {
+    for (CORBA::ULong i = 0; i < v0.length(); i++)
+    {
         ss << v0[i] << ",";
     }
     ss << "],[";
-    for (CORBA::ULong i = 0; i < v1.length(); i++) {
+    for (CORBA::ULong i = 0; i < v1.length(); i++)
+    {
         ss << v1[i] << ",";
     }
     ss << "])";
@@ -355,8 +386,10 @@ void GIOPTest_impl::sendValuePoints(Point *v0, Point *v1)
 
 void GIOPTest_impl::sendObject(GIOPSmall_ptr obj, const char *msg)
 {
-    cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
-    cout << "sendObject(..., \"" << msg << "\")" << endl;
+    std::stringstream ss;
+    ss << "sendObject(..., \"" << msg << "\")" << endl;
+    lastToken = ss.str();
+    cout << lastToken << endl;
     obj->call(msg);
 }
 

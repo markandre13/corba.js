@@ -894,39 +894,32 @@ export class GIOPDecoder extends GIOPBase {
         // conversation: have a look into what Java does here and check how it matches
         //               the version-less configuration files i invented for the mGuard
         // also compare this with ICE!
-
         if ((code & 0xffffff00) === 0x7fffff00) {
-            let valueTypeInformation: any
+            let valueTypeConstructor: any
             if (code & 1) {
                 // parse codebase_URL
                 throw Error(`value_tag contains unsupported codebase URL`)
             }
-            if ((code & 2) === 4) {
+            if ((code & 6) === 2) {
                 // parse single repository id
                 let repositoryId
                 const len = this.ulong()
                 if (len !== 0xffffffff) {
                     repositoryId = this.string(len)
-                    // console.log(`GIOPDecoder.object(): at 0x${(objectOffset).toString(16)} got repository ID '${repositoryId}'`)
                 } else {
                     const indirection = this.long()
                     const savedOffset = this.offset
                     this.offset = this.offset + indirection - 4 - 6
-                    // console.log(`GIOPDecoder.object(): at 0x${(objectOffset).toString(16)} got indirect repository ID ${indirection} pointing to 0x${this.offset.toString(16)}`)
                     this.offset += 4 // skip marker
                     this.offset += 2
-                    // console.log(`=====> fetch string at 0x${this.offset.toString(16)}`)
                     repositoryId = this.string()
-                    // console.log(`==> repositoryId is '${repositoryId}'`)
                     this.offset = savedOffset
                 }
-                // console.log(`repositoryID '${name}' at 0x${memo.toString(16)}`)
                 if (repositoryId.length < 8 || repositoryId.substring(0, 4) !== "IDL:" || repositoryId.substring(repositoryId.length - 4) !== ":1.0")
                     throw Error(`Unsupported CORBA GIOP Repository ID '${repositoryId}'`)
                 const shortName = repositoryId.substring(4, repositoryId.length - 4)
-
-                valueTypeInformation = ORB.valueTypeByName.get(shortName)
-                if (valueTypeInformation === undefined)
+                valueTypeConstructor = ORB.lookupValueType(shortName)
+                if (valueTypeConstructor === undefined)
                     throw Error(`Unregistered Repository ID '${repositoryId}' (${shortName})`)
             }
             if ((code & 6) === 6) {
@@ -934,15 +927,15 @@ export class GIOPDecoder extends GIOPBase {
                 throw Error(`value_tag contains unsupported list of repository IDs`)
             }
 
-            if (valueTypeInformation === undefined && typeInfo !== undefined) {
-                valueTypeInformation = ORB.valueTypeByName.get(typeInfo)
+            if (valueTypeConstructor === undefined && typeInfo !== undefined) {
+                valueTypeConstructor = ORB.lookupValueType(typeInfo)
             }
 
-            if (valueTypeInformation === undefined) {
+            if (valueTypeConstructor === undefined) {
                 throw Error(`insufficient value type information`)
             }
 
-            const obj = new (valueTypeInformation.construct as any)(this)
+            const obj = new (valueTypeConstructor)(this)
             this.objects.set(objectOffset + 2, obj)
             return obj
         }

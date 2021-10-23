@@ -49,7 +49,9 @@ describe("CDR/GIOP", () => {
     before(async function () {
         // return
         orb = new ORB()
-        ORB.registerValueType("Point", Point) // switch this to orb and use the full repository id so that we can use versioning later
+        // TODO: switch this to orb and use the full repository id so that we can use versioning later
+        ORB.registerValueType("Point", Point)
+        ORB.registerValueType("NamedPoint", NamedPoint)
         orb.registerStubClass(stub.GIOPTest)
         orb.registerStubClass(stub.GIOPSmall)
 
@@ -314,6 +316,12 @@ describe("CDR/GIOP", () => {
             await server.call(myserver, api.CallbackType.CB_VALUE)
             expect(await myserver.peek()).to.equal("sendValuePoint(Point(20,30))")
         })
+
+        it("subclassed value", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_SUBCLASSED_VALUE)
+            expect(await myserver.peek()).to.equal(`sendValuePoint(NamedPoint(40,50,"foo"))`)
+        })
     })
 
     // one test for each return type (short, ushort, ... string, sequence, valuetype)
@@ -501,18 +509,6 @@ function parseOmniDump(data: string): Uint8Array {
     return new Uint8Array(vec)
 }
 
-class Point implements value.Point {
-    x!: number
-    y!: number
-
-    constructor(init: Partial<Point>) {
-        value.initPoint(this, init)
-    }
-    toString(): string {
-        return "Point: x=" + this.x + ", y=" + this.y
-    }
-}
-
 class GIOPTest_impl extends skel.GIOPTest {
     msg = ""
 
@@ -580,7 +576,7 @@ class GIOPTest_impl extends skel.GIOPTest {
         this.msg += `])`
     }
     override async sendValuePoint(v0: Point) {
-        this.msg = `sendValuePoint(${(v0 as any).constructor.name}(${v0.x},${v0.y}))`
+        this.msg = `sendValuePoint(${v0})`
     }
     override async sendValuePoints(v0: Point, v1: Point) { }
     override async sendObject(obj: GIOPSmall, msg: string) { }
@@ -588,7 +584,6 @@ class GIOPTest_impl extends skel.GIOPTest {
         return new GIOPSmall(this.orb)
     }
 }
-
 
 class GIOPSmall extends skel.GIOPSmall {
     msg = ""
@@ -599,6 +594,31 @@ class GIOPSmall extends skel.GIOPSmall {
 
     override async call(msg: string) {
         this.msg = msg
+    }
+}
+
+class Point extends Object implements value.Point {
+    x!: number
+    y!: number
+
+    constructor(init: Partial<Point>) {
+        super()
+        value.initPoint(this, init)
+    }
+    override toString(): string {
+        return `Point(${this.x},${this.y})`
+    }
+}
+
+class NamedPoint extends Point implements value.NamedPoint  {
+    name!: string
+
+    constructor(init: Partial<NamedPoint>) {
+        super(init)
+        value.initNamedPoint(this, init)
+    }
+    override toString(): string {
+        return `NamedPoint(${this.x},${this.y},"${this.name}")`
     }
 }
 

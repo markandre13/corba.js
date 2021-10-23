@@ -12,12 +12,18 @@ string lastToken(blank);
 class Point_impl : virtual public OBV_Point, virtual public CORBA::DefaultValueRefCountBase
 {
 public:
-    Point_impl() {}
-    Point_impl(double x, double y)
-    {
-        this->x(x);
-        this->y(y);
-    }
+    Point_impl() : OBV_Point() {}
+    Point_impl(CORBA::ULong x, CORBA::ULong y) : OBV_Point(x, y) {}
+    ~Point_impl() {}
+};
+
+class NamedPoint_impl : virtual public OBV_NamedPoint,
+                        virtual public CORBA::DefaultValueRefCountBase
+{
+public:
+    NamedPoint_impl() {}
+    NamedPoint_impl(CORBA::ULong x, CORBA::ULong y, const char *name) : OBV_NamedPoint(x, y, name) {}
+    ~NamedPoint_impl() {}
 };
 
 class GIOPSmall_impl : public virtual POA_GIOPSmall
