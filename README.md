@@ -25,16 +25,14 @@ _(Handling of exception and pointers is currently being added to corba.js.)_
 
 ## What does it not do?
 
-CORBA's goal is to make frontend and backend look like one application, which implies
-tight coupling. Microservices on the other hand are intended to be loosely coupled.
-Here a protocol like REST can be a far better solution.
+CORBA's goal is to make frontend and backend look like one application, which implies tight coupling. Microservices on the other hand are intended to be loosely coupled.
+Here a protocol like REST+JSON, 0MQ+MessagePack, etc. can be a better solution.
 
 See also: [REST, SOAP, and CORBA, i.e. How We Got Here](https://greglturnquist.com/2016/05/03/rest-soap-corba-e-got/).
 
 ## Why?
 
-corba.js is written to be used in [workflow](https://github.com/markandre13/workflow#readme)
-where it handles
+corba.js is written to be used in [workflow](https://github.com/markandre13/workflow#readme) where it handles
 
 * the communication between frontend and backend
 * persisting objects to the database (using the IDL, corba.js can convert between JSON and objects)
@@ -43,14 +41,11 @@ where it handles
 In the 90ties CORBA was quite the hype but design-by-committee made it bloated, slow
 and no fun to use. (See [The Rise and Fall of CORBA](https://queue.acm.org/detail.cfm?id=1142044) and [What's Wrong With CORBA](https://wiki.c2.com/?WhatsWrongWithCorba).)
 
-Still, stripped to it's core, one finds a fast and lightweight system, which made it ideal for
-modern WebApps. This might be in part attributed to CORBA's roots in the experimental object
-oriented [Spring](https://en.wikipedia.org/wiki/Spring_(operating_system)) operating system
-and some sole individuals undermining the design-by-committee with their expertise. 😁
+Still, stripped to it's core, one finds a fast and lightweight system, which made it ideal for modern WebApps. This might be in part attributed to CORBA's roots in the experimental object oriented [Spring](https://en.wikipedia.org/wiki/Spring_(operating_system)) operating system and some sole individuals undermining the design-by-committee with their expertise. 😁
 
-A group of former CORBA developer's has also implemented a much improved successor of CORBA,
-the [Internet Communications Engine](https://zeroc.com/products/ice) (ICE), which is
-also available for JavaScript/TypeScript under the GNU GPLv2.
+Around 2004 a group developers previously involed with CORBA and the OMG presented a much improved successor of CORBA, the [Internet Communications Engine](https://zeroc.com/products/ice) (ICE), which is also available for JavaScript/TypeScript under the GNU GPLv2.
+
+Around 2012, CERN switched from CORBA to [0MQ](https://en.wikipedia.org/wiki/ZeroMQ) and a custom serializer.
 
 ## Interfaces
 
