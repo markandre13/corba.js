@@ -31,6 +31,7 @@ public:
 
     void sendObject(::GIOPSmall_ptr obj, const char *msg);
     GIOPSmall_ptr getObject();
+    GIOPSmall_ptr reflectObject(::GIOPSmall_ptr obj);
 };
 
 class GIOPSmall_impl : public virtual POA_GIOPSmall
@@ -414,6 +415,12 @@ void GIOPTest_impl::sendObject(GIOPSmall_ptr obj, const char *msg)
 GIOPSmall_ptr GIOPTest_impl::getObject()
 {
     return GIOPSmall::_duplicate(small);
+}
+
+GIOPSmall_ptr GIOPTest_impl::reflectObject(::GIOPSmall_ptr obj) {
+    lastToken = "reflectObject(...)";
+    cout << lastToken << endl;
+    return GIOPSmall::_duplicate(obj);
 }
 
 void GIOPSmall_impl::call(const char *msg)

@@ -6,7 +6,7 @@ import * as api from "./generated/giop"
 import * as skel from "./generated/giop_skel"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
-import { expect } from "chai"
+import { expect, assert } from "chai"
 import { Fake } from "./fake"
 
 // WHAT'S NEXT:
@@ -66,7 +66,7 @@ describe("CDR/GIOP", () => {
 
         if (true) {
             // RECORD
-            const serverSocket = listen(orb, "0.0.0.0", 8080)
+            // const serverSocket = listen(orb, "0.0.0.0", 8080) // don't. this override localhost in the client orb
             const clientSocket = await connect(orb, ior.host!, ior.port!)
             console.log("connected")
             fake.record(orb, clientSocket)
@@ -223,17 +223,14 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("GIOPSmall.call()")
         })
 
-        it("send local object and get it back")
-        // send it, get it back, call it, check if it was executed locally
-
-        it("get remote object and send it back")
-        // get it, send it back, let peer call itself, check if it was executed run the peer
-
-        // array
-        // union
-        // anytype
-
-        // any
+        // when we send the ior for a skeleton implementation and we get the ior back,
+        // resolve it to the skeleton implementation instead of a stub
+        it("send local object and get it back", async function() {
+            fake.expect(this.test!.fullTitle())
+            const small0 = new GIOPSmall(orb)
+            const small1 = await server.reflectObject(small0)
+            expect(small0 === small1).to.be.true
+        })
     })
 
     // these cover the decoder
@@ -588,6 +585,9 @@ class GIOPTest_impl extends skel.GIOPTest {
     override async sendObject(obj: GIOPSmall, msg: string) { }
     override async getObject(): Promise<GIOPSmall> {
         return new GIOPSmall(this.orb)
+    }
+    override async reflectObject(obj: GIOPSmall): Promise<GIOPSmall> {
+        return obj
     }
 }
 

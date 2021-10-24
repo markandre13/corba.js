@@ -51,6 +51,7 @@ interface GIOPTest {
 
     void sendObject(in GIOPSmall obj, in string msg);
     GIOPSmall getObject();
+    GIOPSmall reflectObject(in GIOPSmall obj);
     // GIOPSmall rcvdObject();
 
     // void sendAny(in any v0);

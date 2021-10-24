@@ -249,10 +249,16 @@ export class GIOPEncoder extends GIOPBase {
 
     // Interoperable Object Reference (IOR)
     reference(object: CORBAObject) {
-        // console.log(`GIOPEncoder.object(...) ${this.orb!.localAddress}:${this.orb!.localPort}`)
         const className = (object.constructor as any)._idlClassName()
+
+        const reference = new ObjectReference()
+        reference.host = this.orb!.localAddress!
+        reference.port = this.orb!.localPort!
+        reference.oid = `IDL:${className}:1.0`
+        reference.objectKey = object.id
+        
         // type id
-        this.string(`IDL:${className}:1.0`)
+        this.string(reference.oid)
 
         // tagged profile sequence
         this.ulong(1) // profileCount
@@ -266,9 +272,9 @@ export class GIOPEncoder extends GIOPBase {
         this.octet(this.minorVersion)
 
         // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
-        this.string(this.orb!.localAddress!)
-        this.short(this.orb!.localPort!)
-        this.blob(object.id)
+        this.string(reference.host)
+        this.short(reference.port)
+        this.blob(reference.objectKey)
 
         // IIOP >= 1.1: components
         if (this.majorVersion != 1 || this.minorVersion != 0) {
@@ -294,10 +300,8 @@ export class GIOPEncoder extends GIOPBase {
                 throw Error("GIOPEncoder has no ORB defined. Can not add object to ACL.")
             }
             this.orb.aclAdd(object)
-            // console.log("GIOPEncoder.object(...) -> .reference(...)")
             this.reference(object)
             return
-            // return `{"#R":"${(object.constructor as any)._idlClassName()}","#V":${object.id}}`
         }
 
         const position = this.objectPosition.get(object)
@@ -867,7 +871,6 @@ export class GIOPDecoder extends GIOPBase {
 
     // TODO: rather 'value' than 'object' as this is for valuetypes?
     object(typeInfo: string | undefined = undefined): any {
-        // console.log(`GIOPDecoder.object() at 0x${this.offset.toString(16)}`)
         // const objectOffset = this.offset + 6
 
         const code = this.ulong()
@@ -959,6 +962,10 @@ export class GIOPDecoder extends GIOPBase {
             if (this.orb === undefined)
                 throw Error("GIOPDecoder has no ORB defined. Can not resolve resolve reference to stub object.")
             const reference = this.reference(code)
+
+            if (reference.host == this.orb.localAddress && reference.port == this.orb.localPort) {
+                return this.orb.servants.get(reference.objectKey)
+            }
 
             // TODO: this belongs elsewhere
             let object = this.orb.stubsById.get(reference.objectKey)
