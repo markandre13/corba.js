@@ -36,6 +36,7 @@ export class GIOPBase {
     majorVersion = 1
     minorVersion = 2
 
+    // TODO: get rid of these, this is the encoding on the wire, let endian() handle it
     static ENDIAN_BIG = 0;
     static ENDIAN_LITTLE = 1;
 
@@ -63,6 +64,8 @@ export class GIOPEncoder extends GIOPBase {
     bytes = new Uint8Array(this.buffer);
 
     public static textEncoder = new TextEncoder();
+    
+    // this is the parameter as used for the DataView
     static littleEndian?: boolean
 
     protected repositoryIds = new Map<string, number>()
@@ -82,6 +85,46 @@ export class GIOPEncoder extends GIOPBase {
         return this.buffer
     }
 
+    // CDR
+
+    sizeStack: number[] = []
+
+    // FIXME: find better names and use them everywhere
+    reserveSize() {
+        this.align(4)
+        this.offset += 4
+        this.sizeStack.push(this.offset)
+    }
+
+    fillinSize() {
+        const currrentOffset = this.offset
+        const savedOffset = this.sizeStack.pop()
+        if (savedOffset === undefined)
+            throw Error(`internal error: fillinSize() misses reserveSize()`)
+        this.offset = savedOffset - 4
+        const size = currrentOffset - savedOffset
+        this.ulong(size)
+        this.offset = currrentOffset
+    }
+
+    // CORBA 3.4 Part 2, 9.3.3 Encapsulation
+    // Used for ServiceContext, Profile and Component
+    beginEncapsulation(type: number) {
+        this.ulong(type)
+        this.reserveSize()
+        this.endian()
+    }
+
+    endEncapsulation() {
+        this.fillinSize()
+    }
+
+    endian() {
+        this.octet(GIOPEncoder.littleEndian ? GIOPBase.ENDIAN_LITTLE : GIOPBase.ENDIAN_BIG)
+    }
+
+    // GIOP
+
     skipGIOPHeader() {
         this.offset = 10
     }
@@ -93,7 +136,7 @@ export class GIOPEncoder extends GIOPBase {
 
         this.data.setUint8(4, this.majorVersion)
         this.data.setUint8(5, this.minorVersion)
-        this.data.setUint8(6, GIOPEncoder.littleEndian ? GIOPEncoder.ENDIAN_LITTLE : GIOPEncoder.ENDIAN_BIG)
+        this.data.setUint8(6, GIOPEncoder.littleEndian ? GIOPBase.ENDIAN_LITTLE : GIOPBase.ENDIAN_BIG)
         this.data.setUint8(7, type)
 
         // message size
@@ -173,42 +216,19 @@ export class GIOPEncoder extends GIOPBase {
 
         // CORBA 3.4 Part 2, 9.8.1 Bi-directional IIOP Service Context
         // TODO: send listen point only once per connection
-        this.ulong(ServiceId.BI_DIR_IIOP)
-        this.reserveSize()
+        this.beginEncapsulation(ServiceId.BI_DIR_IIOP)
         this.ulong(1) // number of listen points
-        this.octet(1) // ? endian again? where's that in the spec?
         this.string(this.orb?.localAddress!)
         this.ushort(this.orb?.localPort!)
-        this.fillinSize()
+        this.endEncapsulation()
+
         /*
-        this.ulong(ServiceId.CodeSets)
-        this.reserveSize()
-        this.octet(1) // little endian
+        this.beginEncapsulation(ServiceId.CodeSets)
         // this.ulong(0x00010001) // ISO-8859-1
         this.ulong(0x05010001) // charset_id : UTF-8
         this.ulong(0x00010109) // wcharset_id: UTF-16
-        this.fillinSize()
+        this.endEncapsulation()
         */
-    }
-
-    sizeStack: number[] = []
-
-    // FIXME: find better names and use them everywhere
-    reserveSize() {
-        this.align(4)
-        this.offset += 4
-        this.sizeStack.push(this.offset)
-    }
-
-    fillinSize() {
-        const currrentOffset = this.offset
-        const savedOffset = this.sizeStack.pop()
-        if (savedOffset === undefined)
-            throw Error(`internal error: fillinSize() misses reserveSize()`)
-        this.offset = savedOffset - 4
-        const size = currrentOffset - savedOffset
-        this.ulong(size)
-        this.offset = currrentOffset
     }
 
     // FIXME: rename into ...?
@@ -267,7 +287,7 @@ export class GIOPEncoder extends GIOPBase {
         // 9.7.2 IIOP IOR Profiles
         this.ulong(IOR.TAG.IOR.INTERNET_IOP)
         this.reserveSize()
-        this.octet(GIOPEncoder.littleEndian ? 1 : 0)
+        this.endian()
         this.octet(this.majorVersion)
         this.octet(this.minorVersion)
 
@@ -280,11 +300,9 @@ export class GIOPEncoder extends GIOPBase {
         if (this.majorVersion != 1 || this.minorVersion != 0) {
             // this.ulong(0)
             this.ulong(1) // component count = 1
-            this.ulong(0) // TAG_ORB_TYPE (3.4 P 2, 7.6.6.1)
-            this.reserveSize()
-            this.ulong(1) // where's that in the spec? would an octet also work? endian again?
+            this.beginEncapsulation(0) // TAG_ORB_TYPE (3.4 P 2, 7.6.6.1)
             this.ulong(0x4d313300) // "M13\0" as ORB Type ID for corba.js
-            this.fillinSize()
+            this.endEncapsulation()
         }
         this.fillinSize()
     }
