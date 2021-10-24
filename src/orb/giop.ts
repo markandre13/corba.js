@@ -64,7 +64,7 @@ export class GIOPEncoder extends GIOPBase {
     bytes = new Uint8Array(this.buffer);
 
     public static textEncoder = new TextEncoder();
-    
+
     // this is the parameter as used for the DataView
     static littleEndian?: boolean
 
@@ -119,16 +119,14 @@ export class GIOPEncoder extends GIOPBase {
         this.fillinSize()
     }
 
-    endian() {
-        this.octet(GIOPEncoder.littleEndian ? GIOPBase.ENDIAN_LITTLE : GIOPBase.ENDIAN_BIG)
-    }
-
     // GIOP
 
+    // TODO: remove as we now have reserveSize()/fillinSize()
     skipGIOPHeader() {
         this.offset = 10
     }
 
+    // TODO: remove as we now have reserveSize()/fillinSize()
     // this is the last method to be called as it also set's the GIOP messsages size
     // from the already encoded data
     setGIOPHeader(type: MessageType) {
@@ -207,11 +205,12 @@ export class GIOPEncoder extends GIOPBase {
 
     // Corba 3.4 Part 2, 7.7 Service Context
     serviceContext() {
+        // TODO: remove this, this happens only in tests
         if (!this.orb) {
             this.ulong(0)
             return
         }
-        // sequence length
+
         this.ulong(1) // emit one service context
 
         // CORBA 3.4 Part 2, 9.8.1 Bi-directional IIOP Service Context
@@ -231,12 +230,14 @@ export class GIOPEncoder extends GIOPBase {
         */
     }
 
+    // TODO: remove as we now have reserveSize()/fillinSize()
     // FIXME: rename into ...?
     setReplyHeader(requestId: number, replyStatus: number = ReplyStatus.NO_EXCEPTION) {
         this.skipGIOPHeader()
         this.encodeReply(requestId, replyStatus)
     }
 
+    // FIXME: rename into ...?
     skipReplyHeader() {
         this.offset = 24 // this does not work!!! anymore with having a variable length service context!!!
     }
@@ -276,7 +277,7 @@ export class GIOPEncoder extends GIOPBase {
         reference.port = this.orb!.localPort!
         reference.oid = `IDL:${className}:1.0`
         reference.objectKey = object.id
-        
+
         // type id
         this.string(reference.oid)
 
@@ -349,6 +350,10 @@ export class GIOPEncoder extends GIOPBase {
         this.objectPosition.set(object, this.offset)
         this.repositoryId(valueTypeInformation.name!)
         valueTypeInformation.encode(this, object)
+    }
+
+    endian() {
+        this.octet(GIOPEncoder.littleEndian ? GIOPBase.ENDIAN_LITTLE : GIOPBase.ENDIAN_BIG)
     }
 
     blob(value: Uint8Array) {
@@ -541,6 +546,28 @@ export class GIOPDecoder extends GIOPBase {
         this.buffer = buffer
         this.data = new DataView(buffer)
         this.bytes = new Uint8Array(buffer)
+    }
+
+    encapStack: { nextOffset: number, endian: boolean }[] = []
+
+    // CORBA 3.4 Part 2, 9.3.3 Encapsulation
+    // Used for ServiceContext, Profile and Component
+    beginEncapsulation(): number {
+        const type = this.ulong()
+        const size = this.ulong()
+        const nextOffset = this.offset + size
+        this.encapStack.push({
+            nextOffset,
+            endian: this.littleEndian
+        })
+        this.endian()
+        return type
+    }
+
+    endEncapsulation(): void {
+        const e = this.encapStack.pop()!
+        this.littleEndian = e.endian
+        this.offset = e.nextOffset
     }
 
     scanGIOPHeader(): MessageType {
@@ -754,21 +781,18 @@ export class GIOPDecoder extends GIOPBase {
         const serviceContextListLength = this.ulong()
         // console.log(`serviceContextListLength = ${serviceContextListLength}`)
         for (let i = 0; i < serviceContextListLength; ++i) {
-            const serviceId = this.ulong()
-            const contextLength = this.ulong()
-            console.log(`serviceContext[${i}].id = ${ServiceId[serviceId]}, length=${contextLength}`)
-            const nextOffset = this.offset + contextLength
+            const serviceId = this.beginEncapsulation()
+            
             switch (serviceId) {
                 case ServiceId.BI_DIR_IIOP:
-                    let n = this.ulong()
-                    for (let i = 0; i < n; ++i) {
-                        const host = this.string()
-                        const port = this.ushort()
-                        console.log(`  BiDirIIOP listenPoint[${i}] = ${host}:${port}`)
-                    }
+                    const host = this.string()
+                    const port = this.ushort()
+                    console.log(`serviceContext[${i}] = BiDirIIOP listenPoint ${host}:${port}`)
                     break
+                default:
+                    console.log(`serviceContext[${i}] = ${ServiceId[serviceId]}`)
             }
-            this.offset = nextOffset
+            this.endEncapsulation()
         }
     }
 
@@ -783,15 +807,11 @@ export class GIOPDecoder extends GIOPBase {
         const profileCount = this.ulong()
         // console.log(`oid: '${oid}', tag count=${tagCount}`)
         for (let i = 0; i < profileCount; ++i) {
-            const profileId = this.ulong()
-            const profileLength = this.ulong()
-            const profileStart = this.offset
-
+            const profileId = this.beginEncapsulation()
             switch (profileId) {
                 // CORBA 3.3 Part 2: 9.7.2 IIOP IOR Profiles
                 case IOR.TAG.IOR.INTERNET_IOP: {
                     // console.log(`Internet IOP Component, length=${profileLength}`)
-                    const endian = this.bool()
                     const iiopMajorVersion = this.octet()
                     const iiopMinorVersion = this.octet()
                     // if (iiopMajorVersion !== 1 || iiopMinorVersion > 1) {
@@ -882,7 +902,7 @@ export class GIOPDecoder extends GIOPBase {
                 default:
                     console.log(`IOR: Unhandled profile type=${profileId} (0x${profileId.toString(16)})`)
             }
-            this.offset = profileStart + profileLength
+            this.endEncapsulation()
         }
         return data
     }
@@ -1001,7 +1021,6 @@ export class GIOPDecoder extends GIOPBase {
 
         throw Error(`GIOPDecoder: Unsupported value with CORBA tag 0x${code.toString(16)}`)
     }
-
 
     endian() {
         const byteOrder = this.octet()
