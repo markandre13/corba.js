@@ -1015,7 +1015,7 @@ export class GIOPDecoder extends GIOPBase {
             if (aStubClass === undefined) {
                 throw Error(`ORB: no stub registered for OID '${reference.oid} (${shortName})'`)
             }
-            object = new aStubClass(this.connection, reference.objectKey)
+            object = new aStubClass(this.connection.orb, reference.objectKey, this.connection)
             this.connection.stubsById.set(reference.objectKey, object!)
             return object
         }

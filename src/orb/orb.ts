@@ -85,13 +85,13 @@ export class ORB implements EventTarget {
     async getConnection(host: string, port: number) {
         for (let i = 0; i < this.connections.length; ++i) {
             const c = this.connections[i]
-            if (c.remoteAddress == host && c.remotePort == port)
+            if (c.remoteAddress == host && c.remotePort == port) {
                 return c
+            }
         }
         for (let i = 0; i < this.protocols.length; ++i) {
             const p = this.protocols[i]
             const c = await p.connect(this, host, port)
-            this.connections.push(c)
             return c
         }
         throw Error(`failed to allocate connection to ${host}:${port}`)
@@ -130,22 +130,6 @@ export class ORB implements EventTarget {
         connection.stubsById.set(ior.objectKey, object!)
         return object! as CORBAObject
     }
-
-    // iorToObject(ior: IOR): Stub {
-    //     let object = this.stubsById.get(ior.objectKey)
-    //     if (object !== undefined) {
-    //         return object
-    //     }
-
-    //     const shortName = ior.oid.substring(4, ior.oid.length - 4)
-    //     let aStubClass = this.stubsByName.get(shortName)
-    //     if (aStubClass === undefined) {
-    //         throw Error(`ORB: can not deserialize object of unregistered stub '${ior.oid}' (${shortName})'`)
-    //     }
-    //     object = new aStubClass(this, ior.objectKey)
-    //     this.stubsById.set(ior.objectKey, object!)
-    //     return object!
-    // }
 
     //
     // Network OUT
@@ -195,7 +179,6 @@ export class ORB implements EventTarget {
         objectId: Uint8Array,
         method: string,
         encode: (encoder: GIOPEncoder) => void) {
-        // console.log(`client: send request ${requestId}`)
         const encoder = new GIOPEncoder(connection)
         encoder.encodeRequest(objectId, method, requestId, responseExpected)
         encode(encoder)
@@ -288,7 +271,6 @@ export class ORB implements EventTarget {
             } break
             case MessageType.REPLY: {
                 const data = decoder.scanReplyHeader()
-                // console.log(`client: got reply for request ${data.requestId}`)
                 const handler = connection.map.get(data.requestId)
                 if (handler === undefined) {
                     console.log(`Unexpected reply to request ${data.requestId}`)
