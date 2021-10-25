@@ -17,6 +17,7 @@
  */
 
 import { CORBAObject, ORB, IOR, Stub, Skeleton, ValueTypeInformation } from "corba.js"
+import { Connection } from "./connection";
 
 // 9.4 GIOP Message Formats
 export enum MessageType {
@@ -46,9 +47,9 @@ export class GIOPBase {
     static TWO_TO_32 = 4294967296;
     static TWO_TO_52 = 4503599627370496;
 
-    orb?: ORB
-    constructor(orb?: ORB) {
-        this.orb = orb
+    connection?: Connection
+    constructor(connection?: Connection) {
+        this.connection = connection
     }
 
     align(alignment: number) {
@@ -71,8 +72,8 @@ export class GIOPEncoder extends GIOPBase {
     protected repositoryIds = new Map<string, number>()
     protected objectPosition = new Map<Object, number>()
 
-    constructor(orb?: ORB) {
-        super(orb)
+    constructor(connection?: Connection) {
+        super(connection)
         // use this system's endianes
         if (GIOPEncoder.littleEndian === undefined) {
             const buffer = new ArrayBuffer(2)
@@ -206,7 +207,7 @@ export class GIOPEncoder extends GIOPBase {
     // Corba 3.4 Part 2, 7.7 Service Context
     serviceContext() {
         // TODO: remove this, this happens only in tests
-        if (!this.orb) {
+        if (!this.connection) {
             this.ulong(0)
             return
         }
@@ -217,8 +218,8 @@ export class GIOPEncoder extends GIOPBase {
         // TODO: send listen point only once per connection
         this.beginEncapsulation(ServiceId.BI_DIR_IIOP)
         this.ulong(1) // number of listen points
-        this.string(this.orb?.localAddress!)
-        this.ushort(this.orb?.localPort!)
+        this.string(this.connection!.localAddress)
+        this.ushort(this.connection!.localPort)
         this.endEncapsulation()
 
         /*
@@ -273,8 +274,8 @@ export class GIOPEncoder extends GIOPBase {
         const className = (object.constructor as any)._idlClassName()
 
         const reference = new ObjectReference()
-        reference.host = this.orb!.localAddress!
-        reference.port = this.orb!.localPort!
+        reference.host = this.connection!.localAddress
+        reference.port = this.connection!.localPort
         reference.oid = `IDL:${className}:1.0`
         reference.objectKey = object.id
 
@@ -315,10 +316,10 @@ export class GIOPEncoder extends GIOPBase {
         }
 
         if (object instanceof Skeleton) {
-            if (this.orb === undefined) {
-                throw Error("GIOPEncoder has no ORB defined. Can not add object to ACL.")
+            if (this.connection === undefined) {
+                throw Error("GIOPEncoder has no connection defined. Can not add object to ACL.")
             }
-            this.orb.aclAdd(object)
+            this.connection.orb.aclAdd(object)
             this.reference(object)
             return
         }
@@ -541,8 +542,8 @@ export class GIOPDecoder extends GIOPBase {
 
     protected static textDecoder = new TextDecoder()
 
-    constructor(buffer: ArrayBuffer, orb?: ORB) {
-        super(orb)
+    constructor(buffer: ArrayBuffer, connection?: Connection) {
+        super(connection)
         this.buffer = buffer
         this.data = new DataView(buffer)
         this.bytes = new Uint8Array(buffer)
@@ -770,7 +771,7 @@ export class GIOPDecoder extends GIOPBase {
                         explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
                     } break
                 }
-                throw Error(`CORBA System Exception ${exceptionId} from ${this.orb?.remoteAddress}:${this.orb?.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${completionStatusName}`)
+                throw Error(`CORBA System Exception ${exceptionId} from ${this.connection!.remoteAddress}:${this.connection!.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${completionStatusName}`)
             default:
                 throw Error(`ReplyStatusType ${data.replyStatus} is not supported`)
         }
@@ -997,25 +998,25 @@ export class GIOPDecoder extends GIOPBase {
 
         // TODO: this looks like a hack... plus: can't the IDL compiler not already use reference instead of object?
         if (code < 0x7fffff00) {
-            if (this.orb === undefined)
-                throw Error("GIOPDecoder has no ORB defined. Can not resolve resolve reference to stub object.")
+            if (this.connection === undefined)
+                throw Error("GIOPDecoder has no connection defined. Can not resolve resolve reference to stub object.")
             const reference = this.reference(code)
 
-            if (reference.host == this.orb.localAddress && reference.port == this.orb.localPort) {
-                return this.orb.servants.get(reference.objectKey)
+            if (reference.host == this.connection.localAddress && reference.port == this.connection.localPort) {
+                return this.connection.orb.servants.get(reference.objectKey)
             }
 
             // TODO: this belongs elsewhere
-            let object = this.orb.stubsById.get(reference.objectKey)
+            let object = this.connection.stubsById.get(reference.objectKey)
             if (object !== undefined)
                 return object
             const shortName = reference.oid.substring(4, reference.oid.length - 4)
-            let aStubClass = this.orb.stubsByName.get(shortName)
+            let aStubClass = this.connection.orb.stubsByName.get(shortName)
             if (aStubClass === undefined) {
                 throw Error(`ORB: no stub registered for OID '${reference.oid} (${shortName})'`)
             }
-            object = new aStubClass(this.orb, reference.objectKey)
-            this.orb.stubsById.set(reference.objectKey, object!)
+            object = new aStubClass(this.connection, reference.objectKey)
+            this.connection.stubsById.set(reference.objectKey, object!)
             return object
         }
 

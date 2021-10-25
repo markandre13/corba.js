@@ -16,8 +16,9 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { LocateStatusType, ReplyStatus } from "corba.js"
-import { GIOPDecoder, GIOPEncoder, MessageType } from "./giop"
+import { Protocol } from "./protocol"
+import { Connection } from "./connection"
+import { GIOPDecoder, GIOPEncoder, MessageType, LocateStatusType, ReplyStatus } from "./giop"
 import { IOR } from "./ior"
 import { Uint8Map } from "./uint8map"
 
@@ -26,13 +27,6 @@ export interface ValueTypeInformation {
     encode: (encoder: GIOPEncoder, obj: any) => void
     name?: string
     construct?: Function
-}
-
-interface SocketUser {
-    socketSend: (buffer: ArrayBuffer) => void
-    socketRcvd(buffer: ArrayBuffer): void
-    socketError(error: Error): void
-    socketClosed(): void
 }
 
 export class PromiseHandler {
@@ -45,7 +39,7 @@ export class PromiseHandler {
 }
 
 // TODO: to have only one ORB instance, split ORB into ORB, Connection (requestIds & ACL) and CrudeObjectAdapter (stubs, servants, valuetypes)
-export class ORB implements EventTarget, SocketUser {
+export class ORB implements EventTarget {
     // special object ID "ORB"
     private static orbId = new Uint8Array([0x4F, 0x52, 0x42])
 
@@ -53,7 +47,7 @@ export class ORB implements EventTarget, SocketUser {
     name: string        // orb name to ease debugging
 
     stubsByName: Map<string, any>
-    stubsById: Uint8Map<Stub>
+    // stubsById: Uint8Map<Stub>
 
     servants: Uint8Map<Skeleton>
     servantIdCounter: bigint = 0n
@@ -65,95 +59,163 @@ export class ORB implements EventTarget, SocketUser {
 
     initialReferences: Map<string, Skeleton>
 
-    localAddress?: string
-    localPort?: number
-    remoteAddress = ""
-    remotePort = 0
-
-    reqid: number // counter to assign request id's to send messages // FIXME: handle overflow
-    reqidStep: number
-
     listeners: Map<string, Set<EventListenerOrEventListenerObject>>
 
-    constructor(orb?: ORB) {
-        if (orb === undefined) {
-            this.debug = 0
-            this.stubsByName = new Map()
-            this.servants = new Uint8Map()
-            this.initialReferences = new Map()
-            this.name = ""
-        } else {
-            this.debug = orb.debug
-            this.servants = orb.servants
-            this.servantIdCounter = orb.servantIdCounter
-            this.stubsByName = orb.stubsByName
-            this.initialReferences = orb.initialReferences
-            this.name = "spawned from '" + orb.name + "'"
-        }
-        this.reqid = (orb == undefined) ? 0 : 1 // BiDirectionalIIOP uses even requestIds for the initiator
-        this.reqidStep = 2
-        this.stubsById = new Uint8Map()
+    constructor() {
+        this.debug = 0
+        this.stubsByName = new Map()
+        this.servants = new Uint8Map()
+        this.initialReferences = new Map()
+        this.name = ""
+        // this.stubsById = new Uint8Map()
         this.accesibleServants = new Set<Skeleton>()
         this.listeners = new Map<string, Set<EventListenerOrEventListenerObject>>()
     }
 
+    // note that objects can be reachable via various connections!
+    private protocols: Protocol[] = []
+    private connections: Connection[] = []
+
+    addProtocol(protocol: Protocol) {
+        this.protocols.push(protocol)
+    }
+    addConnection(connection: Connection) {
+        this.connections.push(connection)
+    }
+    async getConnection(host: string, port: number) {
+        for (let i = 0; i < this.connections.length; ++i) {
+            const c = this.connections[i]
+            if (c.remoteAddress == host && c.remotePort == port)
+                return c
+        }
+        for (let i = 0; i < this.protocols.length; ++i) {
+            const p = this.protocols[i]
+            const c = await p.connect(this, host, port)
+            this.connections.push(c)
+            return c
+        }
+        throw Error(`failed to allocate connection to ${host}:${port}`)
+    }
+
+    // TODO: we want this to report an error ASAP?
+    async stringToObject(iorString: string) {
+        return this.iorToObject(new IOR(iorString))
+    }
+
+    async iorToObject(ior: IOR) {
+        // check if ior.hostname, ior.port is us
+        // if yes, return the servant (aka. implementation of skeleton)
+
+        // check if ior.hostname, ior.port is a known remote peer
+        // if no, initiate a connection
+
+        // check if ior.objectKey is known in connection
+        // if yes, return stub
+        // if no, create and return stub
+
+        // stubs are per connection because different objectKeys to different peers may overlap
+        const connection = await this.getConnection(ior.host, ior.port)
+        // this.protocols[0].connect(this, ior.host, ior.port)
+        let object = connection.stubsById.get(ior.objectKey)
+        if (object !== undefined) {
+            return object as CORBAObject
+        }
+
+        const shortName = ior.oid.substring(4, ior.oid.length - 4)
+        let aStubClass = this.stubsByName.get(shortName)
+        if (aStubClass === undefined) {
+            throw Error(`ORB: can not deserialize object of unregistered stub '${ior.oid}' (${shortName})'`)
+        }
+        object = new aStubClass(this, ior.objectKey, connection)
+        connection.stubsById.set(ior.objectKey, object!)
+        return object! as CORBAObject
+    }
+
+    // iorToObject(ior: IOR): Stub {
+    //     let object = this.stubsById.get(ior.objectKey)
+    //     if (object !== undefined) {
+    //         return object
+    //     }
+
+    //     const shortName = ior.oid.substring(4, ior.oid.length - 4)
+    //     let aStubClass = this.stubsByName.get(shortName)
+    //     if (aStubClass === undefined) {
+    //         throw Error(`ORB: can not deserialize object of unregistered stub '${ior.oid}' (${shortName})'`)
+    //     }
+    //     object = new aStubClass(this, ior.objectKey)
+    //     this.stubsById.set(ior.objectKey, object!)
+    //     return object!
+    // }
+
     //
     // Network OUT
     //
-    socketSend!: (buffer: ArrayBuffer) => void
-    socketClose!: () => void
-    map = new Map<number, PromiseHandler>()
+    // socketConnect!: (hostname: string, port: number) => Promise<void>
+    // socketSend!: (buffer: ArrayBuffer) => void
+    // socketClose!: () => void
+    // map = new Map<number, PromiseHandler>()
 
-    onewayCall(objectId: Uint8Array, method: string, encode: (encoder: GIOPEncoder) => void): void {
-        const requestId = this.reqid
-        this.reqid += this.reqidStep
-        this.callCore(requestId, false, objectId, method, encode)
+    onewayCall(
+        stub: Stub,
+        method: string,
+        encode: (encoder: GIOPEncoder) => void): void {
+        const requestId = stub.connection.requestId
+        stub.connection.requestId += 2
+        this.callCore(stub.connection, requestId, false, stub.id, method, encode)
     }
 
-    twowayCall<T>(objectId: Uint8Array, method: string,
+    twowayCall<T>(
+        stub: Stub,
+        method: string,
         encode: (encoder: GIOPEncoder) => void,
         decode: (decoder: GIOPDecoder) => T
     ): Promise<T> {
-        const requestId = this.reqid
-        this.reqid += this.reqidStep
+        const requestId = stub.connection.requestId
+        stub.connection.requestId += 2
         return new Promise<T>((resolve, reject) => {
-            this.map.set(
-                requestId,
-                new PromiseHandler(
-                    (decoder: GIOPDecoder) => resolve(decode(decoder)),
-                    reject)
-            )
-            this.callCore(requestId, true, objectId, method, encode)
+            try {
+                stub.connection.map.set(
+                    requestId,
+                    new PromiseHandler(
+                        (decoder: GIOPDecoder) => resolve(decode(decoder)),
+                        reject)
+                )
+                this.callCore(stub.connection, requestId, true, stub.id, method, encode)
+            } catch (e) {
+                console.log(stub)
+                throw e
+            }
         })
     }
 
     protected callCore(
+        connection: Connection,
         requestId: number,
         responseExpected: boolean,
         objectId: Uint8Array,
         method: string,
         encode: (encoder: GIOPEncoder) => void) {
         // console.log(`client: send request ${requestId}`)
-        const encoder = new GIOPEncoder(this)
+        const encoder = new GIOPEncoder(connection)
         encoder.encodeRequest(objectId, method, requestId, responseExpected)
         encode(encoder)
         encoder.setGIOPHeader(MessageType.REQUEST)
-        this.socketSend(encoder.buffer.slice(0, encoder.offset))
+        connection.send(encoder.buffer.slice(0, encoder.offset))
     }
 
     //
     // Network IN
     //
-    socketRcvd(buffer: ArrayBuffer): void {
+    socketRcvd(connection: Connection, buffer: ArrayBuffer): void {
         // TODO: split this method up
         // FIXME: buffer may contain multiple or incomplete messages
-        const decoder = new GIOPDecoder(buffer, this)
+        const decoder = new GIOPDecoder(buffer, connection)
         const type = decoder.scanGIOPHeader()
         switch (type) {
             case MessageType.LOCATE_REQUEST: {
                 const data = decoder.scanLocateRequest()
                 const servant = this.servants.get(data.objectKey)
-                const encoder = new GIOPEncoder(this)
+                const encoder = new GIOPEncoder(connection)
                 encoder.encodeLocateReply(
                     data.requestId,
                     servant !== undefined ?
@@ -161,7 +223,7 @@ export class ORB implements EventTarget, SocketUser {
                         LocateStatusType.UNKNOWN_OBJECT
                 )
                 encoder.setGIOPHeader(MessageType.LOCATE_REPLY)
-                this.socketSend(encoder.buffer.slice(0, encoder.offset))
+                connection.send(encoder.buffer.slice(0, encoder.offset))
             } break
             case MessageType.REQUEST: {
                 const data = decoder.scanRequestHeader()
@@ -175,7 +237,7 @@ export class ORB implements EventTarget, SocketUser {
                         // FIXME: make the 'resolve' a method
                         const reference = decoder.string()
                         // console.log(`ORB: received ORB.resolve("${reference}")`)
-                        const encoder = new GIOPEncoder(this)
+                        const encoder = new GIOPEncoder(connection)
                         let object = this.initialReferences.get(reference)
                         if (object === undefined) {
                             // console.log(`ORB.handleResolveInitialReferences(): failed to resolve '${reference}`)
@@ -186,7 +248,7 @@ export class ORB implements EventTarget, SocketUser {
                             encoder.reference(object)
                         }
                         encoder.setGIOPHeader(MessageType.REPLY)
-                        this.socketSend(encoder.buffer.slice(0, encoder.offset))
+                        connection.send(encoder.buffer.slice(0, encoder.offset))
                     }
                     return
                 }
@@ -203,36 +265,36 @@ export class ORB implements EventTarget, SocketUser {
                     throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with object key ${data.objectKey}`)
                 }
 
-                const encoder = new GIOPEncoder(this)
-                encoder.skipReplyHeader();
+                const encoder = new GIOPEncoder(connection)
+                encoder.skipReplyHeader()
                 method.call(servant, decoder, encoder)
-                .then( () => {
-                    if (data.responseExpected) {
-                        const length = encoder.offset
-                        encoder.setGIOPHeader(MessageType.REPLY)
-                        encoder.setReplyHeader(data.requestId, ReplyStatus.NO_EXCEPTION)
-                        this.socketSend(encoder.buffer.slice(0, length))
-                    }    
-                })
-                .catch((error: Error) => {
-                    console.log(error)
-                    if (data.responseExpected) {
-                        const length = encoder.offset
-                        encoder.setGIOPHeader(MessageType.REPLY)
-                        encoder.setReplyHeader(data.requestId, ReplyStatus.USER_EXCEPTION)
-                        this.socketSend(encoder.buffer.slice(0, length))
-                    }
-                })
+                    .then(() => {
+                        if (data.responseExpected) {
+                            const length = encoder.offset
+                            encoder.setGIOPHeader(MessageType.REPLY)
+                            encoder.setReplyHeader(data.requestId, ReplyStatus.NO_EXCEPTION)
+                            connection.send(encoder.buffer.slice(0, length))
+                        }
+                    })
+                    .catch((error: Error) => {
+                        console.log(error)
+                        if (data.responseExpected) {
+                            const length = encoder.offset
+                            encoder.setGIOPHeader(MessageType.REPLY)
+                            encoder.setReplyHeader(data.requestId, ReplyStatus.USER_EXCEPTION)
+                            connection.send(encoder.buffer.slice(0, length))
+                        }
+                    })
             } break
             case MessageType.REPLY: {
                 const data = decoder.scanReplyHeader()
                 // console.log(`client: got reply for request ${data.requestId}`)
-                const handler = this.map.get(data.requestId)
+                const handler = connection.map.get(data.requestId)
                 if (handler === undefined) {
                     console.log(`Unexpected reply to request ${data.requestId}`)
                     return
                 }
-                this.map.delete(data.requestId)
+                connection.map.delete(data.requestId)
                 switch (data.replyStatus) {
                     case ReplyStatus.NO_EXCEPTION:
                         handler.decode(decoder)
@@ -249,11 +311,11 @@ export class ORB implements EventTarget, SocketUser {
         }
     }
 
-    socketError(error: Error): void {
+    socketError(connection: Connection, error: Error): void {
         // FIXME: no error handling implemented yet
     }
 
-    socketClosed(): void { 
+    socketClosed(connection: Connection): void {
         this.dispatchEvent(new Event("closed"))
         this.release()
     }
@@ -323,10 +385,10 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     releaseStub(stub: Stub): void {
-        if (!this.stubsById.has(stub.id)) {
-            throw Error(`ORB.releaseStub(): the stub with id ${stub.id} is unknown to this ORB`)
-        }
-        this.stubsById.delete(stub.id)
+        // if (!this.stubsById.has(stub.id)) {
+        //     throw Error(`ORB.releaseStub(): the stub with id ${stub.id} is unknown to this ORB`)
+        // }
+        // this.stubsById.delete(stub.id)
     }
 
     static registerValueType(name: string, valuetypeConstructor: Function): void {
@@ -373,41 +435,26 @@ export class ORB implements EventTarget, SocketUser {
     }
 
     async resolve(id: string): Promise<Stub> {
-        const ref = await this.twowayCall(ORB.orbId, "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())
+        throw Error("not implemented")
+        // const ref = await this.twowayCall(ORB.orbId, "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())
 
-        // if we already have a stub, return that one
-        // if (oid.host === this.peerHost && oid.port === this.peerPort) {
-        let object = this.stubsById.get(ref.objectKey)
-        if (object !== undefined) {
-            return object
-        }
+        // // if we already have a stub, return that one
+        // // if (oid.host === this.peerHost && oid.port === this.peerPort) {
+        // let object = this.stubsById.get(ref.objectKey)
+        // if (object !== undefined) {
+        //     return object
+        // }
 
-        // new reference, create a new stub
-        const shortName = ref.oid.substring(4, ref.oid.length - 4)
-        let aStubClass = this.stubsByName.get(shortName)
-        if (aStubClass === undefined) {
-            throw Error(`ORB: can not deserialize object of unregistered stub '${ref.oid} (${shortName})'`)
-        }
-        object = new aStubClass(this, ref.objectKey)
-        this.stubsById.set(ref.objectKey, object!)
+        // // new reference, create a new stub
+        // const shortName = ref.oid.substring(4, ref.oid.length - 4)
+        // let aStubClass = this.stubsByName.get(shortName)
+        // if (aStubClass === undefined) {
+        //     throw Error(`ORB: can not deserialize object of unregistered stub '${ref.oid} (${shortName})'`)
+        // }
+        // object = new aStubClass(this, ref.objectKey)
+        // this.stubsById.set(ref.objectKey, object!)
 
-        return object!
-    }
-
-    iorToObject(ior: IOR): Stub {
-        let object = this.stubsById.get(ior.objectKey)
-        if (object !== undefined) {
-            return object
-        }
-
-        const shortName = ior.oid.substring(4, ior.oid.length - 4)
-        let aStubClass = this.stubsByName.get(shortName)
-        if (aStubClass === undefined) {
-            throw Error(`ORB: can not deserialize object of unregistered stub '${ior.oid}' (${shortName})'`)
-        }
-        object = new aStubClass(this, ior.objectKey)
-        this.stubsById.set(ior.objectKey, object!)
-        return object!
+        // return object!
     }
 
     //
@@ -456,6 +503,8 @@ export abstract class CORBAObject {
     }
 }
 
+// a skeleton can be called from multiple connections
+// the id is unique within this ORB
 export abstract class Skeleton extends CORBAObject {
     acl: Set<ORB>
 
@@ -469,9 +518,13 @@ export abstract class Skeleton extends CORBAObject {
     }
 }
 
+// a stub relates to one connection
+// the id is defined by the peer, hence duplicate ids might refer to different objects
 export abstract class Stub extends CORBAObject {
-    constructor(orb: ORB, remoteID: Uint8Array) {
+    connection: Connection
+    constructor(orb: ORB, remoteID: Uint8Array, connection: Connection) {
         super(orb, remoteID)
+        this.connection = connection
     }
 
     release(): void {

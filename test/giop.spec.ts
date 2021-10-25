@@ -1,13 +1,13 @@
 import * as fs from "fs"
 
 import { ORB, IOR, GIOPDecoder, MessageType, LocateStatusType, ReplyStatus, GIOPEncoder } from "corba.js"
-import { connect, listen } from "corba.js/net/socket"
+import { TcpProtocol } from "corba.js/net/socket"
 import * as api from "./generated/giop"
 import * as skel from "./generated/giop_skel"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect, assert } from "chai"
-import { Fake } from "./fake"
+// import { Fake } from "./fake"
 
 // WHAT'S NEXT:
 // things to test with a real CORBA instance are basically for the validation of the GIOP
@@ -32,9 +32,13 @@ import { Fake } from "./fake"
 // [ ] find out where the race condition comes from in the tests, because of the await there shouldn't be one
 // [ ] add a watch mode to the idl compiler to ease testing
 
+class Fake {
+    reset() {}
+    expect(name: string) {}
+}
+
 describe("CDR/GIOP", () => {
 
-    let ior!: IOR
     let orb!: ORB
     let server!: api.GIOPTest
     let myserver!: api.GIOPTest
@@ -49,36 +53,36 @@ describe("CDR/GIOP", () => {
     before(async function () {
         // return
         orb = new ORB()
-        // TODO: switch this to orb and use the full repository id so that we can use versioning later
+        orb.addProtocol(new TcpProtocol())
+        // TODO: switch this to object adapter? have a look at the CORBA spec
         ORB.registerValueType("Point", Point)
         ORB.registerValueType("NamedPoint", NamedPoint)
         orb.registerStubClass(stub.GIOPTest)
         orb.registerStubClass(stub.GIOPSmall)
 
         const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
+        const obj = await orb.stringToObject(data)
+        server = stub.GIOPTest.narrow(obj)
 
-        // this is how this would originally look like:
-        //   const obj = orb.stringToObject(data)
-        //   const server = Server::narrow(obj)
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
-        ior = new IOR(data)
+        // ior = new IOR(data)
         fake = new Fake()
 
-        if (true) {
-            // RECORD
-            // const serverSocket = listen(orb, "0.0.0.0", 8080) // don't. this override localhost in the client orb
-            const clientSocket = await connect(orb, ior.host!, ior.port!)
-            console.log("connected")
-            fake.record(orb, clientSocket)
-        } else {
-            // REPLAY
-            orb.localAddress = "192.168.1.10"
-            orb.localPort = 52846
-            fake.replay(orb)
-        }
+        // if (true) {
+        //     // RECORD
+        //     // const serverSocket = listen(orb, "0.0.0.0", 8080) // don't. this override localhost in the client orb
+        //     const clientSocket = await connect(orb, ior.host!, ior.port!)
+        //     console.log("connected")
+        //     fake.record(orb, clientSocket)
+        // } else {
+        //     // REPLAY
+        //     orb.localAddress = "192.168.1.10"
+        //     orb.localPort = 52846
+        //     fake.replay(orb)
+        // }
 
-        const obj = orb.iorToObject(ior)
-        server = stub.GIOPTest.narrow(obj)
+        // const obj = orb.iorToObject(ior)
+        // server = stub.GIOPTest.narrow(obj)
 
         myserver = new GIOPTest_impl(orb)
     })

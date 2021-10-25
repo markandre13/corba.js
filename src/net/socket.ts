@@ -17,73 +17,92 @@
  */
 
 import { ORB } from "corba.js"
-import { Socket, Server, createServer, AddressInfo } from "net"
+import { Socket, Server, createServer } from "net"
+import { Connection } from "../orb/connection"
+import { Protocol } from "../orb/protocol"
 
-// FIXME: some ORBs (OmniORB) terminate connections after being idle, hence the ORB
-//        needs to be able to re-establish the connection
-//        we would also want to do that anyway in case network errors bring the connection down
-// FIXME: the ORB should also check for timeouts
-// FIXME: there are basically 4 connection modes for IIOP
-//        * unidirectional
-//          * server listens
-//          * in case of callback: server connects to client's server port
-//        * bidirectional
-//        => the orb needs a connect(hostname, port) to be able to initiate
-//           connections on it's own
-export function connect(orb: ORB, host: string, port: number): Promise<Socket> {
-    return new Promise<Socket>((resolve, reject) => {
-        const socket = new Socket()
-        socket.setNoDelay()
-        orb.socketSend = (buffer: ArrayBuffer) => {
-            socket.write(new Uint8Array(buffer))
-        }
-        orb.socketClose = () => {
-            socket.destroy()
-        }
-        socket.once("error", (error: Error) => {
-            reject(error)
-        })
-        socket.connect(port, host, () => {
-            if (orb.localAddress === undefined)
-                orb.localAddress = socket.localAddress
-            if (orb.localPort === undefined)
-                orb.localPort = socket.localPort
-            orb.remoteAddress = socket.remoteAddress!
-            orb.remotePort = socket.remotePort!
+const InitialInitiatorRequestIdBiDirectionalIIOP = 0
+const InitialResponderRequestIdBiDirectionalIIOP = 1
 
-            socket.on("error", (error: Error) => orb.socketError(error))
-            socket.on("close", (hadError: boolean) => orb.socketClosed())
-            socket.on("data", (data: Buffer) => orb.socketRcvd(data.buffer))
-    
-            resolve(socket)
+// TCP connection variants in CORBA in general
+// * single TCP connection (IIOP 1.2 and above)
+//   client: initiates a bi-directional tcp connection (server must support BiDirectional IIOP)
+//   server: no
+// * two TCP connections (IIOP 1.0 and above)
+//   client: opens a server port and initiates a single tcp connections per remote peer
+//   server: yes
+// * multiple TCP connections (request multiplexing) (NOT SUPPORTED)
+//   client: opens multiple server ports and initiates multiple tcp connections to the same peer
+//   this is to avoid head-of-line-blocking, there will be also a max. limit of connections per
+//   peer and a max. idle time (this mimics the behaviour of OmniORB)
+//   server: yes
+export class TcpProtocol implements Protocol {
+    serverSocket?: Server
+    // called by the ORB
+    async connect(orb: ORB, hostname: string, port: number) {
+        return new Promise<Connection>( (resolve, reject) => {
+            const socket = new Socket()
+            socket.setNoDelay()
+            socket.once("error", (error: Error) => reject(error))
+            socket.connect(port, hostname, () => {
+                const connection = new TcpConnection(socket, orb)
+                connection.requestId = InitialInitiatorRequestIdBiDirectionalIIOP
+                // clear error handler?
+                socket.on("error", (error: Error) => orb.socketError(connection, error))
+                socket.on("close", (hadError: boolean) => orb.socketClosed(connection))
+                socket.on("data", (data: Buffer) => orb.socketRcvd(connection, data.buffer))
+                orb.addConnection(connection)
+                resolve(connection)
+            })
         })
-    })
+    }
+
+    // optionally called by the application
+    listen(orb: ORB, hostname: string, port: number): void {
+        this.serverSocket = createServer((socket) => {
+            const connection = new TcpConnection(socket, orb)
+            connection.requestId = InitialResponderRequestIdBiDirectionalIIOP
+            socket.setNoDelay()
+            socket.on("error", (error: Error) => orb.socketError(connection, error))
+            socket.on("close", (hadError: boolean) => orb.socketClosed(connection))
+            socket.on("data", (data: Buffer) => orb.socketRcvd(connection, data.buffer))
+            orb.addConnection(connection)
+        })
+        this.serverSocket.listen(port, hostname)
+    }
+    close(): void {
+        if (this.serverSocket === undefined)
+            throw Error(`internal error: close() without server socket`)
+        this.serverSocket.close()
+        this.serverSocket = undefined
+    }
 }
 
-export function listen(orb: ORB, host: string, port: number) {
-    return new Promise<Server>((resolve, reject) => {
-        const serverSocket = createServer((socket) => {
-            socket.setNoDelay()
-            const clientORB = new ORB(orb)
-            socket.on("error", (error: Error) => orb.socketError(error))
-            socket.on("close", (hadError: boolean) => orb.socketClosed())
-            socket.on("data", (data: Buffer) => orb.socketRcvd(data.buffer))
-            orb.socketSend = (buffer: ArrayBuffer) => {
-                socket.write(new Uint8Array(buffer))
-            }
-            clientORB.localAddress = socket.localAddress
-            clientORB.localPort = socket.localPort
-            clientORB.remoteAddress = socket.remoteAddress!
-            clientORB.remotePort = socket.remotePort!
-        })
-        serverSocket.on('error', (e) => {
-            reject(e)
-        })
-        serverSocket.listen(port, host, () => {
-            const address = serverSocket.address() as AddressInfo
-            orb.localAddress = address.address
-            orb.localPort = address.port
-            resolve(serverSocket)
-        })
-    })
+class TcpConnection extends Connection {
+    private socket: Socket
+
+    constructor(socket: Socket, orb: ORB) {
+        super(orb)
+        this.socket = socket
+    }
+
+    get localAddress(): string {
+        return this.socket.localAddress
+    }
+    get localPort(): number {
+        return this.socket.localPort
+    }
+    get remoteAddress(): string {
+        return this.socket.remoteAddress!
+    }
+    get remotePort(): number {
+        return this.socket.remotePort!
+    }
+
+    close() {
+        this.socket.destroy()
+    }
+    send(buffer: ArrayBuffer): void {
+        this.socket.write(new Uint8Array(buffer))
+    }
 }
