@@ -103,19 +103,7 @@ export class ORB implements EventTarget {
     }
 
     async iorToObject(ior: IOR) {
-        // check if ior.hostname, ior.port is us
-        // if yes, return the servant (aka. implementation of skeleton)
-
-        // check if ior.hostname, ior.port is a known remote peer
-        // if no, initiate a connection
-
-        // check if ior.objectKey is known in connection
-        // if yes, return stub
-        // if no, create and return stub
-
-        // stubs are per connection because different objectKeys to different peers may overlap
         const connection = await this.getConnection(ior.host, ior.port)
-        // this.protocols[0].connect(this, ior.host, ior.port)
         let object = connection.stubsById.get(ior.objectKey)
         if (object !== undefined) {
             return object as CORBAObject
@@ -134,10 +122,6 @@ export class ORB implements EventTarget {
     //
     // Network OUT
     //
-    // socketConnect!: (hostname: string, port: number) => Promise<void>
-    // socketSend!: (buffer: ArrayBuffer) => void
-    // socketClose!: () => void
-    // map = new Map<number, PromiseHandler>()
 
     onewayCall(
         stub: Stub,
@@ -416,6 +400,34 @@ export class ORB implements EventTarget {
         throw Error("not implemented yet")
     }
 
+    // FIXME: with extending corba.js to handle multiple peers, this minimal naming service doesn't
+    // work anymore, hence we might to implement parts of a real naming service, which can be used
+    // like this
+    // SERVER
+    //   const ns = CosNamingService.narrow(orb.resolveInitialReverences("NameService"))
+    //   ns.bind("workflow", new WorkflowServer_impl(orb))
+    // CLIENT
+    //   stringToObject("corbaname::mark13.org#workflow")
+
+    // stringToObject("corbaloc:iiop:1.0@host1:2809/NameService")
+    // stringToObject("corbaloc::host1/NameService")
+    // corbaname::foo.bar.com:2809/NameService#x/y
+    // corbaname::555objs.com#Dev/Trader
+    // module CosNaming {
+    //   interface NamingService {
+    //     void bind(in Name n, in Object obj);
+    //     rebind(in Name n, in Object obj)
+    //     Object resolve(in Name n)
+    //     void unbind(in Name n)
+    //
+    //     NamingContext new_context();
+    //     void bind_context(in Name n, in NamingContext nc)
+    //     void rebind_context(in Name n, in NamingContext nc)
+    //     NamingContext bind_new_context(in Name n)
+    //     void destroy()
+    //   }    
+    // }
+    // also nice to have: InterfaceRepository CORBA::Repository (page 236), CORBA:ComponentIR::Repository (page 262)
     async resolve(id: string): Promise<Stub> {
         throw Error("not implemented")
         // const ref = await this.twowayCall(ORB.orbId, "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())

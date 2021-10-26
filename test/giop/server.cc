@@ -55,14 +55,15 @@ public:
     Point_impl(CORBA::Long x, CORBA::Long y) : OBV_Point(x, y) {}
     ~Point_impl() {}
 
-    char* toString();
+    char *toString();
 };
 
-char* Point_impl::toString() {
+char *Point_impl::toString()
+{
     std::stringstream ss;
     ss << "Point(" << this->x() << "," << this->y() << ")";
     lastToken = ss.str();
-    return (char*)lastToken.c_str();
+    return (char *)lastToken.c_str();
 }
 
 class NamedPoint_impl : public virtual OBV_NamedPoint, public virtual CORBA::DefaultValueRefCountBase
@@ -70,16 +71,17 @@ class NamedPoint_impl : public virtual OBV_NamedPoint, public virtual CORBA::Def
 public:
     NamedPoint_impl() {}
     // yeah, you'd guess that OBV_NamedPoint(x, y, name) would initialize x and y... but it doesn't
-    NamedPoint_impl(CORBA::Long x, CORBA::Long y, const char *name) : OBV_Point(x,y), OBV_NamedPoint(x, y, name) {}
+    NamedPoint_impl(CORBA::Long x, CORBA::Long y, const char *name) : OBV_Point(x, y), OBV_NamedPoint(x, y, name) {}
     ~NamedPoint_impl() {}
-    char* toString();
+    char *toString();
 };
 
-char* NamedPoint_impl::toString() {
+char *NamedPoint_impl::toString()
+{
     std::stringstream ss;
     ss << "NamedPoint(" << this->x() << "," << this->y() << ",\"" << this->name() << "\")";
     lastToken = ss.str();
-    return (char*)lastToken.c_str();
+    return (char *)lastToken.c_str();
 }
 
 int main(int argc, char **argv)
@@ -136,6 +138,29 @@ int main(int argc, char **argv)
         ofstream out("IOR.txt");
         out << ior << endl;
         out.close();
+
+        // add GIOPTest to name service
+        CORBA::Object_var ns0 = orb->resolve_initial_references("NameService");
+        CosNaming::NamingContext_var rootContext;
+        rootContext = CosNaming::NamingContext::_narrow(ns0);
+        if (CORBA::is_nil(rootContext))
+        {
+            cerr << "Failed to narrow the root naming context." << endl;
+            exit(1);
+        }
+
+        CosNaming::Name objectName;
+        objectName.length(1);
+        objectName[0].id = "TestService";
+        objectName[0].kind = ""; // leave empty, otherwise corbaname: won't find it
+        try
+        {
+            rootContext->bind(objectName, obj);
+        }
+        catch (CosNaming::NamingContext::AlreadyBound &ex)
+        {
+            rootContext->rebind(objectName, obj);
+        }
 
         cout << "start server ORB" << endl;
         orb->run();
@@ -417,7 +442,8 @@ GIOPSmall_ptr GIOPTest_impl::getObject()
     return GIOPSmall::_duplicate(small);
 }
 
-GIOPSmall_ptr GIOPTest_impl::reflectObject(::GIOPSmall_ptr obj) {
+GIOPSmall_ptr GIOPTest_impl::reflectObject(::GIOPSmall_ptr obj)
+{
     lastToken = "reflectObject(...)";
     cout << lastToken << endl;
     return GIOPSmall::_duplicate(obj);

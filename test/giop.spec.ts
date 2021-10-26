@@ -434,6 +434,83 @@ describe("CDR/GIOP", () => {
                     expect(reply.replyStatus).to.equal(ReplyStatus.NO_EXCEPTION)
                 })
 
+                it("OmniORB: request: NameService._is_a('NamingContext')", function() {
+                    const data = parseOmniDump(`
+                        4749 4f50 0100 0100 5800 0000 0000 0000 GIOP....X.......
+                        0200 0000 013c 7661 0b00 0000 4e61 6d65 .....<va....Name
+                        5365 7276 6963 656e 0600 0000 5f69 735f Servicen...._is_
+                        6100 2074 0000 0000 2800 0000 4944 4c3a a. t....(...IDL:
+                        6f6d 672e 6f72 672f 436f 734e 616d 696e omg.org/CosNamin
+                        672f 4e61 6d69 6e67 436f 6e74 6578 743a g/NamingContext:
+                        312e 3000                               1.0.`)
+                    const decoder = new GIOPDecoder(data.buffer)
+
+                    decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(MessageType.REQUEST)
+
+                    const request = decoder.scanRequestHeader()
+                    expect(request.responseExpected).to.be.true
+                    expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
+                    expect(request.method).equals("_is_a")
+                    const repId = decoder.string()
+                    expect(repId).equals("IDL:omg.org/CosNaming/NamingContext:1.0")
+
+                    // expects boolean
+                })
+
+                it("OmniORB: request: NameService.resolve([{id:'TestService',kind:'Object'}])", function() {
+                    const data = parseOmniDump(`
+                        4749 4f50 0100 0100 4b00 0000 0000 0000 GIOP....K.......
+                        0400 0000 013c 7661 0b00 0000 4e61 6d65 .....<va....Name
+                        5365 7276 6963 656e 0800 0000 7265 736f Servicen....reso
+                        6c76 6500 0000 0000 0100 0000 0c00 0000 lve.............
+                        5465 7374 5365 7276 6963 6500 0700 0000 TestService.....
+                        4f62 6a65 6374 00                       Object.
+                    `)
+                    const decoder = new GIOPDecoder(data.buffer)
+
+                    decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(MessageType.REQUEST)
+
+                    const request = decoder.scanRequestHeader()
+                    expect(request.responseExpected).to.be.true
+                    expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
+                    expect(request.method).equals("resolve")
+
+                    const nameLength = decoder.ulong()
+                    const id = decoder.string()
+                    const kind = decoder.string()
+                    expect(nameLength).to.equal(1)
+                    expect(id).to.equal("TestService")
+                    expect(kind).to.equal("Object") // IDL:GIOPTest:1.0
+                })
+
+                it.only("OmniORB: reply: NameService.resolve(...)", function() {
+                    const data = parseOmniDump(`
+                        4749 4f50 0100 0101 9800 0000 0000 0000 GIOP............
+                        0400 0000 0000 0000 1100 0000 4944 4c3a ............IDL:
+                        4749 4f50 5465 7374 3a31 2e30 0066 6f6c GIOPTest:1.0.fol
+                        0100 0000 0000 0000 6800 0000 0101 0200 ........h.......
+                        0e00 0000 3139 322e 3136 382e 312e 3130 ....192.168.1.10
+                        3500 89b0 1400 0000 ff62 6964 6972 fe1a 5........bidir..
+                        3078 6101 0009 4200 0000 0000 0200 0000 0xa...B.........
+                        0000 0000 0800 0000 0100 0000 0054 5441 .............TTA
+                        0100 0000 1c00 0000 0100 0000 0100 0100 ................
+                        0100 0000 0100 0105 0901 0100 0100 0000 ................
+                        0901 0100`)
+                    const decoder = new GIOPDecoder(data.buffer)
+
+                    decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(MessageType.REPLY)
+                    const reply = decoder.scanReplyHeader()
+                    console.log(reply)
+                    const ref = decoder.reference()
+                    console.log(ref)
+                    expect(ref.oid).to.equal("IDL:GIOPTest:1.0")
+                    expect(ref.host).to.equal("192.168.1.105")
+                    expect(ref.port).to.equal(45193)
+                })
+
                 // CloseMessage
             })
         })

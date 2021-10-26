@@ -9,22 +9,41 @@ using namespace std;
 const char *blank = "THIS PAGE INTENTIONALLY LEFT BLANK";
 string lastToken(blank);
 
-class Point_impl : virtual public OBV_Point, virtual public CORBA::DefaultValueRefCountBase
+class Point_impl : public virtual OBV_Point, public virtual CORBA::DefaultValueRefCountBase
 {
 public:
     Point_impl() : OBV_Point() {}
-    Point_impl(CORBA::ULong x, CORBA::ULong y) : OBV_Point(x, y) {}
+    Point_impl(CORBA::Long x, CORBA::Long y) : OBV_Point(x, y) {}
     ~Point_impl() {}
+
+    char *toString();
 };
 
-class NamedPoint_impl : virtual public OBV_NamedPoint,
-                        virtual public CORBA::DefaultValueRefCountBase
+char *Point_impl::toString()
+{
+    std::stringstream ss;
+    ss << "Point(" << this->x() << "," << this->y() << ")";
+    lastToken = ss.str();
+    return (char *)lastToken.c_str();
+}
+
+class NamedPoint_impl : public virtual OBV_NamedPoint, public virtual CORBA::DefaultValueRefCountBase
 {
 public:
     NamedPoint_impl() {}
-    NamedPoint_impl(CORBA::ULong x, CORBA::ULong y, const char *name) : OBV_NamedPoint(x, y, name) {}
+    // yeah, you'd guess that OBV_NamedPoint(x, y, name) would initialize x and y... but it doesn't
+    NamedPoint_impl(CORBA::Long x, CORBA::Long y, const char *name) : OBV_Point(x, y), OBV_NamedPoint(x, y, name) {}
     ~NamedPoint_impl() {}
+    char *toString();
 };
+
+char *NamedPoint_impl::toString()
+{
+    std::stringstream ss;
+    ss << "NamedPoint(" << this->x() << "," << this->y() << ",\"" << this->name() << "\")";
+    lastToken = ss.str();
+    return (char *)lastToken.c_str();
+}
 
 class GIOPSmall_impl : public virtual POA_GIOPSmall
 {
@@ -74,20 +93,51 @@ int main(int argc, char **argv)
         GIOPSmall_var small = servant->_this();
         // servant->_remove_ref();
 
+#if 0
         ifstream in("IOR.txt");
         char s[1000];
         in >> s;
         in.close();
+        // const char *s = "corbaname::192.168.1.105:#TestService";
         obj = orb->string_to_object(s);
+
         GIOPTest_var server = GIOPTest::_narrow(obj);
         cout << "got Server object" << endl;
+#else
+        // naming service via initial reference
+        // CORBA::Object_var ns0 = orb->resolve_initial_references("NameService");
+        
+        // naming service via host:port (defaults to iiop v1.0)
+        // CORBA::Object_var ns0 = orb->string_to_object("corbaloc:iiop:192.168.1.10/NameService");
+
+        // CosNaming::NamingContext_var rootContext;
+        // rootContext = CosNaming::NamingContext::_narrow(ns0);
+        // if (CORBA::is_nil(rootContext))
+        // {
+        //     cerr << "Failed to narrow the root naming context." << endl;
+        //     exit(1);
+        // }
+        // CosNaming::Name objectName;
+        // objectName.length(1);
+        // objectName[0].id = "TestService";
+        // objectName[0].kind = "Object";
+        // obj = rootContext->resolve(objectName);
+
+        // object from naming service at host:port
+        // obj = orb->string_to_object("corbaname::192.168.1.10/NameService#TestService");
+        obj = orb->string_to_object("corbaname::192.168.1.10#TestService");
+
+        GIOPTest_var server = GIOPTest::_narrow(obj);
+        cout << "got Server object" << endl;
+#endif
+
 
         cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
         // server->onewayMethod();
-        // server->sendBool(false, true);
+        server->sendBool(false, true);
         // server->sendValuePoint(new Point_impl(3.1415, 2.17));
-        // cout << server->peek() << endl;
-        server->sendObject(small, "foo");
+        cout << server->peek() << endl;
+        // server->sendObject(small, "foo");
         cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 
         orb->destroy();
