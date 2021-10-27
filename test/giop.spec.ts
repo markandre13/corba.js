@@ -1,12 +1,12 @@
 import * as fs from "fs"
 
-import { ORB, IOR, GIOPDecoder, MessageType, LocateStatusType, ReplyStatus, GIOPEncoder } from "corba.js"
+import { ORB, GIOPDecoder, MessageType, LocateStatusType, ReplyStatus, GIOPEncoder } from "corba.js"
 import { TcpProtocol } from "corba.js/net/socket"
 import * as api from "./generated/giop"
 import * as skel from "./generated/giop_skel"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
-import { expect, assert } from "chai"
+import { expect } from "chai"
 // import { Fake } from "./fake"
 
 // WHAT'S NEXT:
