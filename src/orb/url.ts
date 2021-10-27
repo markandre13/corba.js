@@ -16,9 +16,11 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { IOR } from "./ior"
+
 export class CorbaLocation extends Object {
     addr:ObjectAddress[] = []
-    key?: string
+    objectKey?: string
 
     override toString() {
         return "corbaloc:" + this.toStringCore()
@@ -39,8 +41,8 @@ export class CorbaLocation extends Object {
                     break
             }
         }
-        if (this.key !== undefined)
-            txt += "/" + this.key
+        if (this.objectKey !== undefined)
+            txt += "/" + this.objectKey
         return txt
     }
 }
@@ -49,7 +51,7 @@ export class CorbaName extends CorbaLocation {
     name: string = ""
     constructor() {
         super()
-        this.key = "NameService"
+        this.objectKey = "NameService"
     }
     override toString() {
         let txt = "corbaname:"
@@ -79,7 +81,7 @@ export class UrlParser {
 
     parse() {
         if (this.url.match("IOR:")) {
-            return undefined // new IOR(url)
+            return new IOR(this.url.data)
         }
         if (this.url.match("corbaloc:")) {
             this.loc = new CorbaLocation()
@@ -88,6 +90,7 @@ export class UrlParser {
         if (this.url.match("corbaname:")) {
             return this.corbaname()
         }
+        throw Error(`Bad string, expected on of 'IOR:...', 'corbaloc:...' or 'corbaname:...'`)
     }
 
     corbaname() {
@@ -108,7 +111,7 @@ export class UrlParser {
             const keyString = this.key_string()
             // TODO: handle RFC 2396 escapes!!!
             // console.log(`key string "${keyString}"`)
-            this.loc.key = keyString
+            this.loc.objectKey = keyString
         }
         return this.loc
     }

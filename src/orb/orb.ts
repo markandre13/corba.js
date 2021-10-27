@@ -18,9 +18,10 @@
 
 import { Protocol } from "./protocol"
 import { Connection } from "./connection"
-import { GIOPDecoder, GIOPEncoder, MessageType, LocateStatusType, ReplyStatus } from "./giop"
+import { GIOPDecoder, GIOPEncoder, MessageType, LocateStatusType, ReplyStatus, ObjectReference } from "./giop"
 import { IOR } from "./ior"
 import { Uint8Map } from "./uint8map"
+import { CorbaName, UrlParser } from "./url"
 
 export interface ValueTypeInformation {
     attributes: Array<string>
@@ -99,7 +100,47 @@ export class ORB implements EventTarget {
 
     // TODO: we want this to report an error ASAP?
     async stringToObject(iorString: string) {
-        return this.iorToObject(new IOR(iorString))
+        const parser = new UrlParser(iorString)
+        const x = parser.parse()
+        if (x instanceof IOR) {
+            return this.iorToObject(new IOR(iorString))
+        }
+        if (x instanceof CorbaName) {
+            // FIXME: handle array's length
+            const a = x.addr[0]
+            switch (a.proto) {
+                case "iiop":
+                    const nameConnection = await this.getConnection(a.host, a.port)
+                    const objectKey = new TextEncoder().encode(x.objectKey)
+                    let rootNamingContext = nameConnection.stubsById.get(objectKey) as NamingContext
+                    if (rootNamingContext === undefined) {
+                        rootNamingContext = new NamingContext(this, objectKey, nameConnection)
+                        nameConnection.stubsById.set(objectKey, rootNamingContext!)
+                    }
+
+                    // Now this is a freaking hack:
+                    const reference = await rootNamingContext.resolve(x.name)
+                    const objectConnection = await this.getConnection(reference.host, reference.port)
+        
+                    let object = objectConnection.stubsById.get(reference.objectKey)
+                    if (object !== undefined)
+                        return object
+                    const shortName = reference.oid.substring(4, reference.oid.length - 4)
+                    let aStubClass = objectConnection.orb.stubsByName.get(shortName)
+                    if (aStubClass === undefined) {
+                        throw Error(`ORB: no stub registered for OID '${reference.oid} (${shortName})'`)
+                    }
+                    object = new aStubClass(objectConnection.orb, reference.objectKey, objectConnection)
+                    objectConnection.stubsById.set(reference.objectKey, object!)
+                    return object
+
+                default:
+                    throw Error("yikes")
+            }
+            
+        }
+        throw Error("yikes")
+        // return this.iorToObject(new IOR(iorString))
     }
 
     async iorToObject(ior: IOR) {
@@ -384,7 +425,7 @@ export class ORB implements EventTarget {
     }
 
     // CORBA 3.3 Part 1, 8.5.2 Obtaining Initial Object References
-    // sequcence<ObjectId> list_initial_services();
+    // sequence<ObjectId> list_initial_services();
     // Object resolve_initial_references ( in ObjectId identifier) raises (InvalidName);
 
     //
@@ -397,58 +438,11 @@ export class ORB implements EventTarget {
     }
 
     async list(): Promise<Array<string>> {
-        throw Error("not implemented yet")
+        throw Error("Obsolete")
     }
 
-    // FIXME: with extending corba.js to handle multiple peers, this minimal naming service doesn't
-    // work anymore, hence we might to implement parts of a real naming service, which can be used
-    // like this
-    // SERVER
-    //   const ns = CosNamingService.narrow(orb.resolveInitialReverences("NameService"))
-    //   ns.bind("workflow", new WorkflowServer_impl(orb))
-    // CLIENT
-    //   stringToObject("corbaname::mark13.org#workflow")
-
-    // stringToObject("corbaloc:iiop:1.0@host1:2809/NameService")
-    // stringToObject("corbaloc::host1/NameService")
-    // corbaname::foo.bar.com:2809/NameService#x/y
-    // corbaname::555objs.com#Dev/Trader
-    // module CosNaming {
-    //   interface NamingService {
-    //     void bind(in Name n, in Object obj);
-    //     rebind(in Name n, in Object obj)
-    //     Object resolve(in Name n)
-    //     void unbind(in Name n)
-    //
-    //     NamingContext new_context();
-    //     void bind_context(in Name n, in NamingContext nc)
-    //     void rebind_context(in Name n, in NamingContext nc)
-    //     NamingContext bind_new_context(in Name n)
-    //     void destroy()
-    //   }    
-    // }
-    // also nice to have: InterfaceRepository CORBA::Repository (page 236), CORBA:ComponentIR::Repository (page 262)
     async resolve(id: string): Promise<Stub> {
-        throw Error("not implemented")
-        // const ref = await this.twowayCall(ORB.orbId, "resolve", (encoder) => encoder.string(id), (decoder) => decoder.reference())
-
-        // // if we already have a stub, return that one
-        // // if (oid.host === this.peerHost && oid.port === this.peerPort) {
-        // let object = this.stubsById.get(ref.objectKey)
-        // if (object !== undefined) {
-        //     return object
-        // }
-
-        // // new reference, create a new stub
-        // const shortName = ref.oid.substring(4, ref.oid.length - 4)
-        // let aStubClass = this.stubsByName.get(shortName)
-        // if (aStubClass === undefined) {
-        //     throw Error(`ORB: can not deserialize object of unregistered stub '${ref.oid} (${shortName})'`)
-        // }
-        // object = new aStubClass(this, ref.objectKey)
-        // this.stubsById.set(ref.objectKey, object!)
-
-        // return object!
+        throw Error("Obsolete: Use objectToString(`corbaname::${hostname}#${objectname}`) instead")
     }
 
     //
@@ -523,5 +517,27 @@ export abstract class Stub extends CORBAObject {
 
     release(): void {
         this.orb.releaseStub(this)
+    }
+}
+
+class NamingContext extends Stub {
+    static _idlClassName(): string {
+        return "omg.org/CosNaming/NamingContext"
+    }
+
+    static narrow(object: any): NamingContext {
+        if (object instanceof NamingContext)
+            return object as NamingContext
+        throw Error("NamingContext.narrow() failed")
+    }
+
+    // TODO: the argument doesn't match the one in the IDL but for it's good enough
+    async resolve(name: string): Promise<ObjectReference> {
+        return await this.orb.twowayCall(this, "resolve", (encoder) => {
+            encoder.ulong(1)
+            encoder.string(name)
+            encoder.string("")
+        },
+            (decoder) => decoder.reference())
     }
 }

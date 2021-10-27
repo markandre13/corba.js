@@ -60,8 +60,10 @@ describe("CDR/GIOP", () => {
         orb.registerStubClass(stub.GIOPTest)
         orb.registerStubClass(stub.GIOPSmall)
 
-        const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
-        const obj = await orb.stringToObject(data)
+        // const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
+        // const obj = await orb.stringToObject(data)
+        const obj = await orb.stringToObject("corbaname::192.168.1.10#TestService")
+
         server = stub.GIOPTest.narrow(obj)
 
         // but since corba.js is not a full CORBA implementation, we'll do it like this:
@@ -485,7 +487,7 @@ describe("CDR/GIOP", () => {
                     expect(kind).to.equal("Object") // IDL:GIOPTest:1.0
                 })
 
-                it.only("OmniORB: reply: NameService.resolve(...)", function() {
+                it("OmniORB: reply: NameService.resolve(...)", function() {
                     const data = parseOmniDump(`
                         4749 4f50 0100 0101 9800 0000 0000 0000 GIOP............
                         0400 0000 0000 0000 1100 0000 4944 4c3a ............IDL:
@@ -503,9 +505,7 @@ describe("CDR/GIOP", () => {
                     decoder.scanGIOPHeader()
                     expect(decoder.type).to.equal(MessageType.REPLY)
                     const reply = decoder.scanReplyHeader()
-                    console.log(reply)
                     const ref = decoder.reference()
-                    console.log(ref)
                     expect(ref.oid).to.equal("IDL:GIOPTest:1.0")
                     expect(ref.host).to.equal("192.168.1.105")
                     expect(ref.port).to.equal(45193)

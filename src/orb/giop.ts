@@ -477,7 +477,7 @@ class LocateReply {
     status!: LocateStatusType
 }
 
-class ObjectReference {
+export class ObjectReference {
     oid!: string
     host!: string
     port!: number
@@ -767,6 +767,14 @@ export class GIOPDecoder extends GIOPBase {
                             // OMG
                             // OmniORB
                             0x4154001d: "Invalid initial size"
+                        }
+                        explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                    } break
+                    case "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0": {
+                        const explanationList: { [index: number]: string } = {
+                            // OMG
+                            // OmniORB
+                            0x41540001: "???"
                         }
                         explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
                     } break
