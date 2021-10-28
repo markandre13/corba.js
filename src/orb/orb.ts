@@ -182,7 +182,7 @@ export class ORB implements EventTarget {
         const requestId = stub.connection.requestId
         stub.connection.requestId += 2
         return new Promise<T>((resolve, reject) => {
-            try {
+            // try {
                 stub.connection.map.set(
                     requestId,
                     new PromiseHandler(
@@ -190,10 +190,10 @@ export class ORB implements EventTarget {
                         reject)
                 )
                 this.callCore(stub.connection, requestId, true, stub.id, method, encode)
-            } catch (e) {
-                console.log(stub)
-                throw e
-            }
+            // } catch (e) {
+                // console.log(stub)
+                // throw e
+            // }
         })
     }
 

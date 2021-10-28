@@ -1,5 +1,3 @@
-import * as fs from "fs"
-
 import { ORB, GIOPDecoder, MessageType, LocateStatusType, ReplyStatus, GIOPEncoder } from "corba.js"
 import * as api from "./generated/giop"
 import * as skel from "./generated/giop_skel"
@@ -7,11 +5,6 @@ import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
 import { FakeTcpProtocol } from "./fake"
-
-// class Fake {
-//     reset() {}
-//     expect(name: string) {}
-// }
 
 describe("CDR/GIOP", () => {
 
@@ -36,7 +29,12 @@ describe("CDR/GIOP", () => {
         // const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
         // const obj = await orb.stringToObject(data)
 
+        // fake.record()
+        fake.replay()
+        fake.expect("init")
         const obj = await orb.stringToObject("corbaname::192.168.1.10#TestService")
+        fake.reset()
+        // TODO: delete all ORB connections to reset the requestId counter to make all tests independent
 
         server = stub.GIOPTest.narrow(obj)
         myserver = new GIOPTest_impl(orb)
@@ -44,9 +42,7 @@ describe("CDR/GIOP", () => {
 
     beforeEach(function () {
         fake.reset()
-
-        fake.record()
-        // fake.replay()
+        // TODO: delete all ORB connections to reset the requestId counter to make all tests independent
     })
 
     it("oneway method", async function () {
@@ -675,20 +671,20 @@ function sleep(ms: number) {
     })
 }
 
-function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
-    while (addr < length) {
-        let line = addr.toString(16).padStart(4, "0")
-        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
-            line += " " + bytes[j].toString(16).padStart(2, "0")
-        line = line.padEnd(4 + 16 * 3 + 1, " ")
-        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
-            const b = bytes[j]
-            if (b >= 32 && b < 127)
-                line += String.fromCharCode(b)
-            else
-                line += "."
-        }
-        addr += 16
-        console.log(line)
-    }
-}
+// function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
+//     while (addr < length) {
+//         let line = addr.toString(16).padStart(4, "0")
+//         for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
+//             line += " " + bytes[j].toString(16).padStart(2, "0")
+//         line = line.padEnd(4 + 16 * 3 + 1, " ")
+//         for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
+//             const b = bytes[j]
+//             if (b >= 32 && b < 127)
+//                 line += String.fromCharCode(b)
+//             else
+//                 line += "."
+//         }
+//         addr += 16
+//         console.log(line)
+//     }
+// }
