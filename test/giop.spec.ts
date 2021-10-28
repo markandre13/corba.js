@@ -58,7 +58,7 @@ describe("CDR/GIOP", () => {
     // these cover the encoder
     describe("send values", function () {
 
-        it.only("bool", async function () {
+        it("bool", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendBool(false, true)
             expect(await server.peek()).to.equal("sendBool(false,true)")
