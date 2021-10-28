@@ -1,41 +1,17 @@
 import * as fs from "fs"
 
 import { ORB, GIOPDecoder, MessageType, LocateStatusType, ReplyStatus, GIOPEncoder } from "corba.js"
-import { TcpProtocol } from "corba.js/net/socket"
 import * as api from "./generated/giop"
 import * as skel from "./generated/giop_skel"
 import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
-// import { Fake } from "./fake"
+import { FakeTcpProtocol } from "./fake"
 
-// WHAT'S NEXT:
-// things to test with a real CORBA instance are basically for the validation of the GIOP
-// send/receive arguments passed to method and result returned from method
-// send/receive struct (as argument and return value. how do they differ from valuetypes in regard to GIOP?)
-// send/receive sequence (as argument and return value)
-// send/receive object reference (as argument and return value)
-// send/receive value types with duplicated repositoryId as well as duplicated objects (aka multiple references to the same object)
-// module, versioning
-// cover all of the above with a recorded fake, server and client side
-// to keep the IDL for this test small, we'll implement server and client on MICO side
-
-// [X] keep the mico file locally but build and run them remotely
-// [X] implement a versatile network fake for corba.js
-//   [X] use a variant of connect which records and prints a hexdump, then use the dump to set an expectation
-//   [X] use the dump to test the server side
-//   [ ] wrap it all into one nice package
-// [ ] implement the server side (this also means the client side in C++)
-// [ ] implement any (just for fun, for this we also need the client side in C++ to see how it's done)
-// [ ] implement array
-// [ ] implement exceptions
-// [ ] find out where the race condition comes from in the tests, because of the await there shouldn't be one
-// [ ] add a watch mode to the idl compiler to ease testing
-
-class Fake {
-    reset() {}
-    expect(name: string) {}
-}
+// class Fake {
+//     reset() {}
+//     expect(name: string) {}
+// }
 
 describe("CDR/GIOP", () => {
 
@@ -43,17 +19,14 @@ describe("CDR/GIOP", () => {
     let server!: api.GIOPTest
     let myserver!: api.GIOPTest
 
-    let fake!: Fake
-
-    beforeEach(function () {
-        fake.reset()
-    })
+    let fake!: FakeTcpProtocol
 
     // FIXME: to make the tests independent of each other when using the fake, create a new ORB for each test so that the request counter is reset
     before(async function () {
         // return
         orb = new ORB()
-        orb.addProtocol(new TcpProtocol())
+        fake = new FakeTcpProtocol()
+        orb.addProtocol(fake)
         // TODO: switch this to object adapter? have a look at the CORBA spec
         ORB.registerValueType("Point", Point)
         ORB.registerValueType("NamedPoint", NamedPoint)
@@ -62,31 +35,18 @@ describe("CDR/GIOP", () => {
 
         // const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
         // const obj = await orb.stringToObject(data)
+
         const obj = await orb.stringToObject("corbaname::192.168.1.10#TestService")
 
         server = stub.GIOPTest.narrow(obj)
-
-        // but since corba.js is not a full CORBA implementation, we'll do it like this:
-        // ior = new IOR(data)
-        fake = new Fake()
-
-        // if (true) {
-        //     // RECORD
-        //     // const serverSocket = listen(orb, "0.0.0.0", 8080) // don't. this override localhost in the client orb
-        //     const clientSocket = await connect(orb, ior.host!, ior.port!)
-        //     console.log("connected")
-        //     fake.record(orb, clientSocket)
-        // } else {
-        //     // REPLAY
-        //     orb.localAddress = "192.168.1.10"
-        //     orb.localPort = 52846
-        //     fake.replay(orb)
-        // }
-
-        // const obj = orb.iorToObject(ior)
-        // server = stub.GIOPTest.narrow(obj)
-
         myserver = new GIOPTest_impl(orb)
+    })
+
+    beforeEach(function () {
+        fake.reset()
+
+        fake.record()
+        // fake.replay()
     })
 
     it("oneway method", async function () {
@@ -102,7 +62,7 @@ describe("CDR/GIOP", () => {
     // these cover the encoder
     describe("send values", function () {
 
-        it("bool", async function () {
+        it.only("bool", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendBool(false, true)
             expect(await server.peek()).to.equal("sendBool(false,true)")

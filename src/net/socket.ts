@@ -70,6 +70,7 @@ export class TcpProtocol implements Protocol {
         })
         this.serverSocket.listen(port, hostname)
     }
+    
     close(): void {
         if (this.serverSocket === undefined)
             throw Error(`internal error: close() without server socket`)

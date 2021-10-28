@@ -324,7 +324,8 @@ export class ORB implements EventTarget {
 
     socketClosed(connection: Connection): void {
         this.dispatchEvent(new Event("closed"))
-        this.release()
+        this.release() // FIXME: too much
+        // FIXME: delete Connection from list or at least mark it as deactivated
     }
 
     //
