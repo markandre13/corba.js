@@ -36,6 +36,12 @@ export class Uint8Map<V> {
     get size(): number {
         return this.map.size
     }
+    forEach(callbackfn: (value: V, key: Uint8Array, map: Uint8Map<V>) => void, thisArg?: any) {
+       this.map.forEach( (value: V, key: string) => callbackfn.call(thisArg, value, Uint8Map.unhex(key), this))
+    }
+    clear() {
+        this.map.clear()
+    }
 
     static hex(buffer: Uint8Array) {
         let hexOctets = ""
@@ -44,10 +50,18 @@ export class Uint8Map<V> {
         return hexOctets
     }
 
+    static unhex(key: string): Uint8Array {
+        const values = new Array<number>(key.length/2)
+        for(let i =0 ; i < key.length; i += 2) {
+            values[i] = parseInt(key[i]+key[i+1], 16)
+        }
+        return new Uint8Array(values)
+    }
+
     private static init = (function () {
-        for (let n = 0; n <= 0xff; ++n) {
-            const hexOctet = n.toString(16).padStart(2, "0")
-            Uint8Map.byteToHex[n] = hexOctet
+        for (let i = 0; i <= 0xff; ++i) {
+            const hexOctet = i.toString(16).padStart(2, "0")
+            Uint8Map.byteToHex[i] = hexOctet
         }
     })();
 }

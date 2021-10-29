@@ -28,6 +28,7 @@ export class FakeTcpProtocol implements Protocol {
     buffer: string[] = [] // in
 
     async connect(orb: ORB, hostname: string, port: number) {
+        this.orb = orb
         if (this.mode === Mode.REPLAY && this.testName && this.fd) {
             const connection = new TcpFakeConnection(this, undefined, orb)
             if (this.verbose) {
@@ -69,28 +70,45 @@ export class FakeTcpProtocol implements Protocol {
         })
     }
 
-    reset() {
+    async reset() {
+        if (this.verbose) {
+            console.log(`FAKE: RESET`)
+        }
         this.testName = undefined
         if (this.fd !== -1) {
             fs.closeSync(this.fd)
             this.fd = -1
         }
         this.buffer = []
+        // this get's stuck...
+        // await this.orb.replaceAllConnections()
     }
 
     off() {
+        if (this.verbose) {
+            console.log(`FAKE: OFF`)
+        }
         this.mode = Mode.OFF
     }
 
     record() {
+        if (this.verbose) {
+            console.log(`FAKE: RECORD`)
+        }
         this.mode = Mode.RECORD
     }
 
     replay() {
+        if (this.verbose) {
+            console.log(`FAKE: REPLACE`)
+        }
         this.mode = Mode.REPLAY
     }
 
     expect(name: string) {
+        if (this.verbose) {
+            console.log(`FAKE: EXPECT ${name}`)
+        }
         if (this.testName !== undefined) {
             throw Error("test fake setup error: missing reset() call. try to add this to you test: beforeEach(function() { fake.reset() })")
         }

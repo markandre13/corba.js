@@ -80,9 +80,46 @@ export class ORB implements EventTarget {
     addProtocol(protocol: Protocol) {
         this.protocols.push(protocol)
     }
+    
     addConnection(connection: Connection) {
         this.connections.push(connection)
     }
+
+    removeConnection(connection: Connection) {
+        for (let i = 0; i < this.connections.length; ++i) {
+            if (connection === this.connections[i]) {
+                this.connections.splice(i, 1)
+                break
+            }
+        }
+    }
+
+    logConnection() {
+        this.connections.forEach( c => console.log(`CONNECTION ${c.localAddress}:${c.localPort}->${c.remoteAddress}:${c.remotePort}`))
+    }
+
+    // TEST SUPPORT, AS OF NOW THIS WORKS ONLY FOR OUTGOING CONNECTIONS
+    async replaceAllConnections() {
+        // console.log(`CONNECTIONS BEFORE REPLACE`)
+        // this.logConnection()
+        const list = this.connections.map(x => x)
+        for (let i = 0; i < list.length; ++i) {
+            const oldConnection = list[i]
+            this.removeConnection(oldConnection)
+            const newConnection = await this.getConnection(oldConnection.remoteAddress, oldConnection.remotePort)
+            oldConnection.close()
+            // console.log(`REPLACE ${oldConnection.localAddress}:${oldConnection.localPort}->${oldConnection.remoteAddress}:${oldConnection.remotePort}`)
+            // console.log(`   WITH ${newConnection.localAddress}:${newConnection.localPort}->${newConnection.remoteAddress}:${newConnection.remotePort}`)
+            oldConnection.stubsById.forEach( (stub, key) => {
+                stub.connection = newConnection
+                newConnection.stubsById.set(key, stub)
+            })
+            oldConnection.stubsById.clear()
+        }
+        // console.log(`CONNECTIONS AFTER REPLACE`)
+        // this.logConnection()
+    }
+
     async getConnection(host: string, port: number) {
         for (let i = 0; i < this.connections.length; ++i) {
             const c = this.connections[i]
@@ -236,6 +273,7 @@ export class ORB implements EventTarget {
             case MessageType.REQUEST: {
                 const data = decoder.scanRequestHeader()
                 // FIXME: make this if expression a method
+                // FIXME: name becomes "NameService"
                 if (data.objectKey.length === ORB.orbId.length
                     && data.objectKey.at(0) === ORB.orbId.at(0)
                     && data.objectKey.at(1) === ORB.orbId.at(1)
@@ -265,9 +303,10 @@ export class ORB implements EventTarget {
                 if (servant === undefined) {
                     throw Error(`ORB.handleMethod(): client required method '${data.method}' on server for unknown object key ${data.objectKey}`)
                 }
-                if (!servant.acl.has(this)) {
-                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with object key ${data.objectKey}`)
-                }
+                // FIXME: disabled security check (doesn't work anyway after introducing multiple connections per ORB)
+                // if (!servant.acl.has(this)) {
+                //     throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with object key ${data.objectKey}`)
+                // }
                 const method = (servant as any)[`_orb_${data.method}`]
                 if (method === undefined) {
                     throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with object key ${data.objectKey}`)
@@ -325,7 +364,7 @@ export class ORB implements EventTarget {
     socketClosed(connection: Connection): void {
         this.dispatchEvent(new Event("closed"))
         this.release() // FIXME: too much
-        // FIXME: delete Connection from list or at least mark it as deactivated
+        this.removeConnection(connection)
     }
 
     //

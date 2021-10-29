@@ -33,16 +33,13 @@ describe("CDR/GIOP", () => {
         fake.replay()
         fake.expect("init")
         const obj = await orb.stringToObject("corbaname::192.168.1.10#TestService")
-        fake.reset()
-        // TODO: delete all ORB connections to reset the requestId counter to make all tests independent
 
         server = stub.GIOPTest.narrow(obj)
         myserver = new GIOPTest_impl(orb)
     })
 
-    beforeEach(function () {
-        fake.reset()
-        // TODO: delete all ORB connections to reset the requestId counter to make all tests independent
+    beforeEach(async function () {
+        await fake.reset()
     })
 
     it("oneway method", async function () {
