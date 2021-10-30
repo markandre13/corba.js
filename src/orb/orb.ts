@@ -41,39 +41,34 @@ export class PromiseHandler {
 
 // TODO: to have only one ORB instance, split ORB into ORB, Connection (requestIds & ACL) and CrudeObjectAdapter (stubs, servants, valuetypes)
 export class ORB implements EventTarget {
-    // special object ID "ORB"
-    private static orbId = new Uint8Array([0x4F, 0x52, 0x42])
 
-    debug: number		// values > 0 enable debug output
-    name: string        // orb name to ease debugging
-
-    stubsByName: Map<string, any>
-    // stubsById: Uint8Map<Stub>
-
-    servants: Uint8Map<Skeleton>
-    servantIdCounter: bigint = 0n
-
-    accesibleServants: Set<Skeleton>
-
+    private static nameServiceKey = new Uint8Array(new TextEncoder().encode("NameService"))
     static valueTypeByName = new Map<string, ValueTypeInformation>()
     static valueTypeByPrototype = new Map<any, ValueTypeInformation>()
 
-    initialReferences: Map<string, Skeleton>
+    debug = 0		// values > 0 enable debug output
+    name = ""       // orb name to ease debugging
 
-    listeners: Map<string, Set<EventListenerOrEventListenerObject>>
+    stubsByName = new Map<string, any>()
+
+    servants = new Uint8Map<Skeleton>()
+    servantIdCounter: bigint = 0n
+
+    accesibleServants = new Set<Skeleton>()
+
+    initialReferences: Map<string, Skeleton> = new Map()
+    listeners: Map<string, Set<EventListenerOrEventListenerObject>> = new Map()
 
     constructor() {
-        this.debug = 0
-        this.stubsByName = new Map()
-        this.servants = new Uint8Map()
-        this.initialReferences = new Map()
-        this.name = ""
-        // this.stubsById = new Uint8Map()
-        this.accesibleServants = new Set<Skeleton>()
-        this.listeners = new Map<string, Set<EventListenerOrEventListenerObject>>()
+        const nameService = new NamingContextImpl(this)
+        this.initialReferences.set("NameService", nameService)
+        this.servants.set(ORB.nameServiceKey, nameService)
     }
 
-    // note that objects can be reachable via various connections!
+    //
+    // Network Protocol and Connection
+    //
+
     private protocols: Protocol[] = []
     private connections: Connection[] = []
 
@@ -121,8 +116,10 @@ export class ORB implements EventTarget {
     }
 
     async getConnection(host: string, port: number) {
+        // console.log(`ORB ${this.name}: getConnection("${host}", ${port})`)
         for (let i = 0; i < this.connections.length; ++i) {
             const c = this.connections[i]
+            // console.log(`  check ${c.remoteAddress}:${c.remotePort}`)
             if (c.remoteAddress == host && c.remotePort == port) {
                 return c
             }
@@ -136,6 +133,7 @@ export class ORB implements EventTarget {
     }
 
     // TODO: we want this to report an error ASAP?
+    // TODO: all of this is a hack
     async stringToObject(iorString: string) {
         const parser = new UrlParser(iorString)
         const x = parser.parse()
@@ -147,18 +145,20 @@ export class ORB implements EventTarget {
             const a = x.addr[0]
             switch (a.proto) {
                 case "iiop":
+                    // get remote NameService (FIXME: what if it's us?)
                     const nameConnection = await this.getConnection(a.host, a.port)
                     const objectKey = new TextEncoder().encode(x.objectKey)
-                    let rootNamingContext = nameConnection.stubsById.get(objectKey) as NamingContext
+                    let rootNamingContext = nameConnection.stubsById.get(objectKey) as NamingContextStub
                     if (rootNamingContext === undefined) {
-                        rootNamingContext = new NamingContext(this, objectKey, nameConnection)
+                        rootNamingContext = new NamingContextStub(this, objectKey, nameConnection)
                         nameConnection.stubsById.set(objectKey, rootNamingContext!)
                     }
 
-                    // Now this is a freaking hack:
+                    // get object from remote NameService
                     const reference = await rootNamingContext.resolve(x.name)
+
+                    // create stub for remote object
                     const objectConnection = await this.getConnection(reference.host, reference.port)
-        
                     let object = objectConnection.stubsById.get(reference.objectKey)
                     if (object !== undefined)
                         return object
@@ -174,10 +174,9 @@ export class ORB implements EventTarget {
                 default:
                     throw Error("yikes")
             }
-            
+
         }
         throw Error("yikes")
-        // return this.iorToObject(new IOR(iorString))
     }
 
     async iorToObject(ior: IOR) {
@@ -219,7 +218,7 @@ export class ORB implements EventTarget {
         const requestId = stub.connection.requestId
         stub.connection.requestId += 2
         return new Promise<T>((resolve, reject) => {
-            // try {
+            try {
                 stub.connection.map.set(
                     requestId,
                     new PromiseHandler(
@@ -227,10 +226,10 @@ export class ORB implements EventTarget {
                         reject)
                 )
                 this.callCore(stub.connection, requestId, true, stub.id, method, encode)
-            // } catch (e) {
-                // console.log(stub)
-                // throw e
-            // }
+            } catch (e) {
+                console.log(stub)
+                throw e
+            }
         })
     }
 
@@ -241,6 +240,7 @@ export class ORB implements EventTarget {
         objectId: Uint8Array,
         method: string,
         encode: (encoder: GIOPEncoder) => void) {
+        // console.log(`ORB ${this.name}: send request method:${method}, requestId:${requestId}, responseExpected:${responseExpected}`)
         const encoder = new GIOPEncoder(connection)
         encoder.encodeRequest(objectId, method, requestId, responseExpected)
         encode(encoder)
@@ -271,64 +271,39 @@ export class ORB implements EventTarget {
                 connection.send(encoder.buffer.slice(0, encoder.offset))
             } break
             case MessageType.REQUEST: {
-                const data = decoder.scanRequestHeader()
-                // FIXME: make this if expression a method
-                // FIXME: name becomes "NameService"
-                if (data.objectKey.length === ORB.orbId.length
-                    && data.objectKey.at(0) === ORB.orbId.at(0)
-                    && data.objectKey.at(1) === ORB.orbId.at(1)
-                    && data.objectKey.at(2) === ORB.orbId.at(2)
-                ) {
-                    if (data.method === "resolve") {
-                        // FIXME: make the 'resolve' a method
-                        const reference = decoder.string()
-                        // console.log(`ORB: received ORB.resolve("${reference}")`)
-                        const encoder = new GIOPEncoder(connection)
-                        let object = this.initialReferences.get(reference)
-                        if (object === undefined) {
-                            // console.log(`ORB.handleResolveInitialReferences(): failed to resolve '${reference}`)
-                            encoder.encodeReply(data.requestId, ReplyStatus.SYSTEM_EXCEPTION)
-                        } else {
-                            this.aclAdd(object)
-                            encoder.encodeReply(data.requestId, ReplyStatus.NO_EXCEPTION)
-                            encoder.reference(object)
-                        }
-                        encoder.setGIOPHeader(MessageType.REPLY)
-                        connection.send(encoder.buffer.slice(0, encoder.offset))
-                    }
-                    return
-                }
-
-                const servant = this.servants.get(data.objectKey)
+                const request = decoder.scanRequestHeader()
+                const servant = this.servants.get(request.objectKey)
+                // console.log(`ORB ${this.name} got request`)
+                // console.log(request)
                 if (servant === undefined) {
-                    throw Error(`ORB.handleMethod(): client required method '${data.method}' on server for unknown object key ${data.objectKey}`)
+                    throw Error(`ORB.handleMethod(): client required method '${request.method}' on server for unknown object key ${request.objectKey}`)
                 }
                 // FIXME: disabled security check (doesn't work anyway after introducing multiple connections per ORB)
                 // if (!servant.acl.has(this)) {
                 //     throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with object key ${data.objectKey}`)
                 // }
-                const method = (servant as any)[`_orb_${data.method}`]
+                const method = (servant as any)[`_orb_${request.method}`]
                 if (method === undefined) {
-                    throw Error(`ORB.handleMethod(): client required unknown method '${data.method}' on server for servant with object key ${data.objectKey}`)
+                    throw Error(`ORB.handleMethod(): client required unknown method '${request.method}' on server for servant with object key ${request.objectKey}`)
                 }
 
                 const encoder = new GIOPEncoder(connection)
                 encoder.skipReplyHeader()
                 method.call(servant, decoder, encoder)
                     .then(() => {
-                        if (data.responseExpected) {
+                        if (request.responseExpected) {
                             const length = encoder.offset
                             encoder.setGIOPHeader(MessageType.REPLY)
-                            encoder.setReplyHeader(data.requestId, ReplyStatus.NO_EXCEPTION)
+                            encoder.setReplyHeader(request.requestId, ReplyStatus.NO_EXCEPTION)
                             connection.send(encoder.buffer.slice(0, length))
                         }
                     })
                     .catch((error: Error) => {
                         console.log(error)
-                        if (data.responseExpected) {
+                        if (request.responseExpected) {
                             const length = encoder.offset
                             encoder.setGIOPHeader(MessageType.REPLY)
-                            encoder.setReplyHeader(data.requestId, ReplyStatus.USER_EXCEPTION)
+                            encoder.setReplyHeader(request.requestId, ReplyStatus.USER_EXCEPTION)
                             connection.send(encoder.buffer.slice(0, length))
                         }
                     })
@@ -472,9 +447,14 @@ export class ORB implements EventTarget {
     // initial references
     //
     bind(id: string, obj: Skeleton): void {
-        if (this.initialReferences.get(id) !== undefined)
-            throw Error(`ORB.bind(): the id '${id}' is already bound to an object`)
-        this.initialReferences.set(id, obj)
+        const nameService = this.initialReferences.get("NameService")
+        if (nameService === undefined)
+            throw Error(`No NameService found.`)
+        if (nameService instanceof NamingContextImpl) {
+            nameService.bind(id, obj)
+            return
+        }
+        throw Error(`NameService is not of type IDL:omg.org/CosNaming/NamingContext:1.0`)
     }
 
     async list(): Promise<Array<string>> {
@@ -560,14 +540,14 @@ export abstract class Stub extends CORBAObject {
     }
 }
 
-class NamingContext extends Stub {
+class NamingContextStub extends Stub {
     static _idlClassName(): string {
         return "omg.org/CosNaming/NamingContext"
     }
 
-    static narrow(object: any): NamingContext {
-        if (object instanceof NamingContext)
-            return object as NamingContext
+    static narrow(object: any): NamingContextStub {
+        if (object instanceof NamingContextStub)
+            return object as NamingContextStub
         throw Error("NamingContext.narrow() failed")
     }
 
@@ -579,5 +559,37 @@ class NamingContext extends Stub {
             encoder.string("")
         },
             (decoder) => decoder.reference())
+    }
+}
+
+class NamingContextImpl extends Skeleton {
+    map = new Map<string, CORBAObject>()
+
+    constructor(orb: ORB) { super(orb) }
+    static _idlClassName(): string {
+        return "omg.org/CosNaming/NamingContext"
+    }
+    bind(name: string, servant: CORBAObject) {
+        if (this.map.has(name))
+            throw Error(`name '${name}' is already bound to object`)
+        this.map.set(name, servant)
+    }
+    async resolve(name: string): Promise<CORBAObject> {
+        // console.log(`NamingContextImpl.resolve("${name}")`)
+        const servant = this.map.get(name)
+        if (servant === undefined) {
+            throw Error(`orb ${this.orb.name}: name '${name}' is not bound to an object`)
+        }
+        return servant
+    }
+    private async _orb_resolve(decoder: GIOPDecoder, encoder: GIOPEncoder) {
+        const entries = decoder.ulong()
+        const name = decoder.string()
+        const key = decoder.string()
+        if (entries !== 1 && key.length !== 0) {
+            console.log(`warning: resolve got ${entries} (expected 1) and/or key is "${key}" (expected "")`)
+        }
+        const result = await this.resolve(name)
+        encoder.object(result)
     }
 }

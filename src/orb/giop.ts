@@ -796,10 +796,10 @@ export class GIOPDecoder extends GIOPBase {
                 case ServiceId.BI_DIR_IIOP:
                     const host = this.string()
                     const port = this.ushort()
-                    console.log(`serviceContext[${i}] = BiDirIIOP listenPoint ${host}:${port}`)
+                    // console.log(`serviceContext[${i}] = BiDirIIOP listenPoint ${host}:${port}`)
                     break
                 default:
-                    console.log(`serviceContext[${i}] = ${ServiceId[serviceId]}`)
+                    // console.log(`serviceContext[${i}] = ${ServiceId[serviceId]}`)
             }
             this.endEncapsulation()
         }
@@ -810,7 +810,7 @@ export class GIOPDecoder extends GIOPBase {
 
         // struct IOR, field: string type_id ???
         data.oid = this.string(length)
-        console.log(`IOR: oid: '${data.oid}'`)
+        // console.log(`IOR: oid: '${data.oid}'`)
 
         // struct IOR, field: TaggedProfileSeq profiles ???
         const profileCount = this.ulong()
@@ -829,12 +829,12 @@ export class GIOPDecoder extends GIOPBase {
                     data.host = this.string()
                     data.port = this.ushort()
                     data.objectKey = this.blob()
-                    console.log(`IOR: IIOP(version: ${iiopMajorVersion}.${iiopMinorVersion}, host: ${data.host}:${data.port}, objectKey: ${data.objectKey})`)
+                    // console.log(`IOR: IIOP(version: ${iiopMajorVersion}.${iiopMinorVersion}, host: ${data.host}:${data.port}, objectKey: ${data.objectKey})`)
                     // FIXME: use utility function to compare version!!! better use hex: version >= 0x0101
                     if (iiopMajorVersion === 1 && iiopMinorVersion !== 0) {
                         // TaggedComponentSeq
                         const n = this.ulong()
-                        console.log(`IOR: ${n} components`)
+                        // console.log(`IOR: ${n} components`)
                         for (i = 0; i < n; ++i) {
                             const id = this.ulong()
                             const length = this.ulong()
@@ -891,25 +891,25 @@ export class GIOPDecoder extends GIOPBase {
                                         if (name === undefined) {
                                             name = `0x${orbType.toString(16)}`
                                         }
-                                        console.log(`IOR: component[${i}] = ORB_TYPE ${name}`)
+                                        // console.log(`IOR: component[${i}] = ORB_TYPE ${name}`)
                                     }
                                     break
                                 case 1: // TAG_CODE_SETS 
                                     // Corba 3.4, Part 2, 7.10.2.4 CodeSet Component of IOR Multi-Component Profile
-                                    console.log(`IOR: component[${i}] = CODE_SETS`)
+                                    // console.log(`IOR: component[${i}] = CODE_SETS`)
                                     break
                                 case 2: // TAG_POLICIES
-                                    console.log(`IOR: component[${i}] = POLICIES`)
+                                    // console.log(`IOR: component[${i}] = POLICIES`)
                                     break
                                 default:
-                                    console.log(`IOR: component[${i}] = ${id} (0x${id.toString(16)})`)
+                                    // console.log(`IOR: component[${i}] = ${id} (0x${id.toString(16)})`)
                             }
                             this.offset = nextOffset
                         }
                     }
                 } break
                 default:
-                    console.log(`IOR: Unhandled profile type=${profileId} (0x${profileId.toString(16)})`)
+                    // console.log(`IOR: Unhandled profile type=${profileId} (0x${profileId.toString(16)})`)
             }
             this.endEncapsulation()
         }
@@ -996,7 +996,7 @@ export class GIOPDecoder extends GIOPBase {
             let indirection = this.long()
             indirection += 2
             const position = this.offset + indirection
-            console.log(`GIOPDecoder.object(): at 0x${objectOffset.toString(16)} got indirect object ${indirection} pointing to 0x${position.toString(16)}`)
+            // console.log(`GIOPDecoder.object(): at 0x${objectOffset.toString(16)} got indirect object ${indirection} pointing to 0x${position.toString(16)}`)
             const obj = this.objects.get(position)
             if (obj === undefined) {
                 throw Error("IDL:omg.org/CORBA/MARSHAL:1.0")

@@ -1,3 +1,5 @@
+native Point_ptr;
+
 valuetype Point {
     public long x, y;
     string toString();

@@ -39,6 +39,7 @@
     "src/net",
     "src/idl",
     "test/fake.ts",
+    "test/basics.spec.ts",
     "test/giop.spec.ts"
   ]
 }

@@ -18,16 +18,19 @@
     "build": "npm run build:idl:build && npm run build:idl:compile && npm run build:src:compile",
     "build:idl:build": "rollup --config rollup.config.js",
     "build:idl:compile": "npm run build:idl:compile:test && npm run build:idl:compile:test-mico",
-    "build:idl:compile:test": "bin/corba-idl -v --ts-all --output-directory test/generated test/*.idl",
+    "build:idl:compile:test": "bin/corba-idl -v --ts-all --output-directory test/generated test/giop.idl test/basics.idl",
     "build:idl:compile:test-mico": "bin/corba-idl -v --ts-all test-mico/mico/test.idl test-mico/demux.idl",
     "build:src:compile": "ttsc",
 
-    "test": "npm run build:src:compile && npm run omni:ior && npm run test:run",
-    "test:watch": "npm run omni:ior && npm run test:run:watch",
+    "test": "npm run build:src:compile && npm run test:run",
+    "test:watch": "npm run test:run:watch",
+
+    "test:omni": "npm run build:src:compile && npm run omni:ior && npm run test:run",
+    "test:omni:watch": "npm run omni:ior && npm run test:run:watch",
 
     "test:mico": "npm run test:mico:ior && npm run test:mico:run:watch",
     "test:mico:ior": "scp 192.168.1.105:test-mico/IOR.txt test/giop/IOR.txt",
-    "test:run": "node --enable-source-maps ./node_modules/.bin/mocha lib/test/giop.spec.js",
+    "test:run": "node --enable-source-maps ./node_modules/.bin/mocha lib/test/giop.spec.js lib/test/basics.spec.js",
     "test:run:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test ./node_modules/.bin/mocha lib/test/giop.spec.js",
 
     "mico:run": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs-debug'",

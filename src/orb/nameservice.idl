@@ -1,0 +1,17 @@
+// #pragma, struct and Object are not implemented yet
+// hence this file is not used yet and NameComponent
+// manually implemented in orb.ts
+
+#pragma prefix "omg.org"
+
+module CosNaming {
+    struct NameComponent {
+        string id;
+        string kind;
+    };
+    typedef sequence<NameComponent> Name;
+
+    interface NamingContext {
+        Object resolve(in Name n);
+    };
+};

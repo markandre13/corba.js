@@ -16,7 +16,6 @@ describe("CDR/GIOP", () => {
 
     // FIXME: to make the tests independent of each other when using the fake, create a new ORB for each test so that the request counter is reset
     before(async function () {
-        // return
         orb = new ORB()
         fake = new FakeTcpProtocol()
         orb.addProtocol(fake)
@@ -29,6 +28,7 @@ describe("CDR/GIOP", () => {
         // const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
         // const obj = await orb.stringToObject(data)
 
+        // take this from an environment variable which used by npm run:test:omni
         // fake.record()
         fake.replay()
         fake.expect("init")
