@@ -170,8 +170,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                     }
                     initCalls += `"${attribute}"`
                 }
-                initCalls += `],encode:encode${identifier}})\n`
-
+                initCalls += `],encode:${prefix}encode${identifier}})\n`
             } break
         }
     }
