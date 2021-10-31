@@ -309,12 +309,17 @@ export class GIOPEncoder extends GIOPBase {
         this.fillinSize()
     }
 
-    value(object: Object) {
+    value(object: Object | undefined) {
         this.object(object)
     }
 
-    object(object: Object) {
+    object(object: Object | undefined) {
         // console.log(`GIOPEncoder.object(${object.constructor.name}) offset=0x${this.offset.toString(16)}`)
+
+        if (object === undefined) {
+            throw Error(`yikes: undefined not implemented yet`)
+        }
+
         if (object instanceof Stub) {
             throw Error("ORB: can not serialize Stub yet")
         }

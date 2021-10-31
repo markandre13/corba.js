@@ -58,6 +58,15 @@ void GIOPSmall_impl::call(const char *msg)
     cout << "GIOPSmall::call(\"" << msg << "\")" << endl;
 }
 
+class FigureModel_impl : public virtual OBV_FigureModel, public virtual CORBA::DefaultValueRefCountBase
+{
+public:
+    FigureModel_impl() {}
+    // yeah, you'd guess that OBV_NamedPoint(x, y, name) would initialize x and y... but it doesn't
+    FigureModel_impl(::FigureSeq& data) : OBV_FigureModel(data) {}
+    ~FigureModel_impl() {}
+};
+
 int main(int argc, char **argv)
 {
     int rc = 0;
@@ -92,6 +101,12 @@ int main(int argc, char **argv)
         bidirPOA->activate_object(servant);
         GIOPSmall_var small = servant->_this();
         // servant->_remove_ref();
+
+        class FigureModelFactory : public virtual CORBA::ValueFactoryBase
+        {
+            CORBA::ValueBase *create_for_unmarshal() { return new FigureModel_impl(); }
+        };
+        orb->register_value_factory("IDL:FigureModel:1.0", new FigureModelFactory());
 
 #if 0
         ifstream in("IOR.txt");
@@ -130,19 +145,22 @@ int main(int argc, char **argv)
         GIOPTest_var server = GIOPTest::_narrow(obj);
         cout << "got Server object" << endl;
 #endif
-
-
         cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>" << endl;
         // server->onewayMethod();
         // server->sendBool(false, true);
         // server->sendValuePoint(new Point_impl(3.1415, 2.17));
         // cout << server->peek() << endl;
         // server->sendObject(small, "foo");
+
+        // elements in list can be null
+
         FigureSeq seq;
         seq.length(2);
-        seq[0] = new OBV_Rectangle(10, new OBV_Origin(10, 20), new OBV_Size(30, 40));
+        // seq[0] = new OBV_Rectangle(10, new OBV_Origin(10, 20), new OBV_Size(30, 40));
+        seq[0] = new OBV_Rectangle(10, 0, new OBV_Size(30, 40));
         seq[1] = new OBV_Rectangle(11, new OBV_Origin(50, 60), new OBV_Size(70, 80));
-        server->setFigureModel(new OBV_FigureModel(seq));
+        // server->setFigureModel(new OBV_FigureModel(seq));
+        server->setFigureModel(0);
 
         cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 

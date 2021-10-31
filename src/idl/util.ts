@@ -62,7 +62,7 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
             let name: string
             switch (identifierType.type) {
                 case Type.TKN_VALUETYPE:
-                    if (filetype !== FileType.VALUETYPE)
+                    if (filetype !== FileType.VALUETYPE && filetype !== FileType.VALUE)
                         name = `valuetype${absolutePrefix}.${relativeName}`
                     else
                         name = relativeName
@@ -84,7 +84,7 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                     name = relativeName
                     break
                 case Type.TKN_SEQUENCE:
-                    name = typeIDLtoTS(type.child[0])
+                    name = typeIDLtoTS(type.child[0], filetype)
                     break
                 default:
                     throw Error(`Internal Error in typeIDLtoTS(): type ${identifierType.toString()} is not implemented`)
@@ -136,6 +136,16 @@ export function typeIDLtoGIOP(type: Node | undefined, arg: string | undefined = 
         case Type.TKN_STRUCT:
             name = "object"
             break
+
+        case Type.TKN_NATIVE: {
+            const id = type!.child[0]!.text!
+            if (id.length > 4 && id.substring(id.length - 4) === "_ptr") {
+                return arg === undefined ? `decoder.value("${id.substring(0, id.length-4)}")` : `encoder.value(${arg})`
+            } else {
+                return `undefined`
+            }
+        } break
+
         case Type.TKN_VOID:
             name = "void"
             break

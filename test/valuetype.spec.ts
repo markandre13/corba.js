@@ -134,7 +134,7 @@ class Client_impl extends skel.testVT.Client {
     }
 }
 
-describe("corba.js", function() {
+describe.only("corba.js", function() {
 
     before(function(){
         // value._init(orb)

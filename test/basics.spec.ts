@@ -25,7 +25,7 @@ import * as stub from "./generated/basics_stub"
 import { mockConnection } from "./util"
 
 describe("corba.js", function() {
-    it.only("a basic test", async function() {
+    it("a basic test", async function() {
 
         let serverORB = new ORB()
         serverORB.name = "serverORB"

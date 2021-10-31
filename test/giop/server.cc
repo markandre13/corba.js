@@ -108,6 +108,11 @@ int main(int argc, char **argv)
         };
         orb->register_value_factory("IDL:NamedPoint:1.0", new NamedPointFactory());
 
+        orb->register_value_factory("IDL:FigureModel:1.0", new FigureModel_init());
+        orb->register_value_factory("IDL:Rectangle:1.0", new Rectangle_init());
+        orb->register_value_factory("IDL:Origin:1.0", new Origin_init());
+        orb->register_value_factory("IDL:Size:1.0", new Size_init());
+
         // rootPOA
         CORBA::Object_var obj = orb->resolve_initial_references("RootPOA");
         PortableServer::POA_var rootPOA = PortableServer::POA::_narrow(obj);
@@ -457,7 +462,51 @@ void GIOPSmall_impl::call(const char *msg)
     cout << lastToken << endl;
 }
 
-void GIOPTest_impl::setFigureModel(::FigureModel *model) {
-    lastToken = "setFigureModel(...)";
+void GIOPTest_impl::setFigureModel(::FigureModel *model)
+{
+    std::stringstream ss;
+    ss << "setFigureModel(";
+    if (!model)
+    {
+        ss << "null";
+    }
+    else
+    {
+        ss << "{data:[";
+        for (auto i = 0; i < model->data().length(); ++i)
+        {
+            auto f = model->data()[i];
+            if (!f)
+            {
+                ss << "null,";
+            }
+            else
+            {
+                auto r = Rectangle::_downcast(f);
+                if (r) {
+                    ss << "Rectangle({origin:";
+                    auto o = r->origin();
+                    if (!o) {
+                        ss << "null,";
+                    } else {
+                        ss << "{x:" << o->x() << ",y:" << o->y() << "},";
+                    }
+                    auto s = r->size();
+                    if (!s) {
+                        ss << "null,";
+                    } else {
+                        ss << "{width:" << s->width() << ",height:" << s->height() << "},";
+                    }                   
+                    ss << "}),";
+                } else {
+                    ss << "?,";
+                }
+            }
+        }
+        ss << "]}";
+    }
+    ss << ")";
+
+    lastToken = ss.str();
     cout << lastToken << endl;
 }

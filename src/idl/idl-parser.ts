@@ -303,6 +303,7 @@ function value_header(): Node | undefined {
     if (t0 !== undefined) {
         let t1
         if (t0.type === Type.TKN_CUSTOM) {
+            // "custom" means a customer marshaller
             throw Error("corba.js currently does not support custom valuetypes")
             // t1 = lexer.lex()
         } else {

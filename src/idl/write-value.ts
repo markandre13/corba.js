@@ -111,7 +111,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                         let declarators = state_member.child[2]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 1)
-                            out.write(declarator!.text + ": " + typeIDLtoTS(type, FileType.VALUETYPE) + "\n")
+                            out.write(declarator!.text + ": " + typeIDLtoTS(type, FileType.VALUE) + "\n")
                             attributes.push(declarator!.text!)
                         }
                     }
