@@ -32,6 +32,8 @@ public:
     void sendObject(::GIOPSmall_ptr obj, const char *msg);
     GIOPSmall_ptr getObject();
     GIOPSmall_ptr reflectObject(::GIOPSmall_ptr obj);
+
+    void setFigureModel(::FigureModel *model);
 };
 
 class GIOPSmall_impl : public virtual POA_GIOPSmall
@@ -452,5 +454,10 @@ GIOPSmall_ptr GIOPTest_impl::reflectObject(::GIOPSmall_ptr obj)
 void GIOPSmall_impl::call(const char *msg)
 {
     lastToken = string(msg);
+    cout << lastToken << endl;
+}
+
+void GIOPTest_impl::setFigureModel(::FigureModel *model) {
+    lastToken = "setFigureModel(...)";
     cout << lastToken << endl;
 }

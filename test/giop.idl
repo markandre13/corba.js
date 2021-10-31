@@ -1,4 +1,4 @@
-native Point_ptr;
+// native Point_ptr;
 
 valuetype Point {
     public long x, y;
@@ -21,6 +21,28 @@ enum CallbackType {
     CB_LONGLONG, CB_ULONGLONG, CB_FLOAT, CB_DOUBLE, CB_STRING, CB_SEQUENCE,
     CB_VALUE, CB_SUBCLASSED_VALUE, CB_VALUES_DUPLICATE_REPOSITORY_ID, CB_VALUES_DUPLICATE_OBJECT,
     CB_SEND_OBJECT, CB_GET_OBJECT
+};
+
+valuetype Origin {
+    public double x, y;
+};
+
+valuetype Size {
+    public double width, height;
+};
+
+valuetype Figure {
+    public unsigned long id;
+};
+
+valuetype Rectangle: Figure {
+    public Origin origin;
+    public Size size;
+};
+
+typedef sequence<Figure> FigureSeq;
+valuetype FigureModel {
+    public FigureSeq data;
 };
 
 interface GIOPTest {
@@ -57,5 +79,6 @@ interface GIOPTest {
     // GIOPSmall rcvdObject();
 
     // void sendAny(in any v0);
-};
 
+    void setFigureModel(in FigureModel model);
+};

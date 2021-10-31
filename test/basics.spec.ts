@@ -20,7 +20,6 @@
 
 import { ORB, GIOPDecoder } from "corba.js"
 import * as value from "./generated/basics_value"
-import * as valuetype from "./generated/basics_valuetype"
 import * as skel from "./generated/basics_skel"
 import * as stub from "./generated/basics_stub"
 import { mockConnection } from "./util"
@@ -88,12 +87,12 @@ describe("corba.js", function() {
         expect(clientImpl.figureModelReceivedFromServer).not.undefined
         expect(clientImpl.figureModelReceivedFromServer!.data).length(2)
         expect(clientImpl.figureModelReceivedFromServer!.data[0]).to.be.an.instanceof(Rectangle)
-        expect(clientImpl.figureModelReceivedFromServer!.data[0].toString()).to.equal("Rectangle: (10,20,30,40)")
+        expect(clientImpl.figureModelReceivedFromServer!.data[0].toString()).to.equal("Rectangle(10,20,30,40)")
         let rectangle = clientImpl.figureModelReceivedFromServer!.data[0] as Rectangle
         expect(rectangle.origin).to.be.an.instanceof(Origin)
-        expect(rectangle.origin.toString()).to.equal("Origin: x=10, y=20")
+        expect(rectangle.origin.toString()).to.equal("Origin({x:10,y:20})")
         expect(rectangle.size).to.be.an.instanceof(Size)
-        expect(rectangle.size.toString()).to.equal("Size: width=30, height=40")
+        expect(rectangle.size.toString()).to.equal("Size({width:30,height:40})")
     })
 })
 
@@ -103,11 +102,10 @@ class Origin implements value.Origin
     y!: number
     
     constructor(init?: Partial<Origin> | GIOPDecoder) {
-        console.log(`Origin()`)
         value.initOrigin(this, init)
     }
     toString(): string {
-        return "Origin: x="+this.x+", y="+this.y
+        return `Origin({x:${this.x},y:${this.y}})`
     }
 }
 
@@ -115,27 +113,24 @@ class Size implements value.Size {
     width!: number
     height!: number
     constructor(init?: Partial<Size> | GIOPDecoder) {
-        console.log(`Size()`)
         value.initSize(this, init)
     }
     toString(): string {
-        return "Size: width="+this.width+", height="+this.height
+        return `Size({width:${this.width},height:${this.height}})`
     }
 }
 
 abstract class Figure implements value.Figure {
-    id: number = 0
+    id!: number
     constructor(init?: Partial<Rectangle> | GIOPDecoder) {
-        console.log(`Figure()`)
         value.initFigure(this, init)
     }
-    abstract toString(): string
+    abstract toString(): string 
 }
 
 class FigureModel implements value.FigureModel {
     data!: Array<Figure>
     constructor(init?: Partial<FigureModel> | GIOPDecoder) {
-        console.log(`INIT FigureModel()`)
         value.initFigureModel(this, init)
     }
 }
@@ -144,12 +139,11 @@ class Rectangle extends Figure implements value.Rectangle {
     origin!: Origin
     size!: Size
     constructor(init?: Partial<Rectangle> | GIOPDecoder) {
-        console.log(`Rectangle()`)
-        super()
+        super(init) // FIXME: i once forgot to pass on the init and the decoder gave useless errors
         value.initRectangle(this, init)
     }
     toString(): string {
-        return "Rectangle: ("+this.origin.x+","+this.origin.y+","+this.size.width+","+this.size.height+")"
+        return `Rectangle(${this.origin.x},${this.origin.y},${this.size.width},${this.size.height})`
     }
 }
 
@@ -206,7 +200,7 @@ class Client_impl extends skel.Client {
     
     async setFigureModel(figuremodel: FigureModel) {
         console.log("Client_impl.setFigureModel()")
-        console.log(figuremodel)
+        // console.log(figuremodel)
         this.figureModelReceivedFromServer = figuremodel
     }
 }

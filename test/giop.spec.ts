@@ -465,6 +465,143 @@ describe("CDR/GIOP", () => {
                 })
 
                 // CloseMessage
+
+                // sending this in basics.spec.ts fails to decode
+                // const model = new FigureModel()
+                // model.data.push(new Rectangle({origin: {x: 10, y: 20}, size: { width: 30, height: 40}}))
+                // model.data.push(new Rectangle({origin: {x: 50, y: 60}, size: { width: 70, height: 80}}))
+                // client.setFigureModel(model)
+                //
+                // 1st step: find out if the encoding is correct
+                //           it looks that it is not.
+                it("Regression: ", function() {
+                    const data = parseHexDump(
+                        `0000 47 49 4f 50 01 02 01 00 2c 01 00 00 02 00 00 00 GIOP....,.......
+                        0010 00 00 00 00 00 00 00 00 08 00 00 00 02 00 00 00 ................
+                        0020 00 00 00 00 0f 00 00 00 73 65 74 46 69 67 75 72 ........setFigur
+                        0030 65 4d 6f 64 65 6c 00 00 01 00 00 00 05 00 00 00 eModel..........
+                        0040 14 00 00 00 01 00 00 00 01 00 00 00 05 00 00 00 ................
+                        0050 6d 6f 63 6b 00 00 00 00 02 ff ff 7f 14 00 00 00 mock............
+                        0060 49 44 4c 3a 46 69 67 75 72 65 4d 6f 64 65 6c 3a IDL:FigureModel:
+                        0070 31 2e 30 00 02 00 00 00 02 ff ff 7f 12 00 00 00 1.0.............
+                        0080 49 44 4c 3a 52 65 63 74 61 6e 67 6c 65 3a 31 2e IDL:Rectangle:1.
+                        0090 30 00 00 00 00 00 00 00 02 ff ff 7f 0f 00 00 00 0...............
+                        00a0 49 44 4c 3a 4f 72 69 67 69 6e 3a 31 2e 30 00 00 IDL:Origin:1.0..
+                        00b0 00 00 00 00 00 00 24 40 00 00 00 00 00 00 34 40 ......$@......4@
+                        00c0 02 ff ff 7f 0d 00 00 00 49 44 4c 3a 53 69 7a 65 ........IDL:Size
+                        00d0 3a 31 2e 30 00 00 00 00 00 00 00 00 00 00 3e 40 :1.0..........>@
+                        00e0 00 00 00 00 00 00 44 40 02 ff ff 7f ff ff ff ff ......D@........
+                        00f0 8c ff ff ff 00 00 00 00 02 ff ff 7f ff ff ff ff ................
+                        0100 9c ff ff ff 00 00 00 00 00 00 00 00 00 00 49 40 ..............I@
+                        0110 00 00 00 00 00 00 4e 40 02 ff ff 7f ff ff ff ff ......N@........
+                        0120 a4 ff ff ff 00 00 00 00 00 00 00 00 00 80 51 40 ..............Q@
+                        0130 00 00 00 00 00 00 54 40                         ......T@`)
+                    const decoder = new GIOPDecoder(data.buffer)
+
+                    decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(MessageType.REQUEST)
+
+                    const request = decoder.scanRequestHeader()
+                    expect(request.responseExpected).to.be.false
+                    // expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
+                    expect(request.method).equals("setFigureModel")
+
+                    const figureModelType = decoder.ulong()
+                    expect(figureModelType).to.equal(0x7fffff02) // should be 0x7fffff00 as the type is the one from the IDL
+                    const figureModelRepositoryId = decoder.string()
+                    expect(figureModelRepositoryId).to.equal("IDL:FigureModel:1.0")
+
+                    const sequenceLength = decoder.ulong() // sequence's have no type information, they are all the same
+                    expect(sequenceLength).to.equal(2)
+
+                    const rectangleType = decoder.ulong()
+                    expect(rectangleType).to.equal(0x7fffff02)
+                    const rectangle0RepositoryID = decoder.string()
+                    expect(rectangle0RepositoryID).to.equal("IDL:Rectangle:1.0")
+
+                    const figureId = decoder.ulong()
+                    expect(figureId).to.equal(0)
+
+                    console.log(`offset after 1st figureId = 0x${decoder.offset.toString(16)}`)
+
+                    const originType = decoder.ulong()
+                    expect(originType).to.equal(0x7fffff02)
+                    const originRepositoryId = decoder.string()
+                    expect(originRepositoryId).to.equal("IDL:Origin:1.0")
+                    const x = decoder.double()
+                    expect(x).to.equal(10)
+                    const y = decoder.double()
+                    expect(y).to.equal(20)
+
+                    // const x = decoder.string()
+                    // console.log(x)
+                })
+
+                it("OmniORB's variant of setFigureModel", function() {
+                    const data = parseOmniDump(
+                        `4749 4f50 0102 0100 ec00 0000 0400 0000 GIOP............
+                        0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
+                        6972 fe72 a67d 6101 000a fc00 0000 0000 ir.r.}a.........
+                        0f00 0000 7365 7446 6967 7572 654d 6f64 ....setFigureMod
+                        656c 0000 0100 0000 0100 0000 0c00 0000 el..............
+                        0100 0000 0100 0100 0901 0100 0000 0000 ................
+                        00ff ff7f 0200 0000 02ff ff7f 1200 0000 ................
+                        4944 4c3a 5265 6374 616e 676c 653a 312e IDL:Rectangle:1.
+                        3000 0000 0a00 0000 00ff ff7f 0000 0000 0...............
+                        0000 0000 0000 2440 0000 0000 0000 3440 ......$@......4@
+                        00ff ff7f 0000 0000 0000 0000 0000 3e40 ..............>@
+                        0000 0000 0000 4440 02ff ff7f ffff ffff ......D@........
+                        acff ffff 0b00 0000 00ff ff7f 0000 0000 ................
+                        0000 0000 0000 4940 0000 0000 0000 4e40 ......I@......N@
+                        00ff ff7f 0000 0000 0000 0000 0080 5140 ..............Q@
+                        0000 0000 0000 5440                     ......T@`)
+                        const decoder = new GIOPDecoder(data.buffer)
+
+                        decoder.scanGIOPHeader()
+                        expect(decoder.type).to.equal(MessageType.REQUEST)
+    
+                        const request = decoder.scanRequestHeader()
+                        expect(request.responseExpected).to.be.true
+                        // expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
+                        expect(request.method).equals("setFigureModel")
+    
+                        const figureModelType = decoder.ulong()
+                        expect(figureModelType).to.equal(0x7fffff00)
+
+                        const sequenceLength = decoder.ulong()
+                        expect(sequenceLength).to.equal(2)
+
+                        const figure0Type = decoder.ulong()
+                        expect(figure0Type).to.equal(0x7fffff02)
+                        const figure0RepositoryId = decoder.string()
+                        expect(figure0RepositoryId).to.equal("IDL:Rectangle:1.0")
+
+                        const figureId = decoder.ulong()
+                        expect(figureId).to.equal(10)
+
+                        const origin0Type = decoder.ulong()
+                        expect(origin0Type).to.equal(0x7fffff00)
+
+                        const x0 = decoder.double()
+                        expect(x0).to.equal(10)
+                        const y0 = decoder.double()
+                        expect(y0).to.equal(20)
+
+                        const size0Type = decoder.ulong()
+                        expect(size0Type).to.equal(0x7fffff00)
+
+                        const w0 = decoder.double()
+                        expect(w0).to.equal(30)
+                        const h0 = decoder.double()
+                        expect(h0).to.equal(40)
+
+                        const figure1Type = decoder.ulong()
+                        expect(figure1Type).to.equal(0x7fffff02)
+
+                        const figure1RepositoryId = decoder.ulong()
+                        expect(figure1RepositoryId).to.equal(0xffffffff)
+                        // console.log(figure1RepositoryId.toString(16))
+                })
             })
         })
 
@@ -538,6 +675,23 @@ function parseOmniDump(data: string): Uint8Array {
                 break
             vec.push(n)
             n = parseInt(row.substring(idx + 2, idx + 5), 16)
+            if (isNaN(n))
+                break
+            vec.push(n)
+        }
+    }
+    return new Uint8Array(vec)
+}
+
+function parseHexDump(data: string): Uint8Array {
+    const rows = data.trim().split(/\r?\n/)
+    let vec: number[] = []
+    for (let i = 0; i < rows.length; ++i) {
+        const row = rows[i].trim()
+        for (let j = 0; j < 16; ++j) {
+            let n: number
+            let idx = j * 3 + 5
+            n = parseInt(row.substring(idx, idx + 2), 16)
             if (isNaN(n))
                 break
             vec.push(n)

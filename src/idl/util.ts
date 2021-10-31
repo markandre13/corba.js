@@ -131,7 +131,7 @@ export function typeIDLtoGIOP(type: Node | undefined, arg: string | undefined = 
         case Type.TKN_MODULE:
             return typeIDLtoGIOP(type.child[0], arg)
         case Type.TKN_VALUETYPE:
-            return arg === undefined ? `decoder.object("${type.text}")` : `encoder.object(${arg})`
+            return arg === undefined ? `decoder.value("${type.text}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:
         case Type.TKN_STRUCT:
             name = "object"

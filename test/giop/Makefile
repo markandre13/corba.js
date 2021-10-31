@@ -30,7 +30,7 @@ serverx: server.cc test.cc test_skel.cc test.h valueimpl.hh
 
 giopSK.cc giop.hh: giop.idl
 	rm -f giopSK.cc giop.hh
-	omniidl -bcxx giop.idl
+	omniidl -bcxx -nc giop.idl
 
 clean:
 	rm -f giopSK.cc giop.hh

@@ -309,8 +309,12 @@ export class GIOPEncoder extends GIOPBase {
         this.fillinSize()
     }
 
+    value(object: Object) {
+        this.object(object)
+    }
+
     object(object: Object) {
-        // console.log(`GIOPEncoder.object(...) ${this.orb!.localAddress}:${this.orb!.localPort}`)
+        // console.log(`GIOPEncoder.object(${object.constructor.name}) offset=0x${this.offset.toString(16)}`)
         if (object instanceof Stub) {
             throw Error("ORB: can not serialize Stub yet")
         }
@@ -916,15 +920,21 @@ export class GIOPDecoder extends GIOPBase {
         return data
     }
 
+    // WIP: beginning to split the object() method
+    value(typeInfo: string | undefined = undefined): any {
+        return this.object(typeInfo, true)
+    }
+
     // TODO: rather 'value' than 'object' as this is for valuetypes?
-    object(typeInfo: string | undefined = undefined): any {
+    object(typeInfo: string | undefined = undefined, isValue: boolean = false): any {
         // const objectOffset = this.offset + 6
 
         const code = this.ulong()
         const objectOffset = this.offset - 4
 
+        // console.log(`GIOPDecoder.object(${typeInfo}) code=0x${code.toString(16)}, offset=0x${objectOffset.toString(16)}}`)
+
         // 9.3.4.1 Partial Type Information and Versioning
-        // FIXME: OmniORB sends us 0x7fffff00, so we need more code here
         // NOTE: when there's no repositoryID, take the one from the IDL file
         //       better: point to the entry in ORB.valueTypeByName.get(...) to avoid
         //       to lookup the valuetype at runtime
