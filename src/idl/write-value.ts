@@ -211,16 +211,16 @@ function writeTSInitValueFromPOJO(value_dcl: Node, out: fs.WriteStream, indent: 
                     if (type.child[0]?.type == Type.TKN_NATIVE &&
                         type.text!.length > 4 &&
                         type.text!.substring(type.text!.length - 4) === "_ptr") {
-                        let name = typeIDLtoTS(type)
+                        let name = typeIDLtoTS(type, FileType.VALUE)
                         out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init.${decl_identifier})\n`)
+                    } else
+                    if (type.child[0]?.type == Type.TKN_SEQUENCE) {
+                        out.write(`object.${decl_identifier} = init?.${decl_identifier} instanceof Array ? init!.${decl_identifier} : []\n`)
                     } else {
-                        let name = typeIDLtoTS(type).substring(10) // hack: strip "valuetype."
-                        // FIXME: this always creates a copy
-                        // FIXME: this does too lookups for the same value
-                        // out.write(`object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init === undefined ? undefined : init.${decl_identifier})\n`)
-                        // this works better but not in all situations
-                        // out.write(`object.${decl_identifier} = ORB.lookupValueType("${name}").prototype.isPrototypeOf(init?.${decl_identifier}) ? init!.${decl_identifier} : ORB.lookupValueType("${name}")(init?.${decl_identifier})\n`)
-                        out.write(`object.${decl_identifier} = ORB.lookupValueType("${name}").prototype.isPrototypeOf(init?.${decl_identifier}) ? init!.${decl_identifier} : new (ORB.lookupValueType("${name}"))(init?.${decl_identifier})\n`)
+                        let name = typeIDLtoTS(type, FileType.VALUE)
+                        out.write(`const vt${decl_identifier} = ORB.lookupValueType("${name}")\n`)
+                        writeIndent(out, indent)
+                        out.write(`object.${decl_identifier} = vt${decl_identifier}.prototype.isPrototypeOf(init?.${decl_identifier}) ? init!.${decl_identifier} : new (vt${decl_identifier})(init?.${decl_identifier})\n`)
                     }
                 } else {
                     out.write(`object.${decl_identifier} = (init === undefined || init.${decl_identifier} === undefined) ? `)

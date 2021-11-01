@@ -164,6 +164,18 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendValuePoints(Point(20,30),Point(20,30)) // same object")
         })
 
+        // value with sequence
+        // value being null
+        it("value (with null)", async function() {
+            fake.expect(this.test!.fullTitle())
+            const m = new FigureModel()
+            const r = new Rectangle()
+            r.origin = (undefined as any)
+            r.size = new Size({width: 10, height: 20})
+            m.data.push(r)
+            await server.setFigureModel(m)
+        }) 
+
         // send a local object to the peer and check if he was able to call us
         it("send local object", async function () {
             fake.expect(this.test!.fullTitle())
@@ -814,6 +826,47 @@ class NamedPoint extends Point implements value.NamedPoint  {
     }
     override toString(): string {
         return `NamedPoint(${this.x},${this.y},"${this.name}")`
+    }
+}
+
+// TODO: see if we can re-activate write-valueimpl.ts to get rid of the boilderplate
+// without the earlier disadvantages
+class FigureModel implements value.FigureModel  {
+    data!: Array<value.Figure>
+    constructor(init: Partial<FigureModel> | undefined = undefined) {
+        value.initFigureModel(this, init)
+    }
+}
+
+class Origin implements value.Origin {
+    x!: number
+    y!: number
+    constructor(init: Partial<Origin> | undefined = undefined) {
+        value.initOrigin(this, init)
+    }
+}
+
+class Size implements value.Size {
+    width!: number
+    height!: number
+    constructor(init: Partial<Size> | undefined = undefined) {
+        value.initSize(this, init)
+    }
+}
+
+class Figure implements value.Figure {
+    id!: number
+    constructor(init: Partial<Figure> | undefined = undefined) {
+        value.initFigure(this, init)
+    }
+}
+
+class Rectangle extends Figure implements value.Rectangle {
+    origin!: Origin
+    size!: Size
+    constructor(init: Partial<Rectangle> | undefined = undefined) {
+        super(init)
+        value.initRectangle(this, init)
     }
 }
 

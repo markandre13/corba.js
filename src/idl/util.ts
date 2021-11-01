@@ -65,14 +65,14 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                     if (filetype !== FileType.VALUETYPE && filetype !== FileType.VALUE)
                         name = `valuetype${absolutePrefix}.${relativeName}`
                     else
-                        name = relativeName
+                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                     break
                 case Type.SYN_INTERFACE:
                 case Type.TKN_ENUM:
                     if (filetype !== FileType.INTERFACE)
                         name = `_interface${absolutePrefix}.${relativeName}`
                     else
-                        name = relativeName
+                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                     break
                 case Type.TKN_STRUCT:
                     // FIXME: struct uses a wrong identifier node structure
@@ -81,7 +81,7 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                         name = `_interface${absolutePrefix}.${name}`
                     break
                 case Type.TKN_NATIVE:
-                    name = relativeName
+                    name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                     break
                 case Type.TKN_SEQUENCE:
                     name = typeIDLtoTS(type.child[0], filetype)
