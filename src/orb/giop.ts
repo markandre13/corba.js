@@ -317,7 +317,8 @@ export class GIOPEncoder extends GIOPBase {
         // console.log(`GIOPEncoder.object(${object.constructor.name}) offset=0x${this.offset.toString(16)}`)
 
         if (object === undefined) {
-            throw Error(`yikes: undefined not implemented yet`)
+            this.ulong(0)
+            return
         }
 
         if (object instanceof Stub) {
@@ -935,6 +936,9 @@ export class GIOPDecoder extends GIOPBase {
         // const objectOffset = this.offset + 6
 
         const code = this.ulong()
+        if (code === 0)
+            return undefined
+
         const objectOffset = this.offset - 4
 
         // console.log(`GIOPDecoder.object(${typeInfo}) code=0x${code.toString(16)}, offset=0x${objectOffset.toString(16)}}`)

@@ -25,8 +25,8 @@
     "test": "npm run build:idl:compile:test && npm run build:src:compile && npm run test:run",
     "test:watch": "npm run test:run:watch",
 
-    "test:omni": "npm run build:src:compile && npm run omni:ior && npm run test:run",
-    "test:omni:watch": "npm run omni:ior && npm run test:run:watch",
+    "test:omni": "npm run build:src:compile && npm run test:run",
+    "test:omni:watch": "npm run test:run:watch",
 
     "test:mico": "npm run test:mico:ior && npm run test:mico:run:watch",
     "test:mico:ior": "scp 192.168.1.105:test-mico/IOR.txt test/giop/IOR.txt",

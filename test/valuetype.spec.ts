@@ -43,11 +43,7 @@ describe("corba.js", function() {
         // ORB.valueTypeByPrototype.clear()
 
         let serverORB = new ORB()
-        serverORB.name = "serverORB"
-//serverORB.debug = 1
         let clientORB = new ORB()
-        clientORB.name = "clientORB"
-//clientORB.debug = 1
 
         serverORB.bind("Server", new Server_impl(serverORB))
         
@@ -212,10 +208,10 @@ abstract class Figure implements value.testVT.Figure {
     abstract toString(): string
 }
 
-class FigureModel {
-    data: Array<Figure>
-    constructor() {
-        this.data = new Array<Figure>()
+class FigureModel implements value.testVT.FigureModel {
+    data!: Array<Figure>
+    constructor(init?: Partial<FigureModel>) {
+        value.testVT.initFigureModel(this, init)
     }
 }
 

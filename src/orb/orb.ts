@@ -420,9 +420,9 @@ export class ORB implements EventTarget {
             ORB.valueTypeByName.forEach((value, key) => console.log(key))
             throw Error(`ORB.registerValueType: valuetype '${name}' not defined in IDL`)
         }
-        if (information.construct !== undefined) {
-            throw Error(`ORB.registerValueType: valuetype '${name}' is already registered`)
-        }
+        // if (information.construct !== undefined) {
+        //     throw Error(`ORB.registerValueType: valuetype '${name}' is already registered`)
+        // }
         information.name = name
         information.construct = valuetypeConstructor
         ORB.valueTypeByPrototype.set(valuetypeConstructor.prototype, information)

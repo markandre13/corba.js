@@ -22,6 +22,12 @@ describe("CDR/GIOP", () => {
         // TODO: switch this to object adapter? have a look at the CORBA spec
         ORB.registerValueType("Point", Point)
         ORB.registerValueType("NamedPoint", NamedPoint)
+
+        ORB.registerValueType("FigureModel", FigureModel)
+        ORB.registerValueType("Origin", Origin)
+        ORB.registerValueType("Size", Size)
+        ORB.registerValueType("Rectangle", Rectangle)
+
         orb.registerStubClass(stub.GIOPTest)
         orb.registerStubClass(stub.GIOPSmall)
 
@@ -30,8 +36,8 @@ describe("CDR/GIOP", () => {
 
         // take this from an environment variable which used by npm run:test:omni
         // fake.record()
-        fake.replay()
-        fake.expect("init")
+        // fake.replay()
+        // fake.expect("init")
         const obj = await orb.stringToObject("corbaname::192.168.1.10#TestService")
 
         server = stub.GIOPTest.narrow(obj)
@@ -174,6 +180,7 @@ describe("CDR/GIOP", () => {
             r.size = new Size({width: 10, height: 20})
             m.data.push(r)
             await server.setFigureModel(m)
+            expect(await server.peek()).to.equal("setFigureModel({data:[Rectangle({origin:null,{width:10,height:20},}),]})")
         }) 
 
         // send a local object to the peer and check if he was able to call us
@@ -295,6 +302,12 @@ describe("CDR/GIOP", () => {
             fake.expect(this.test!.fullTitle())
             await server.call(myserver, api.CallbackType.CB_SUBCLASSED_VALUE)
             expect(await myserver.peek()).to.equal(`sendValuePoint(NamedPoint(40,50,"foo"))`)
+        })
+
+        it("value (with null)", async function () {
+            fake.expect(this.test!.fullTitle())
+            await server.call(myserver, api.CallbackType.CB_VALUE_WITH_NULL)
+            expect(await myserver.peek()).to.equal("setFigureModel({data:[Rectangle({id:10,origin:null,size:{width:30,height:40}})]})")
         })
     })
 
@@ -614,6 +627,55 @@ describe("CDR/GIOP", () => {
                         expect(figure1RepositoryId).to.equal(0xffffffff)
                         // console.log(figure1RepositoryId.toString(16))
                 })
+
+                it("setFigureModel with a null pointer inside the valuetype", function() {
+                    const data = parseOmniDump(
+                        `4749 4f50 0102 0100 9400 0000 0400 0000 GIOP............
+                        0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
+                        6972 fea5 e380 6101 0004 3b00 0000 0000 ir....a...;.....
+                        0f00 0000 7365 7446 6967 7572 654d 6f64 ....setFigureMod
+                        656c 0000 0100 0000 0100 0000 0c00 0000 el..............
+                        0100 0000 0100 0100 0901 0100 0000 0000 ................
+                        00ff ff7f 0100 0000 02ff ff7f 1200 0000 ................
+                        4944 4c3a 5265 6374 616e 676c 653a 312e IDL:Rectangle:1.
+                        3000 0000 0a00 0000 0000 0000 00ff ff7f 0...............
+                        0000 0000 0000 3e40 0000 0000 0000 4440 ......>@......D@
+                        `)
+                        const decoder = new GIOPDecoder(data.buffer)
+
+                        decoder.scanGIOPHeader()
+                        expect(decoder.type).to.equal(MessageType.REQUEST)
+    
+                        const request = decoder.scanRequestHeader()
+                        expect(request.responseExpected).to.be.true
+                        // expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
+                        expect(request.method).equals("setFigureModel")
+    
+                        const figureModelType = decoder.ulong()
+                        expect(figureModelType).to.equal(0x7fffff00)
+
+                        const sequenceLength = decoder.ulong()
+                        expect(sequenceLength).to.equal(1)
+
+                        const figure0Type = decoder.ulong()
+                        expect(figure0Type).to.equal(0x7fffff02)
+                        const figure0RepositoryId = decoder.string()
+                        expect(figure0RepositoryId).to.equal("IDL:Rectangle:1.0")
+
+                        const figureId = decoder.ulong()
+                        expect(figureId).to.equal(10)
+
+                        const origin0Type = decoder.ulong()
+                        expect(origin0Type).to.equal(0) // the null pointer is encoded as 0 :)
+
+                        const size0Type = decoder.ulong()
+                        expect(size0Type).to.equal(0x7fffff00)
+
+                        const w0 = decoder.double()
+                        expect(w0).to.equal(30)
+                        const h0 = decoder.double()
+                        expect(h0).to.equal(40)
+                })
             })
         })
 
@@ -789,7 +851,30 @@ class GIOPTest_impl extends skel.GIOPTest {
     override async reflectObject(obj: GIOPSmall): Promise<GIOPSmall> {
         return obj
     }
-    override async setFigureModel(model: value.FigureModel) {}
+    override async setFigureModel(model: value.FigureModel) {
+        this.msg = `setFigureModel({data:[`
+        model.data.forEach(e => {
+            if (e instanceof Rectangle) {
+                this.msg += `Rectangle({id:${e.id},origin:`
+                if (e.origin === undefined) {
+                    this.msg += `null`
+                } else {
+                    this.msg += `{x:${e.origin.x},y:${e.origin.y}}`
+                }
+                this.msg += `,size:`
+                if (e.size === undefined) {
+                    this.msg += `null`
+                } else {
+                    this.msg += `{width:${e.size.width},height:${e.size.height}}`
+                }
+
+                this.msg += `})`
+            } else {
+                this.msg += "?"
+            }
+        })
+        this.msg += `]})`
+    }
 }
 
 class GIOPSmall extends skel.GIOPSmall {

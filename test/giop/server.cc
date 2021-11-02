@@ -275,6 +275,15 @@ void GIOPTest_impl::call(::GIOPTest_ptr callback, CallbackType method)
         callback->sendValuePoint(point);
     }
     break;
+    case CB_VALUE_WITH_NULL:
+    {
+        cout << "GIOPTest_impl::call(...,CB_VALUE_WITH_NULL)" << endl;
+        FigureSeq seq;
+        seq.length(1);
+        seq[0] = new OBV_Rectangle(10, 0, new OBV_Size(30, 40));
+        callback->setFigureModel(new OBV_FigureModel(seq));
+    }
+    break;
 
     // case CB_VALUES_DUPLICATE_REPOSITORY_ID:
     //     cout << "GIOPTest_impl::value(...,CB_VALUES_DUPLICATE_REPOSITORY_ID)" << endl;

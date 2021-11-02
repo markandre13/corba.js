@@ -155,12 +155,12 @@ int main(int argc, char **argv)
         // elements in list can be null
 
         FigureSeq seq;
-        seq.length(2);
+        seq.length(1);
         // seq[0] = new OBV_Rectangle(10, new OBV_Origin(10, 20), new OBV_Size(30, 40));
         seq[0] = new OBV_Rectangle(10, 0, new OBV_Size(30, 40));
-        seq[1] = new OBV_Rectangle(11, new OBV_Origin(50, 60), new OBV_Size(70, 80));
-        // server->setFigureModel(new OBV_FigureModel(seq));
-        server->setFigureModel(0);
+        // seq[1] = new OBV_Rectangle(11, new OBV_Origin(50, 60), new OBV_Size(70, 80));
+        server->setFigureModel(new OBV_FigureModel(seq));
+        // server->setFigureModel(0);
 
         cout << "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
 

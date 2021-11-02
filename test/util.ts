@@ -21,19 +21,19 @@ import { ORB } from "corba.js"
 import { Connection } from "corba.js/orb/connection"
 import { Protocol } from "corba.js/orb/protocol"
 
-export function mockConnection(server: ORB, client: ORB): ORB {
+export function mockConnection(server: ORB, client: ORB, verbose = false): ORB {
 
     const proto = new MockProtocol()
 
     server.name = "server"
     server.addProtocol(proto)
-    const serverConn = new MockConnection(server, proto, 0, 1)
+    const serverConn = new MockConnection(server, proto, 0, 1, verbose)
     proto.connections.push(serverConn)
     server.addConnection(serverConn)
 
     client.name = "client"
     client.addProtocol(proto)
-    const clientConn = new MockConnection(client, proto, 1, 0)
+    const clientConn = new MockConnection(client, proto, 1, 0, verbose)
     proto.connections.push(clientConn)
     client.addConnection(clientConn)
 
@@ -50,14 +50,15 @@ class MockProtocol implements Protocol {
 class MockConnection extends Connection {
     _localPort: number
     _remotePort: number
-
     protocol: MockProtocol
+    verbose: boolean
 
-    constructor(orb: ORB, protocol: MockProtocol, localPort: number, remotePort: number) {
+    constructor(orb: ORB, protocol: MockProtocol, localPort: number, remotePort: number, verbose: boolean) {
         super(orb)
         this._localPort = localPort
         this._remotePort = remotePort
         this.protocol = protocol
+        this.verbose = verbose
     }
 
     get localAddress(): string {
@@ -75,8 +76,10 @@ class MockConnection extends Connection {
 
     close(): void {}
     send(buffer: ArrayBuffer): void {
-        // console.log(`MockConnection.send(): orb=${this.orb.name} port ${this._localPort} to ${this._remotePort}`)
-        // hexdump(new Uint8Array(buffer))
+        if (this.verbose) {
+            console.log(`MockConnection.send(): orb=${this.orb.name} port ${this._localPort} to ${this._remotePort}`)
+            hexdump(new Uint8Array(buffer))
+        }
         const peer = this.protocol.connections[this._remotePort]
         peer.orb.socketRcvd(peer, buffer)
     }
