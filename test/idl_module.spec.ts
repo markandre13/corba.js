@@ -18,7 +18,7 @@
 
 import * as chai from "chai"
 import * as chaiAsPromised from "chai-as-promised"
-chai.use(chaiAsPromised as any)
+// chai.use(chaiAsPromised as any)
 const expect = chai.expect
 
 import { ORB } from "corba.js"
@@ -39,109 +39,7 @@ import { mockConnection } from "./util"
 
 let text = ""
 
-// interface X1
-class X1_impl extends skel.X1 {
-    constructor(orb: ORB) {
-        super(orb)
-    }   
-    // oneway void f();
-    async f() {
-        text = "X1"
-    }
-}
-
-// native N1
-class N1 {
-}
-
-// valutetype V1
-class V1 implements valuetype.V1 {
-    a!: number
-    constructor(init?: Partial<V1>) {
-        value.initV1(this, init)
-    }
-    // N1 f(in N1 a);
-    f(a: N1): N1 {
-        throw Error("")
-    }
-}
-
-namespace M1 {
-
-    class N2 {}
-
-    export class V2 implements value.M1.V2 {
-        a!: number
-        constructor(init?: Partial<V2>) {
-            value.M1.initV2(this, init)
-        }
-        f(a: N1): N1 {
-            return a
-        }
-        h(a: N2): N2 {
-            throw Error("not implemented")
-        }
-    }
-
-    export namespace M2 {
-        export class V3 implements value.M1.M2.V3 {
-            a!: number
-            constructor(init?: Partial<V3>) {
-                value.M1.M2.initV3(this, init)
-            }
-            f(a: N1): N1 {
-                throw Error("not implemented")
-            }
-            h(a: M1.V2): M1.V2 {
-                throw Error("not implemented")
-            }
-        }
-
-        export class M1M2X2_impl extends skel.M1.M2.M1M2X2 {
-            constructor(orb: ORB) {
-                super(orb)
-            }
-            async m(x1: _interface.X1): Promise<void> {
-                text = "M1M2X2::m()"
-                // await x1.f()
-            }
-            async f(a: V1): Promise<V1> {
-                text = "M1M2X2"
-                a.a = a.a + 19
-                return a
-            }
-            async g(a: M1.V2): Promise<M1.V2> {
-                throw Error()
-            }
-            async h(a: M1.V2): Promise<M1.V2> {
-                throw Error()
-            }
-        }
-    }
-
-    export class M1X3_impl extends skel.M1.M1X3 {
-        constructor(orb: ORB) {
-            super(orb)
-        }  
-        async f(a: V1): Promise<V1> {
-            text = "M1X3"
-            a.a = a.a + 8
-            return a
-        }
-        async h(a: M2.V3): Promise<M2.V3> {
-            throw Error()
-        }
-        async i(a: _interface.M1.M2.M1M2X2): Promise<_interface.M1.M2.M1M2X2> {
-            throw Error()
-        }
-        async j(a: _interface.M1.M2.M1M2X2): Promise<_interface.M1.M2.M1M2X2> {
-            throw Error()
-        }
-    }
-
-}
-
-describe("corba.js", function() {
+xdescribe("corba.js", function() {
     it("module", async function() {
 
         let serverORB = new ORB()
@@ -245,3 +143,105 @@ describe("corba.js", function() {
 //         expect(rectangle.size.toString()).to.equal("Size: width=30, height=40")
     })
 })
+
+// interface X1
+class X1_impl extends skel.X1 {
+    constructor(orb: ORB) {
+        super(orb)
+    }   
+    // oneway void f();
+    async f() {
+        text = "X1"
+    }
+}
+
+// native N1
+class N1 {
+}
+
+// valutetype V1
+class V1 implements valuetype.V1 {
+    a!: number
+    constructor(init?: Partial<V1>) {
+        value.initV1(this, init)
+    }
+    // N1 f(in N1 a);
+    f(a: N1): N1 {
+        throw Error("")
+    }
+}
+
+namespace M1 {
+
+    class N2 {}
+
+    export class V2 implements value.M1.V2 {
+        a!: number
+        constructor(init?: Partial<V2>) {
+            value.M1.initV2(this, init)
+        }
+        f(a: N1): N1 {
+            return a
+        }
+        h(a: N2): N2 {
+            throw Error("not implemented")
+        }
+    }
+
+    export namespace M2 {
+        export class V3 implements value.M1.M2.V3 {
+            a!: number
+            constructor(init?: Partial<V3>) {
+                value.M1.M2.initV3(this, init)
+            }
+            f(a: N1): N1 {
+                throw Error("not implemented")
+            }
+            h(a: M1.V2): M1.V2 {
+                throw Error("not implemented")
+            }
+        }
+
+        export class M1M2X2_impl extends skel.M1.M2.M1M2X2 {
+            constructor(orb: ORB) {
+                super(orb)
+            }
+            async m(x1: _interface.X1): Promise<void> {
+                text = "M1M2X2::m()"
+                // await x1.f()
+            }
+            async f(a: V1): Promise<V1> {
+                text = "M1M2X2"
+                a.a = a.a + 19
+                return a
+            }
+            async g(a: M1.V2): Promise<M1.V2> {
+                throw Error()
+            }
+            async h(a: M1.V2): Promise<M1.V2> {
+                throw Error()
+            }
+        }
+    }
+
+    export class M1X3_impl extends skel.M1.M1X3 {
+        constructor(orb: ORB) {
+            super(orb)
+        }  
+        async f(a: V1): Promise<V1> {
+            text = "M1X3"
+            a.a = a.a + 8
+            return a
+        }
+        async h(a: M2.V3): Promise<M2.V3> {
+            throw Error()
+        }
+        async i(a: _interface.M1.M2.M1M2X2): Promise<_interface.M1.M2.M1M2X2> {
+            throw Error()
+        }
+        async j(a: _interface.M1.M2.M1M2X2): Promise<_interface.M1.M2.M1M2X2> {
+            throw Error()
+        }
+    }
+
+}

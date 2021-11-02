@@ -17,57 +17,35 @@
   "scripts": {
     "build": "npm run build:idl:build && npm run build:idl:compile && npm run build:src:compile",
     "build:idl:build": "rollup --config rollup.config.js",
-    "build:idl:compile": "npm run build:idl:compile:test && npm run build:idl:compile:test-mico",
-    "build:idl:compile:test": "bin/corba-idl -v --ts-all --output-directory test/generated test/giop.idl test/basics.idl test/valuetype.idl",
-    "build:idl:compile:test-mico": "bin/corba-idl -v --ts-all test-mico/mico/test.idl test-mico/demux.idl",
+    "build:idl:compile": "bin/corba-idl --ts-all --output-directory test/generated test/*.idl",
     "build:src:compile": "ttsc",
 
-    "test": "npm run build:idl:compile:test && npm run build:src:compile && npm run test:run",
-    "test:watch": "npm run test:run:watch",
-
-    "test:omni": "npm run build:src:compile && npm run test:run",
-    "test:omni:watch": "npm run test:run:watch",
-
-    "test:mico": "npm run test:mico:ior && npm run test:mico:run:watch",
-    "test:mico:ior": "scp 192.168.1.105:test-mico/IOR.txt test/giop/IOR.txt",
-    "test:run": "node --enable-source-maps ./node_modules/.bin/mocha lib/test/*.spec.js",
-    "test:run:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test ./node_modules/.bin/mocha lib/test/*.js",
-
-    "mico:run": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs-debug'",
-    "mico:runc": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runc'",
-    "mico:copy": "scp test/giop/*.cc test/giop/Makefile 192.168.1.105:test-mico/ && scp test/giop.idl 192.168.1.105:test-mico/test.idl",
-
+    "test": "npm run build && node --enable-source-maps ./node_modules/.bin/mocha lib/test/*.spec.js",
+    "test:watch": "npm run build:idl:build && npm run build:idl:compile && ttsc --watch & node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch lib/test/*.js",
+    
     "omni:runs": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runs'",
     "omni:runc": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runc'",
     "omni:copy": "scp test/giop/*.cc test/giop/Makefile test/giop.idl 192.168.1.105:test-omni/",
-    "omni:ior": "scp 192.168.1.105:test-omni/IOR.txt test/giop/IOR.txt",
 
-    "test:mico:watch": "ttsc --watch & sleep 2; node --enable-source-maps node_modules/.bin/nodemon -q -w lib/test ./node_modules/.bin/mocha lib/test/giop.spec.js",
-    "test:demux:run": "npm run build:idl:build && bin/corba-idl --ts-all test-mico/demux.idl && ttsc --watch & node --enable-source-maps node_modules/.bin/nodemon -q -w lib ./node_modules/.bin/mocha lib/test-mico/demux.spec.js",
     "update": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {
-    "@rollup/plugin-commonjs": "^21.0.0",
-    "@rollup/plugin-node-resolve": "^13.0.5",
+    "@rollup/plugin-commonjs": "^21.0.1",
+    "@rollup/plugin-node-resolve": "^13.0.6",
     "@types/chai": "^4.2.22",
     "@types/chai-as-promised": "^7.1.4",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^16.10.2",
+    "@types/node": "^16.11.6",
     "@types/websocket": "^1.0.4",
     "@zerollup/ts-transform-paths": "^1.7.18",
     "@zoltu/typescript-transformer-append-js-extension": "^1.0.1",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
-    "install": "^0.13.0",
-    "mocha": "^9.1.2",
-    "nodemon": "^2.0.13",
-    "rollup": "^2.58.0",
+    "mocha": "^9.1.3",
+    "rollup": "^2.59.0",
     "rollup-plugin-typescript2": "^0.30.0",
     "ttypescript": "^1.5.12",
-    "typescript": "^4.4.3",
-    "utf-8-validate": "^5.0.6",
+    "typescript": "^4.4.4",
     "websocket": "^1.0.34"
-  },
-  "dependencies": {
   }
 }

@@ -185,8 +185,8 @@ class TcpFakeConnection extends Connection {
         this.socket = socket
 
         if (socket) {
-            this._localAddress = socket.localAddress
-            this._localPort = socket.localPort
+            this._localAddress = socket.localAddress!
+            this._localPort = socket.localPort!
             this._remoteAddress = socket.remoteAddress!
             this._remotePort = socket.remotePort!
             if (this.fake.mode === Mode.RECORD && this.fake.testName !== undefined) {

@@ -88,10 +88,10 @@ class TcpConnection extends Connection {
     }
 
     get localAddress(): string {
-        return this.socket.localAddress
+        return this.socket.localAddress!
     }
     get localPort(): number {
-        return this.socket.localPort
+        return this.socket.localPort!
     }
     get remoteAddress(): string {
         return this.socket.remoteAddress!

@@ -23,19 +23,7 @@ import * as skel from "./generated/initialreferences_skel"
 import * as stub from "./generated/initialreferences_stub"
 import { mockConnection } from "./util"
 
-class Server_impl extends skel.Server {
-    constructor(orb: ORB) {
-        super(orb)
-    }
-}
-
-class Client_impl extends skel.Server {
-    constructor(orb: ORB) {
-        super(orb)
-    }
-}
-
-describe("initial references", function() {
+xdescribe("initial references", function() {
     describe("bind()", function() {
         xit("will throw an exception on the client orb", function() {
             let clientORB = new ORB()
@@ -172,3 +160,15 @@ describe("initial references", function() {
         })
     })
 })
+
+class Server_impl extends skel.Server {
+    constructor(orb: ORB) {
+        super(orb)
+    }
+}
+
+class Client_impl extends skel.Server {
+    constructor(orb: ORB) {
+        super(orb)
+    }
+}

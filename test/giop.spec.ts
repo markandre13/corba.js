@@ -36,8 +36,8 @@ describe("CDR/GIOP", () => {
 
         // take this from an environment variable which used by npm run:test:omni
         // fake.record()
-        // fake.replay()
-        // fake.expect("init")
+        fake.replay()
+        fake.expect("init")
         const obj = await orb.stringToObject("corbaname::192.168.1.10#TestService")
 
         server = stub.GIOPTest.narrow(obj)
