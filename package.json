@@ -20,8 +20,8 @@
     "build:idl:compile": "bin/corba-idl --ts-all --output-directory test/generated test/*.idl",
     "build:src:compile": "ttsc",
 
-    "test": "npm run build && node --enable-source-maps ./node_modules/.bin/mocha lib/test/*.spec.js",
-    "test:watch": "npm run build:idl:build && npm run build:idl:compile && ttsc --watch & node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch lib/test/*.js",
+    "test": "npm run build && node --enable-source-maps ./node_modules/.bin/mocha --exit 'lib/test/**/*.spec.js'",
+    "test:watch": "npm run build:idl:build && npm run build:idl:compile && ttsc --watch & node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch 'lib/test/**/*.spec.js'",
     
     "omni:runs": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runs'",
     "omni:runc": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runc'",

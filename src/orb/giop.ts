@@ -18,6 +18,7 @@
 
 import { CORBAObject, ORB, IOR, Stub, Skeleton, ValueTypeInformation } from "corba.js"
 import { Connection } from "./connection"
+import { ASN1Tag, ASN1Encoding, ASN1Class, ASN1UniversalTag } from "./asn1"
 
 // 9.4 GIOP Message Formats
 export enum MessageType {
@@ -100,60 +101,6 @@ export enum ReplyStatus {
     NEEDS_ADDRESSING_MODE = 5
 }
 
-class ASN1Tag extends Object {
-    tagClass!: number
-    encoding!: number
-    tag!: number
-    length!: number
-    override toString() {
-        if (this.tagClass === ASN1Class.UNIVERSAL)
-            return `ASN1Tag(class=${ASN1Class[this.tagClass]}, encoding=${ASN1Encoding[this.encoding]}, tag=${ASN1UniversalTag[this.tag]}, length=${this.length})`
-        else
-            return `ASN1Tag(class=${ASN1Class[this.tagClass]}, encoding=${ASN1Encoding[this.encoding]}, tag=${this.tag}, length=${this.length})` 
-    }
-}
-
-enum ASN1Encoding {
-    PRIMITIVE,
-    CONSTRUCTED
-};
-
-enum ASN1Class {
-    UNIVERSAL = 0,
-    APPLICATION,
-    CONTEXT,
-    PRIVATE
-};
-
-enum ASN1UniversalTag {
-    EOC = 0,
-    BOOLEAN,
-    INTEGER,
-    BITSTRING,
-    OCTETSTRING,
-    NULLTAG,
-    OID,
-    OBJDESCRIPTOR,
-    EXTERNAL,
-    REAL,
-    ENUMERATED,
-    EMBEDDED_PDV,
-    UTF8STRING,
-    SEQUENCE = 16,
-    SET,
-    NUMERICSTRING,
-    PRINTABLESTRING,
-    T61STRING,
-    VIDEOTEXSTRING,
-    IA5STRING,
-    UTCTIME,
-    GENERALIZEDTIME,
-    GRAPHICSTRING,
-    VISIBLESTRING,
-    GENERALSTRING,
-    UNIVERSALSTRING,
-    BMPSTRING
-}
 
 export class GIOPBase {
     offset = 0;

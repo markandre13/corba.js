@@ -219,7 +219,7 @@ export class ORB implements EventTarget {
         stub.connection.requestId += 2
         return new Promise<T>((resolve, reject) => {
             try {
-                stub.connection.map.set(
+                stub.connection.pendingReplies.set(
                     requestId,
                     new PromiseHandler(
                         (decoder: GIOPDecoder) => resolve(decode(decoder)),
@@ -326,12 +326,12 @@ export class ORB implements EventTarget {
             } break
             case MessageType.REPLY: {
                 const data = decoder.scanReplyHeader()
-                const handler = connection.map.get(data.requestId)
+                const handler = connection.pendingReplies.get(data.requestId)
                 if (handler === undefined) {
                     console.log(`Unexpected reply to request ${data.requestId}`)
                     return
                 }
-                connection.map.delete(data.requestId)
+                connection.pendingReplies.delete(data.requestId)
                 switch (data.replyStatus) {
                     case ReplyStatus.NO_EXCEPTION:
                         handler.decode(decoder)

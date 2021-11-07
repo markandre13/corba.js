@@ -3,7 +3,6 @@ import { Node, Type } from "corba.js/idl/idl-node"
 import { Lexer } from "corba.js/idl/idl-lexer"
 import { specification } from "corba.js/idl/idl-parser"
 import { typeIDLtoGIOP } from "corba.js/idl/util"
-import { hasUncaughtExceptionCaptureCallback } from "process"
 
 describe("IDL Parser", () => {
     it("SYN_SPECIFICATION", function () {
@@ -69,7 +68,7 @@ describe("IDL Parser", () => {
         expect(decls.child[1]?.text).to.equal("U")
     })
 
-    it.only("TKN_VALUETYPE", function () {
+    it("TKN_VALUETYPE", function () {
         const tree = parse(`
             valuetype Point {
               public double x, y;
@@ -79,7 +78,7 @@ describe("IDL Parser", () => {
                 oneway Point f(in Point a);
             };
         `)
-        tree?.printTree()
+        // tree?.printTree()
         const vt = tree!.child[0]!
         const vhdr = vt.child[0]!
         const member0 = vt.child[1]!
@@ -166,7 +165,7 @@ describe("IDL Parser", () => {
             expect(str).to.equal("encoder.short(a)")
         })
 
-        it.only("encode valuetype", function () {
+        it("encode valuetype", function () {
             const tree = parse(`
             typedef short T, U;
             interface X {
@@ -186,7 +185,7 @@ describe("IDL Parser", () => {
             expect(decls.child[1]?.text).to.equal("U")
         })
 
-        it.only("TKN_VALUETYPE", function () {
+        xit("TKN_VALUETYPE", function () {
             const tree = parse(`
                 valuetype Point {
                 public double x, y;
@@ -196,10 +195,10 @@ describe("IDL Parser", () => {
                     oneway Point f(in Point a);
                 };
             `)
-            tree?.printTree()
+            // tree?.printTree()
             const vt = tree!.child[0]!
             const str = typeIDLtoGIOP(vt)
-            console.log(str)
+            // console.log(str)
         })
     })
 })

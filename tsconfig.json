@@ -38,6 +38,5 @@
     "src/orb",
     "src/net",
     "src/idl",
-    "test/fake.ts",
-    "test/*.spec.ts"  ]
+    "test"  ]
 }

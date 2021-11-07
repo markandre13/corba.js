@@ -63,9 +63,6 @@ import { mockConnection } from "./util"
 //     case MTMessageInContext: MessageInContext in_context_msg;
 // };
 
-    
-
-
 // 10.9.1 Nodule GSSUP - Username/Password GSSAPI Token Formats
 
 // https://www.novell.com/documentation/extend5/Docs/help/MP/orb/tutorial/poaBankSecure-1.htm
@@ -192,28 +189,6 @@ import { mockConnection } from "./util"
 //     abstract assertIdentity(identityToken: IdentityToken): boolean
 // }
 
-// class InitialContextToken {
-//     username!: string
-//     password!: string
-//     target_name!: string // hostname
-//     constructor(username: string, password: string, realm: string) {
-//         this.username = username
-//         this.password = password
-//         this.target_name = realm
-//     }
-//     getBytes(): ArrayBuffer {
-//         throw Error("yikes")
-//     }
-//     getUserName() {
-//         return this.username
-//     }
-//     getPassword() {
-//         return this.password
-//     }
-//     getRealm() {
-//         return this.target_name
-//     }
-// }
 
 // interface IdentityToken {
 //     getBytes(): ArrayBuffer
@@ -239,7 +214,7 @@ describe("access", async function() {
         orb.bind("Server", servant)
     })
 
-    it("bind", async function() {
+    xit("bind", async function() {
 
         // setup server
         let serverORB = new ORB()
@@ -314,7 +289,7 @@ describe("access", async function() {
         expect(serverB.wasCalled).to.equal(true)
     })
     
-    it("object send to server", async function() {
+    xit("object send to server", async function() {
 
         // setup server
         let serverORB = new ORB()
@@ -371,7 +346,7 @@ describe("access", async function() {
         expect(objectB.wasCalled).to.equal(true)
     })
 
-    it("object received from server", async function() {
+    xit("object received from server", async function() {
 
         // setup server
         let serverORB = new ORB()

@@ -238,7 +238,7 @@ export class UrlParser {
 
 }
 
-class UrlLexer {
+export class UrlLexer {
     data: string
     pos = 0
     state = 0

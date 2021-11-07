@@ -24,13 +24,26 @@ export abstract class Connection {
     constructor(orb: ORB) {
         this.orb = orb
     }
-    // request id's a counted per connection
     orb: ORB
+
+    // request id's are per connection
     requestId: number = 0
+
     // bi-directional service context needs only to be send once
     didSendBiDirIIOP: boolean = false
+
+    // stubs may contain OID received via this connection
+    // TODO: WeakMap? refcount tests
     stubsById = new Uint8Map<Stub>()
-    map = new Map<number, PromiseHandler>()
+
+    // replies to be send back over this connection
+    // number: RequestId
+    // WeakMap? refcount tests
+    pendingReplies = new Map<number, PromiseHandler>()
+
+    // CSIv2 context tokens received by the client
+    // BigInt: ContextId
+    initialContextTokens = new Map<BigInt, InitialContextToken>()
 
     abstract get localAddress(): string
     abstract get localPort(): number
@@ -39,4 +52,15 @@ export abstract class Connection {
 
     abstract close(): void
     abstract send(buffer: ArrayBuffer): void
+}
+
+class InitialContextToken {
+    username: string
+    password: string
+    target_name: string
+    constructor(username: string, password: string, realm: string) {
+        this.username = username
+        this.password = password
+        this.target_name = realm
+    }
 }

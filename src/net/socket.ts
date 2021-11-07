@@ -57,7 +57,7 @@ export class TcpProtocol implements Protocol {
         })
     }
 
-    // optionally called by the application
+    // create a server socket
     listen(orb: ORB, hostname: string, port: number): void {
         this.serverSocket = createServer((socket: Socket) => {
             console.log(`accepted connection from ${socket.remoteAddress}:${socket.remotePort}`)

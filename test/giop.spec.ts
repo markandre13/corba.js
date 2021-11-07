@@ -5,6 +5,7 @@ import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
 import { FakeTcpProtocol } from "./fake"
+import { parseHexDump, parseOmniDump } from "./util"
 
 describe("CDR/GIOP", () => {
 
@@ -16,7 +17,6 @@ describe("CDR/GIOP", () => {
 
     // FIXME: to make the tests independent of each other when using the fake, create a new ORB for each test so that the request counter is reset
     before(async function () {
-        return
         orb = new ORB()
         fake = new FakeTcpProtocol()
         orb.addProtocol(fake)
@@ -46,7 +46,7 @@ describe("CDR/GIOP", () => {
     })
 
     beforeEach(async function () {
-        // await fake.reset()
+        await fake.reset()
     })
 
     it("oneway method", async function () {
@@ -736,7 +736,7 @@ describe("CDR/GIOP", () => {
     })
 
     describe("ASN.1", function () {
-        it.only("JacORB with CSIv2 GSSUP Username+Password Auth", function () {
+        it("JacORB with CSIv2 GSSUP Username+Password Auth", function () {
             const data = parseHexDump(
                 `0000 47 49 4f 50 01 00 00 00 00 00 00 d3 00 00 00 03 GIOP............
                 0010 00 00 00 0f 00 00 00 52 00 00 00 00 00 00 00 00 .......R........
@@ -756,89 +756,8 @@ describe("CDR/GIOP", () => {
             decoder.scanGIOPHeader()
             decoder.scanRequestHeader()
         })
-
-        it("decode", function () {
-            // [IETF RFC 2743] 3.1, “Mechanism-Independent Token Format,” pp. 81-82.
-            // { iso-itu-t (2) international-organization (23) omg (130) security (1) authentication (1) gssup-mechanism (1) }
-            const data = parseHexDump(
-                `0000 60 28 06 06 67 81 02 01 01 01 00 00 00 00 00 00 .(..g...........
-                0010 00 08 74 65 73 74 55 73 65 72 00 00 00 08 74 65 ..testUser....te
-                0020 73 74 50 61 73 73 00 00 00 00                   stPass....`)
-
-            const decoder = new GIOPDecoder(data.buffer)
-
-            const t0 = decoder.asn1tag()
-            console.log(t0.toString())
-            const offset0 = decoder.offset
-
-            const t1 = decoder.asn1tag()
-            console.log(t1.toString())
-            const oid = decoder.asn1oid(t1.length)
-            console.log(oid)
-
-            // const t2 = decoder.asn1tag()
-            // console.log(t2.toString())
-
-            console.log(`offset = ${decoder.offset}, remaining = ${t0.length - (decoder.offset - offset0)}`)
-
-            const cdr = new GIOPDecoder(decoder.buffer.slice(decoder.offset))
-            cdr.endian()
-            const te = new TextDecoder()
-            const user = te.decode(cdr.blob())
-            const password = te.decode(cdr.blob())
-            const realm = te.decode(cdr.blob())
-            console.log(`username="${user}"`)
-            console.log(`password="${password}"`)
-            console.log(`realm="${realm}"`)
-
-            console.log(`length=${cdr.buffer.byteLength}`)
-            console.log(`offset = ${cdr.offset}`)
-
-            // const t2 = decoder.asn1tag()
-            // console.log(t2.toString())
-
-        })
     })
 })
-
-// convert the dump to Uint8Array one get's from OmniORB's -ORBtraceLevel 40
-function parseOmniDump(data: string): Uint8Array {
-    const rows = data.trim().split(/\r?\n/)
-    let vec: number[] = []
-    for (let i = 0; i < rows.length; ++i) {
-        const row = rows[i].trim()
-        for (let j = 0; j < 8; ++j) {
-            let n: number
-            let idx = j * 5
-            n = parseInt(row.substring(idx, idx + 2), 16)
-            if (isNaN(n))
-                break
-            vec.push(n)
-            n = parseInt(row.substring(idx + 2, idx + 5), 16)
-            if (isNaN(n))
-                break
-            vec.push(n)
-        }
-    }
-    return new Uint8Array(vec)
-}
-
-function parseHexDump(data: string): Uint8Array {
-    const rows = data.trim().split(/\r?\n/)
-    let vec: number[] = []
-    for (let i = 0; i < rows.length; ++i) {
-        const row = rows[i].trim()
-        for (let j = 0; j < 16; ++j) {
-            let n: number
-            let idx = j * 3 + 5
-            n = parseInt(row.substring(idx, idx + 2), 16)
-            if (isNaN(n))
-                break
-            vec.push(n)
-        }
-    }
-    return new Uint8Array(vec)
-}
 
 class GIOPTest_impl extends skel.GIOPTest {
     msg = ""
