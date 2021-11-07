@@ -18,63 +18,226 @@
 
 import { expect } from "chai"
 
-import { ORB } from "corba.js"
+import { ORB, CORBAObject } from "corba.js"
+import { TcpProtocol } from "corba.js/net/socket"
 import * as iface from "./generated/access"
 import * as skel from "./generated/access_skel"
 import * as stub from "./generated/access_stub"
 import { mockConnection } from "./util"
 
-class Server_impl extends skel.Server {
-    name: string
-    wasCalled: boolean
-    listener: Map<string, iface.Listener>
+// Security Service Specification, v1.8, March 2002 is obsolete and
+// replaced by the Common Secure Interoperability Version 2 (CSIv2) as defined in
+// CORBA 3.4, Part 2, 10 Secure Interoperability
+//
+// It
+// * it assumes that the transport level protocol already provides protection
+//   (confidentiality & integrity) and also authenticates the server like SSL/TLS
+// * defines the CORBA Security Attribute Service (SAS) protocol
+// * the protocol is modeled is based on GSSAPI (Kerberos) and hence includes the
+//   use of ASN.1 encoding
+// * SAS is using the ServiceContext of GIOP request and reply messages
+// * The ServiceId is 15
+// * CSS: client security service
+// * TSS: target security service
 
-    constructor(orb: ORB, name: string) {
-        super(orb)
-        this.name = name
-        this.wasCalled = false
-        this.listener = new Map<string, iface.Listener>()
-    }
 
-    async call() {
-        // this.name = "XXX"
-        this.wasCalled = true
-        return 0
-    }
+// SecurityService
+
+// EstablishContext
+// ContextError
+// CompleteEstablishContext
+// MessageInContext
+
+// page 176
+// struct EstablishContext {
+//     ContextId client_context_id;
+//     AuthorizationToken authorization_token;
+//     IdentityToken identity_token;
+//     GSSToken client_authentication_token;
+// };
+//
+// union SASContextBody switch ( MsgType ) {
+//     case MTEstablishContext: EstablishContext establish_msg;
+//     case MTCompleteEstablishContext: CompleteEstablishContext complete_msg;
+//     case MTContextError: ContextError error_msg;
+//     case MTMessageInContext: MessageInContext in_context_msg;
+// };
+
     
-    async set(listener: skel.Listener) {
-        let name = await listener.getName()
-        this.listener.set(name, listener)
-        return 0
-    }
+
+
+// 10.9.1 Nodule GSSUP - Username/Password GSSAPI Token Formats
+
+// https://www.novell.com/documentation/extend5/Docs/help/MP/orb/tutorial/poaBankSecure-1.htm
+
+// security context is per thread or per ORB
+// class SecurityCurrent {
+//     static narrow(obj: CORBAObject): SecurityCurrent {
+//         if (obj instanceof SecurityCurrent)
+//             return obj
+//         throw Error()
+//     }
+
+//     /**
+//      * Get the port of the remote client
+//      */
+//     getPort(): number {
+//         return 0
+//     }
+
+//     getLocalAddress(): string {
+
+//     }
+
+//     getLocalPort(): string {
+
+//     }
+
+
+//     getSecurityContext() {
+
+//     }
+
+//     // get the SecurityContext of the caller
+//     getCaller() {
+
+//     }
+
+//     /**
+//      * Set the server side Authenticator to authenticate received InitialContextTokens
+//      */
+//     setAuthenticator(authenticator: Authenticator) {
+//     }
+
+//     /**
+//      * Set the client side AuthCallBack to create a security context if none has been set
+//      */
+//     setAuthCallback(authCallBack: AuthCallBack) {
+
+//     }
+
+//     newContext(): SecurityContext {
+//         return new SecurityContext()
+//     }
+
+//     setORBContext(ctx: SecurityContext) {       
+//     }
+
+//     createInitialContextToken(username: string, password: string, realm: string): InitialContextToken {
+//         return new InitialContextToken(username, password, realm)
+//     }
+
+// }
+
+// // Username/Password GSSUP
+
+// // The GSS Object Identifier allocated for the username/password mechanism
+// // { iso-itu-t (2) international-organization (23) omg (130) security (1) authentication (1) gssup-mechanism (1) }
+// const GSSUPMechOID = "oid:2.23.130.1.1.1"
+
+// // The following structure defines the inner contents of the
+// // username password initial context token. This structure is
+// // CDR encapsulated and appended at the end of the
+// // username/password GSS (initial context) Token.
+
+// // CORBA Security Service, v1.8; 3.4.3.1 The Initial Context Token
+// // send in an EstablishContext SECIOP message
+
+// // The GSSUP InitialContextToken specifying password credentials for a given user.
+
+
+// // https://www.novell.com/documentation/extend5/Docs/help/MP/orb/tutorial/
+// class SecurityContext {
+//     getIdentityToken(realm: string): IdentityToken {
+//         throw Error("yikes")
+//     }
+//     getIdentityTokens() {}
+
+//     getInitialIdentityToken(realm: string) {
+//     }
+
+//     getInitialIdentityTokens() {    
+//     }
+
+//     setIdentityToken(identityToken: IdentityToken) {
+//     }
+
+//     setInitialContextToken(initialContextToken: InitialContextToken) {
+//     }
+// }
+
+// enum AuthenticationStatus {
+//     SUCCESS,
+//     ERROR_UNSPECIFIED, // error, but server doesn't reveal reason
+//     ERROR_BADPASSWORD,
+//     ERROR_NOUSER
+// }
+
+// /**
+//  * Server side callback for Authentication and Trust evaluation.
+//  */
+// abstract class Authenticator {
     
-    async get(name: string) {
-        return this.listener.get(name) as skel.Listener
-    }
-}
-
-class Listener_impl extends skel.Listener {
-    name: string
-    wasCalled: boolean
-
-    constructor(orb: ORB, name: string) {
-        super(orb)
-        this.name = name
-        this.wasCalled = false
-    }
+//     /**
+//      * Authenticate the username, password, realm contained in the given token.
+//      * @param initialContextToken 
+//      */
+//     abstract authenticate(initialContextToken: InitialContextToken): AuthenticationStatus
     
-    async getName() {
-        return this.name
-    }
+//     /**
+//      * Evaluate trust in the given IdentityToken. The Authenticator can use the SecurityCurrent
+//      * to determine the IP address and the certificate chain of the caller (if using IIOP/SSL).
+//      * @param identityToken - user and realm
+//      */
+//     abstract assertIdentity(identityToken: IdentityToken): boolean
+// }
 
-    async call() {
-        // this.name = name
-        this.wasCalled = true
-        return 0
-    }
-}
+// class InitialContextToken {
+//     username!: string
+//     password!: string
+//     target_name!: string // hostname
+//     constructor(username: string, password: string, realm: string) {
+//         this.username = username
+//         this.password = password
+//         this.target_name = realm
+//     }
+//     getBytes(): ArrayBuffer {
+//         throw Error("yikes")
+//     }
+//     getUserName() {
+//         return this.username
+//     }
+//     getPassword() {
+//         return this.password
+//     }
+//     getRealm() {
+//         return this.target_name
+//     }
+// }
 
-xdescribe("access", async function() {
+// interface IdentityToken {
+//     getBytes(): ArrayBuffer
+//     getRealm(): string
+//     getType(): number
+//         // ITTAbsent
+//         // ITTAnonymous 
+//         // ITTDistinguishedName 
+//         // ITTPrincipalName <- only dupportrd in novel's implementation
+//         // ITTX509CertChain 
+//     getUser(): string
+// }
+
+describe("access", async function() {
+
+    it("JacORB SAS", async function() {
+        const orb = new ORB()
+        const tcp = new TcpProtocol()
+        orb.addProtocol(tcp)
+        tcp.listen(orb, "0.0.0.0", 8080);
+
+        const servant = new SASDemo_impl(orb)
+        orb.bind("Server", servant)
+    })
 
     it("bind", async function() {
 
@@ -89,7 +252,28 @@ xdescribe("access", async function() {
         // setup client A
         let clientA = new ORB()
         clientA.registerStubClass(stub.Server)
-        let connectionA = mockConnection(serverORB, clientA)
+
+        // // server side
+        // const securityServerA = SecurityCurrent.narrow(serverA.resolveInitialReferences("SecurityCurrent"))
+        // securityServerA.setAuthenticator(new class extends Authenticator {
+        //     override authenticate(initialContextToken: InitialContextToken) {
+        //         return AuthenticationStatus.SUCCESS
+        //     }
+        //     override assertIdentity(identityToken: IdentityToken): boolean {
+        //         return true
+        //     }
+        // }())
+        // const poa = POA.narrow(serverA.resolve_initial_references("RootPOA"))
+        // // set poa policy to IdAssignmentPolicyValue.USER_ID
+
+
+        // // client side
+        // const securityClientA = SecurityCurrent.narrow(clientA.resolveInitialReferences("SecurityCurrent"))
+        // const securityContext = securityClientA.newContext()
+        // securityContext.setInitialContextToken(securityClientA.createInitialContextToken("user", "password", "192.168.1.1"))
+        // securityClientA.setORBContext(securityContext)
+
+        mockConnection(serverORB, clientA)
 
         let objectA = await clientA.resolve("ServerA")
         let serverStub = stub.Server.narrow(objectA)
@@ -243,3 +427,62 @@ xdescribe("access", async function() {
         expect(objectB.wasCalled).to.equal(true)
     })
 })
+
+class SASDemo_impl extends skel.org.jacorb.demo.sas.SASDemo {
+    async printSAS() {
+        console.log("===============> printSAS")
+    }
+    async shutdown() {
+        console.log("===============> shutdown")
+    }
+}
+
+class Server_impl extends skel.Server {
+    name: string
+    wasCalled: boolean
+    listener: Map<string, iface.Listener>
+
+    constructor(orb: ORB, name: string) {
+        super(orb)
+        this.name = name
+        this.wasCalled = false
+        this.listener = new Map<string, iface.Listener>()
+    }
+
+    async call() {
+        // this.name = "XXX"
+        this.wasCalled = true
+        return 0
+    }
+    
+    async set(listener: skel.Listener) {
+        let name = await listener.getName()
+        this.listener.set(name, listener)
+        return 0
+    }
+    
+    async get(name: string) {
+        return this.listener.get(name) as skel.Listener
+    }
+}
+
+class Listener_impl extends skel.Listener {
+    name: string
+    wasCalled: boolean
+
+    constructor(orb: ORB, name: string) {
+        super(orb)
+        this.name = name
+        this.wasCalled = false
+    }
+    
+    async getName() {
+        return this.name
+    }
+
+    async call() {
+        // this.name = name
+        this.wasCalled = true
+        return 0
+    }
+}

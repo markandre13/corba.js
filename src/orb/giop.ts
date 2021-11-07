@@ -31,6 +31,75 @@ export enum MessageType {
     FRAGMENT = 7
 }
 
+export enum ServiceId {
+    TransactionService = 0,
+    CodeSets = 1,
+    ChainBypassCheck = 2,
+    ChainBypassInfo = 3,
+    LogicalThreadId = 4,
+    BI_DIR_IIOP = 5,
+    SendingContextRunTime = 6,
+    INVOCATION_POLICIES = 7,
+    FORWARDED_IDENTITY = 8,
+    UnknownExceptionInfo = 9,
+    RTCorbaPriority = 10,
+    RTCorbaPriorityRange = 11,
+    FT_GROUP_VERSION = 12,
+    FT_REQUEST = 13,
+    ExceptionDetailMessage = 14,
+    SecurityAttributeService = 15, // CSIv2
+    ActivityService = 16,
+    RMICustomMaxStreamFormat = 17,
+    ACCESS_SESSION_ID = 18,
+    SERVICE_SESSION_ID = 19,
+    FIREWALL_PATH = 20,
+    FIREWALL_PATH_RESP = 21,
+
+    // JacORB uses this as the last context to fill to an 8 byte boundary
+    SERVICE_PADDING_CONTEXT = 0x4a414301
+}
+
+// 10.2.2 SAS context_data Message Body Types 
+enum SASType {
+    EstablishContext,
+    CompleteEstablishContext,
+    ContextError,
+
+    // Not sent by stateless clients. If received by a stateless server, a
+    // ContextError message should be returned, indicating the session does 
+    // not exist.
+    MessageInContext
+}
+
+enum IdentityTokenType {
+    // Identity token is absent; the message conveys no representation of identity assertion.
+    Absent = 0,
+    // Identity token is being used to assert a valueless representation of an unauthenticated caller.
+    Anonymous = 1,
+    // Identity token contains an octet stream containing a GSS mechanism-independent exported name object as defined in [IETF RFC 2743].
+    PrincipalName = 2,
+    // Identity token contains an octet stream containing an ASN.1 encoding of a chain of X.509 identity certificates.
+    X509CertChain = 4,
+    // Identity token contains an octet stream containing an ASN.1 encoding of an X.501 distinguished name.
+    DistinguishedName = 8
+}
+
+export enum AddressingDisposition {
+    KeyAddr = 0,
+    ProfileAddr = 1,
+    ReferenceAddr = 2
+}
+
+export enum ReplyStatus {
+    NO_EXCEPTION = 0,
+    USER_EXCEPTION = 1,
+    SYSTEM_EXCEPTION = 2,
+    LOCATION_FORWARD = 3,
+    // since GIOP 1.2
+    LOCATION_FORWARD_PERM = 4,
+    NEEDS_ADDRESSING_MODE = 5
+}
+
 export class GIOPBase {
     offset = 0;
 
@@ -229,6 +298,47 @@ export class GIOPEncoder extends GIOPBase {
         this.ulong(0x00010109) // wcharset_id: UTF-16
         this.endEncapsulation()
         */
+
+        
+
+    }
+
+    // CORBA 3.4 Part 2, page 176
+    establishSecurityContext() {
+        this.beginEncapsulation(ServiceId.SecurityAttributeService)
+        this.ulong(SASType.EstablishContext)
+
+        // ContextId client_context_id;
+        this.ulonglong(0n) // 0 = stateless
+        
+        // AuthorizationToken authorization_token;
+        this.ulong(0) // empty sequence
+        
+        // IdentityToken identity_token;
+        this.ulong(IdentityTokenType.Absent)
+        this.bool(true) // absent!
+
+        // GSSToken client_authentication_token;
+
+// get_gss_init_token
+
+        // This GSSToken shall contain 
+        // * an ASN.1 tag followed by 
+        // * a token length, // ?
+        // * an authentication mechanism identifier,
+        // * and a CDR encapsulation containing a GSSUP inner context token as defined by
+        //   the type GSSUP::InitialContextToken in Module GSSUP - Username/Password GSSAPI Token Formats on page 172 (and repeated below).
+
+        // { iso-itu-t (2) international-organization (23) omg (130) security (1) authentication (1) gssup-mechanism (1) }
+
+        // struct InitialContextToken, page 172
+        this.beginEncapsulation(0) // ????
+        // username
+        // password
+        // target_name
+        this.endEncapsulation()
+
+        this.endEncapsulation()
     }
 
     // TODO: remove as we now have reserveSize()/fillinSize()
@@ -497,47 +607,6 @@ export class ObjectReference {
     }
 }
 
-export enum AddressingDisposition {
-    KeyAddr = 0,
-    ProfileAddr = 1,
-    ReferenceAddr = 2
-}
-
-export enum ReplyStatus {
-    NO_EXCEPTION = 0,
-    USER_EXCEPTION = 1,
-    SYSTEM_EXCEPTION = 2,
-    LOCATION_FORWARD = 3,
-    // since GIOP 1.2
-    LOCATION_FORWARD_PERM = 4,
-    NEEDS_ADDRESSING_MODE = 5
-}
-
-export enum ServiceId {
-    TransactionService = 0,
-    CodeSets = 1,
-    ChainBypassCheck = 2,
-    ChainBypassInfo = 3,
-    LogicalThreadId = 4,
-    BI_DIR_IIOP = 5,
-    SendingContextRunTime = 6,
-    INVOCATION_POLICIES = 7,
-    FORWARDED_IDENTITY = 8,
-    UnknownExceptionInfo = 9,
-    RTCorbaPriority = 10,
-    RTCorbaPriorityRange = 11,
-    FT_GROUP_VERSION = 12,
-    FT_REQUEST = 13,
-    ExceptionDetailMessage = 14,
-    SecurityAttributeService = 15,
-    ActivityService = 16,
-    RMICustomMaxStreamFormat = 17,
-    ACCESS_SESSION_ID = 18,
-    SERVICE_SESSION_ID = 19,
-    FIREWALL_PATH = 20,
-    FIREWALL_PATH_RESP = 21
-}
-
 export class GIOPDecoder extends GIOPBase {
     buffer: ArrayBuffer
     data: DataView
@@ -798,18 +867,62 @@ export class GIOPDecoder extends GIOPBase {
 
     serviceContext() {
         const serviceContextListLength = this.ulong()
-        // console.log(`serviceContextListLength = ${serviceContextListLength}`)
+        console.log(`----------------------------------------------------------------------`)
+        console.log(`serviceContextListLength = ${serviceContextListLength}`)
         for (let i = 0; i < serviceContextListLength; ++i) {
             const serviceId = this.beginEncapsulation()
             
             switch (serviceId) {
-                case ServiceId.BI_DIR_IIOP:
+                case ServiceId.BI_DIR_IIOP: {
                     const host = this.string()
                     const port = this.ushort()
-                    // console.log(`serviceContext[${i}] = BiDirIIOP listenPoint ${host}:${port}`)
-                    break
+                    console.log(`serviceContext[${i}] = BiDirIIOP listenPoint ${host}:${port}`)
+                } break
+                case ServiceId.SecurityAttributeService: {
+                    const type = this.ulong()
+                    console.log(`serviceContext[${i}] = SecurityAttributeService ${SASType[type]}`)
+                    switch(type) {
+                        case SASType.EstablishContext: {
+
+                            const clientContextId = this.ulonglong()
+                            console.log(`  clientContextId=${clientContextId}`)
+
+                            // console.log(`octets left: ${this.encapStack[this.encapStack.length - 1].nextOffset - this.offset}`)
+                            if (this.encapStack[this.encapStack.length - 1].nextOffset - this.offset < 4) {
+                                console.log(`use previously negotiated context (?)`)
+                                break
+                            }
+
+                            const authorizationTokenLength = this.ulong()
+                            console.log(`  authorizationTokenLength=${authorizationTokenLength}`)
+
+                            const tokenType = this.ulong()
+                            console.log(`  tokenType=${IdentityTokenType[tokenType]}`)
+                            switch(tokenType) {
+                                case IdentityTokenType.Absent: {
+                                    const absent = this.bool()
+                                    console.log(`    Absent = ${absent}`)
+                                } break
+                            }
+
+                            const client_authentication_token = this.blob()
+                            // OID
+                            // username
+                            // password
+                            // target_...
+                            hexdump(client_authentication_token)
+                            
+                            // console.log(`octets left: ${this.encapStack[this.encapStack.length - 1].nextOffset - this.offset}`)
+
+                            // const client_authentication_token = this.beginEncapsulation()
+                            // console.log(`  client_authentication_token=${client_authentication_token}`)
+
+                            // this.endEncapsulation()
+                        } break
+                    }
+                } break
                 default:
-                    // console.log(`serviceContext[${i}] = ${ServiceId[serviceId]}`)
+                    console.log(`serviceContext[${i}] = ${ServiceId[serviceId]} (${serviceId})`)
             }
             this.endEncapsulation()
         }
@@ -1156,3 +1269,20 @@ export class GIOPDecoder extends GIOPBase {
     }
 }
 
+function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
+    while (addr < length) {
+        let line = addr.toString(16).padStart(4, "0")
+        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
+            line += " " + bytes[j].toString(16).padStart(2, "0")
+        line = line.padEnd(4 + 16 * 3 + 1, " ")
+        for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
+            const b = bytes[j]
+            if (b >= 32 && b < 127)
+                line += String.fromCharCode(b)
+            else
+                line += "."
+        }
+        addr += 16
+        console.log(line)
+    }
+}

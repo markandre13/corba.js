@@ -16,6 +16,7 @@ describe("CDR/GIOP", () => {
 
     // FIXME: to make the tests independent of each other when using the fake, create a new ORB for each test so that the request counter is reset
     before(async function () {
+        return
         orb = new ORB()
         fake = new FakeTcpProtocol()
         orb.addProtocol(fake)
@@ -45,7 +46,7 @@ describe("CDR/GIOP", () => {
     })
 
     beforeEach(async function () {
-        await fake.reset()
+        // await fake.reset()
     })
 
     it("oneway method", async function () {
@@ -731,6 +732,29 @@ describe("CDR/GIOP", () => {
                 // LocateRequest
                 // LocateReply
             })
+        })
+    })
+
+    describe("ASN.1", function() {
+        it.only("decode", function() {
+            // { iso-itu-t (2) international-organization (23) omg (130) security (1) authentication (1) gssup-mechanism (1) }
+            const data = parseHexDump(
+                `0000 60 28 06 06 67 81 02 01 01 01 00 00 00 00 00 00 .(..g...........
+                0010 00 08 74 65 73 74 55 73 65 72 00 00 00 08 74 65 ..testUser....te
+                0020 73 74 50 61 73 73 00 00 00 00                   stPass....`)
+
+            const decoder = new GIOPDecoder(data.buffer)
+
+            decoder.octet()
+            decoder.octet()
+            decoder.octet()
+            decoder.octet()
+
+            // 67
+            const c = decoder.octet()
+            console.log(Math.floor(c/40))
+            console.log(c%40)
+
         })
     })
 })

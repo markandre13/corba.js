@@ -25,7 +25,11 @@
     
     "omni:runs": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runs'",
     "omni:runc": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runc'",
-    "omni:copy": "scp test/giop/*.cc test/giop/Makefile test/giop.idl 192.168.1.105:test-omni/",
+    "omni:copy": "scp test/peer/omni/* test/giop.idl 192.168.1.105:test-omni/",
+
+    "mico:runs": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs'",
+    "mico:runc": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runc'",
+    "mico:copy": "scp test/peer/mico/* 192.168.1.105:test-mico/",
 
     "update": "npx npm-check-updates -u && npm install"
   },

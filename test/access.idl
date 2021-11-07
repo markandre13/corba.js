@@ -27,3 +27,16 @@ interface Server {
     short set(in Listener listener);
     Listener get(in string name);
 };
+
+module org {
+    module jacorb {
+        module demo {
+            module sas {
+                interface SASDemo {
+                    void printSAS();
+                    void shutdown ();
+                };
+            };
+        };
+    };
+};

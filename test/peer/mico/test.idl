@@ -1,0 +1,8 @@
+/*
+ * CORBA Security Specification Test with MICO
+ */
+
+interface LoginTest {
+    string peek();
+    void sendString(in string v0);
+};

@@ -60,7 +60,7 @@ export class ORB implements EventTarget {
     listeners: Map<string, Set<EventListenerOrEventListenerObject>> = new Map()
 
     constructor() {
-        const nameService = new NamingContextImpl(this)
+        const nameService = new NamingContextExtImpl(this)
         this.initialReferences.set("NameService", nameService)
         this.servants.set(ORB.nameServiceKey, nameService)
     }
@@ -136,26 +136,26 @@ export class ORB implements EventTarget {
     // TODO: all of this is a hack
     async stringToObject(iorString: string) {
         const parser = new UrlParser(iorString)
-        const x = parser.parse()
-        if (x instanceof IOR) {
+        const iorOrLocation = parser.parse()
+        if (iorOrLocation instanceof IOR) {
             return this.iorToObject(new IOR(iorString))
         }
-        if (x instanceof CorbaName) {
+        if (iorOrLocation instanceof CorbaName) {
             // FIXME: handle array's length
-            const a = x.addr[0]
+            const a = iorOrLocation.addr[0]
             switch (a.proto) {
                 case "iiop":
                     // get remote NameService (FIXME: what if it's us?)
                     const nameConnection = await this.getConnection(a.host, a.port)
-                    const objectKey = new TextEncoder().encode(x.objectKey)
-                    let rootNamingContext = nameConnection.stubsById.get(objectKey) as NamingContextStub
+                    const objectKey = new TextEncoder().encode(iorOrLocation.objectKey)
+                    let rootNamingContext = nameConnection.stubsById.get(objectKey) as NamingContextExtStub
                     if (rootNamingContext === undefined) {
-                        rootNamingContext = new NamingContextStub(this, objectKey, nameConnection)
+                        rootNamingContext = new NamingContextExtStub(this, objectKey, nameConnection)
                         nameConnection.stubsById.set(objectKey, rootNamingContext!)
                     }
 
-                    // get object from remote NameService
-                    const reference = await rootNamingContext.resolve(x.name)
+                    // get object from remote NameServiceExt
+                    const reference = await rootNamingContext.resolve_str(iorOrLocation.name)
 
                     // create stub for remote object
                     const objectConnection = await this.getConnection(reference.host, reference.port)
@@ -282,6 +282,22 @@ export class ORB implements EventTarget {
                 // if (!servant.acl.has(this)) {
                 //     throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with object key ${data.objectKey}`)
                 // }
+                if (request.method == '_is_a') {
+                    const repositoryId = decoder.string()
+                    // console.log(Object.getPrototypeOf(servant))
+                    console.log(`_is_a("${repositoryId}")`)
+
+                    const encoder = new GIOPEncoder(connection)
+                    encoder.skipReplyHeader()
+                    // "IDL:omg.org/CosNaming/NamingContextExt:1.0"
+                    encoder.bool(true)
+                    const length = encoder.offset
+                    encoder.setGIOPHeader(MessageType.REPLY)
+                    encoder.setReplyHeader(request.requestId, ReplyStatus.NO_EXCEPTION)
+                    connection.send(encoder.buffer.slice(0, length))
+                    return
+                }
+
                 const method = (servant as any)[`_orb_${request.method}`]
                 if (method === undefined) {
                     throw Error(`ORB.handleMethod(): client required unknown method '${request.method}' on server for servant with object key ${request.objectKey}`)
@@ -450,7 +466,7 @@ export class ORB implements EventTarget {
         const nameService = this.initialReferences.get("NameService")
         if (nameService === undefined)
             throw Error(`No NameService found.`)
-        if (nameService instanceof NamingContextImpl) {
+        if (nameService instanceof NamingContextExtImpl) {
             nameService.bind(id, obj)
             return
         }
@@ -540,40 +556,41 @@ export abstract class Stub extends CORBAObject {
     }
 }
 
-class NamingContextStub extends Stub {
+class NamingContextExtStub extends Stub {
     static _idlClassName(): string {
-        return "omg.org/CosNaming/NamingContext"
+        return "omg.org/CosNaming/NamingContextExt"
     }
 
-    static narrow(object: any): NamingContextStub {
-        if (object instanceof NamingContextStub)
-            return object as NamingContextStub
-        throw Error("NamingContext.narrow() failed")
+    static narrow(object: any): NamingContextExtStub {
+        if (object instanceof NamingContextExtStub)
+            return object as NamingContextExtStub
+        throw Error("NamingContextExt.narrow() failed")
     }
 
     // TODO: the argument doesn't match the one in the IDL but for it's good enough
-    async resolve(name: string): Promise<ObjectReference> {
-        return await this.orb.twowayCall(this, "resolve", (encoder) => {
-            encoder.ulong(1)
+    async resolve_str(name: string): Promise<ObjectReference> {
+        return await this.orb.twowayCall(this, "resolve_str", (encoder) => {
+            // encoder.ulong(1)
             encoder.string(name)
-            encoder.string("")
+            // encoder.string("")
         },
             (decoder) => decoder.reference())
     }
 }
 
-class NamingContextImpl extends Skeleton {
+class NamingContextExtImpl extends Skeleton {
     map = new Map<string, CORBAObject>()
 
     constructor(orb: ORB) { super(orb) }
     static _idlClassName(): string {
-        return "omg.org/CosNaming/NamingContext"
+        return "omg.org/CosNaming/NamingContextExt"
     }
     bind(name: string, servant: CORBAObject) {
         if (this.map.has(name))
             throw Error(`name '${name}' is already bound to object`)
         this.map.set(name, servant)
     }
+
     async resolve(name: string): Promise<CORBAObject> {
         // console.log(`NamingContextImpl.resolve("${name}")`)
         const servant = this.map.get(name)
@@ -582,6 +599,7 @@ class NamingContextImpl extends Skeleton {
         }
         return servant
     }
+
     private async _orb_resolve(decoder: GIOPDecoder, encoder: GIOPEncoder) {
         const entries = decoder.ulong()
         const name = decoder.string()
@@ -589,6 +607,12 @@ class NamingContextImpl extends Skeleton {
         if (entries !== 1 && key.length !== 0) {
             console.log(`warning: resolve got ${entries} (expected 1) and/or key is "${key}" (expected "")`)
         }
+        const result = await this.resolve(name)
+        encoder.object(result)
+    }
+
+    private async _orb_resolve_str(decoder: GIOPDecoder, encoder: GIOPEncoder) {
+        const name = decoder.string()
         const result = await this.resolve(name)
         encoder.object(result)
     }

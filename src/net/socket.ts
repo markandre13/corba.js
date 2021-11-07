@@ -59,7 +59,8 @@ export class TcpProtocol implements Protocol {
 
     // optionally called by the application
     listen(orb: ORB, hostname: string, port: number): void {
-        this.serverSocket = createServer((socket) => {
+        this.serverSocket = createServer((socket: Socket) => {
+            console.log(`accepted connection from ${socket.remoteAddress}:${socket.remotePort}`)
             const connection = new TcpConnection(socket, orb)
             connection.requestId = InitialResponderRequestIdBiDirectionalIIOP
             socket.setNoDelay()

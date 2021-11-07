@@ -492,22 +492,31 @@ void GIOPTest_impl::setFigureModel(::FigureModel *model)
             else
             {
                 auto r = Rectangle::_downcast(f);
-                if (r) {
+                if (r)
+                {
                     ss << "Rectangle({origin:";
                     auto o = r->origin();
-                    if (!o) {
+                    if (!o)
+                    {
                         ss << "null,";
-                    } else {
+                    }
+                    else
+                    {
                         ss << "{x:" << o->x() << ",y:" << o->y() << "},";
                     }
                     auto s = r->size();
-                    if (!s) {
+                    if (!s)
+                    {
                         ss << "null,";
-                    } else {
+                    }
+                    else
+                    {
                         ss << "{width:" << s->width() << ",height:" << s->height() << "},";
-                    }                   
+                    }
                     ss << "}),";
-                } else {
+                }
+                else
+                {
                     ss << "?,";
                 }
             }

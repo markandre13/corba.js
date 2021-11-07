@@ -1,9 +1,11 @@
 # corba.js
 
 Welcome to corba.js, an Object Request Broker (ORB) and Interface Definition
-Language (IDL) compiler for TypeScript lousily based on the CORBA specification.
+Language (IDL) compiler for TypeScript lousily based on the CORBA specification. (ISO/IEC 19500)
 
 _CORBA is a registered trademark by the Object Management Group. http://www.corba.org/_
+
+
 
 ## What does it do?
 
