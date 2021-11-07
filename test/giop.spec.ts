@@ -152,7 +152,7 @@ describe("CDR/GIOP", () => {
             expect(await server.peek()).to.equal("sendValuePoint(Point(20,30))")
         })
 
-        it("value (subclassed)", async function() {
+        it("value (subclassed)", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendValuePoint(new NamedPoint({ x: 20, y: 30, name: "foo" }))
             expect(await server.peek()).to.equal("sendValuePoint(NamedPoint(20,30,\"foo\"))")
@@ -173,16 +173,16 @@ describe("CDR/GIOP", () => {
 
         // value with sequence
         // value being null
-        it("value (with null)", async function() {
+        it("value (with null)", async function () {
             fake.expect(this.test!.fullTitle())
             const m = new FigureModel()
             const r = new Rectangle()
             r.origin = (undefined as any)
-            r.size = new Size({width: 10, height: 20})
+            r.size = new Size({ width: 10, height: 20 })
             m.data.push(r)
             await server.setFigureModel(m)
             expect(await server.peek()).to.equal("setFigureModel({data:[Rectangle({origin:null,{width:10,height:20},}),]})")
-        }) 
+        })
 
         // send a local object to the peer and check if he was able to call us
         it("send local object", async function () {
@@ -204,7 +204,7 @@ describe("CDR/GIOP", () => {
 
         // when we send the ior for a skeleton implementation and we get the ior back,
         // resolve it to the skeleton implementation instead of a stub
-        it("send local object and get it back", async function() {
+        it("send local object and get it back", async function () {
             fake.expect(this.test!.fullTitle())
             const small0 = new GIOPSmall(orb)
             const small1 = await server.reflectObject(small0)
@@ -415,7 +415,7 @@ describe("CDR/GIOP", () => {
                     expect(reply.replyStatus).to.equal(ReplyStatus.NO_EXCEPTION)
                 })
 
-                it("OmniORB: request: NameService._is_a('NamingContext')", function() {
+                it("OmniORB: request: NameService._is_a('NamingContext')", function () {
                     const data = parseOmniDump(`
                         4749 4f50 0100 0100 5800 0000 0000 0000 GIOP....X.......
                         0200 0000 013c 7661 0b00 0000 4e61 6d65 .....<va....Name
@@ -439,7 +439,7 @@ describe("CDR/GIOP", () => {
                     // expects boolean
                 })
 
-                it("OmniORB: request: NameService.resolve([{id:'TestService',kind:'Object'}])", function() {
+                it("OmniORB: request: NameService.resolve([{id:'TestService',kind:'Object'}])", function () {
                     const data = parseOmniDump(`
                         4749 4f50 0100 0100 4b00 0000 0000 0000 GIOP....K.......
                         0400 0000 013c 7661 0b00 0000 4e61 6d65 .....<va....Name
@@ -466,7 +466,7 @@ describe("CDR/GIOP", () => {
                     expect(kind).to.equal("Object") // IDL:GIOPTest:1.0
                 })
 
-                it("OmniORB: reply: NameService.resolve(...)", function() {
+                it("OmniORB: reply: NameService.resolve(...)", function () {
                     const data = parseOmniDump(`
                         4749 4f50 0100 0101 9800 0000 0000 0000 GIOP............
                         0400 0000 0000 0000 1100 0000 4944 4c3a ............IDL:
@@ -500,7 +500,7 @@ describe("CDR/GIOP", () => {
                 //
                 // 1st step: find out if the encoding is correct
                 //           it looks that it is not.
-                it("Regression: ", function() {
+                it("Regression: ", function () {
                     const data = parseHexDump(
                         `0000 47 49 4f 50 01 02 01 00 2c 01 00 00 02 00 00 00 GIOP....,.......
                         0010 00 00 00 00 00 00 00 00 08 00 00 00 02 00 00 00 ................
@@ -563,7 +563,7 @@ describe("CDR/GIOP", () => {
                     // console.log(x)
                 })
 
-                it("OmniORB's variant of setFigureModel", function() {
+                it("OmniORB's variant of setFigureModel", function () {
                     const data = parseOmniDump(
                         `4749 4f50 0102 0100 ec00 0000 0400 0000 GIOP............
                         0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
@@ -581,55 +581,55 @@ describe("CDR/GIOP", () => {
                         0000 0000 0000 4940 0000 0000 0000 4e40 ......I@......N@
                         00ff ff7f 0000 0000 0000 0000 0080 5140 ..............Q@
                         0000 0000 0000 5440                     ......T@`)
-                        const decoder = new GIOPDecoder(data.buffer)
+                    const decoder = new GIOPDecoder(data.buffer)
 
-                        decoder.scanGIOPHeader()
-                        expect(decoder.type).to.equal(MessageType.REQUEST)
-    
-                        const request = decoder.scanRequestHeader()
-                        expect(request.responseExpected).to.be.true
-                        // expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
-                        expect(request.method).equals("setFigureModel")
-    
-                        const figureModelType = decoder.ulong()
-                        expect(figureModelType).to.equal(0x7fffff00)
+                    decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(MessageType.REQUEST)
 
-                        const sequenceLength = decoder.ulong()
-                        expect(sequenceLength).to.equal(2)
+                    const request = decoder.scanRequestHeader()
+                    expect(request.responseExpected).to.be.true
+                    // expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
+                    expect(request.method).equals("setFigureModel")
 
-                        const figure0Type = decoder.ulong()
-                        expect(figure0Type).to.equal(0x7fffff02)
-                        const figure0RepositoryId = decoder.string()
-                        expect(figure0RepositoryId).to.equal("IDL:Rectangle:1.0")
+                    const figureModelType = decoder.ulong()
+                    expect(figureModelType).to.equal(0x7fffff00)
 
-                        const figureId = decoder.ulong()
-                        expect(figureId).to.equal(10)
+                    const sequenceLength = decoder.ulong()
+                    expect(sequenceLength).to.equal(2)
 
-                        const origin0Type = decoder.ulong()
-                        expect(origin0Type).to.equal(0x7fffff00)
+                    const figure0Type = decoder.ulong()
+                    expect(figure0Type).to.equal(0x7fffff02)
+                    const figure0RepositoryId = decoder.string()
+                    expect(figure0RepositoryId).to.equal("IDL:Rectangle:1.0")
 
-                        const x0 = decoder.double()
-                        expect(x0).to.equal(10)
-                        const y0 = decoder.double()
-                        expect(y0).to.equal(20)
+                    const figureId = decoder.ulong()
+                    expect(figureId).to.equal(10)
 
-                        const size0Type = decoder.ulong()
-                        expect(size0Type).to.equal(0x7fffff00)
+                    const origin0Type = decoder.ulong()
+                    expect(origin0Type).to.equal(0x7fffff00)
 
-                        const w0 = decoder.double()
-                        expect(w0).to.equal(30)
-                        const h0 = decoder.double()
-                        expect(h0).to.equal(40)
+                    const x0 = decoder.double()
+                    expect(x0).to.equal(10)
+                    const y0 = decoder.double()
+                    expect(y0).to.equal(20)
 
-                        const figure1Type = decoder.ulong()
-                        expect(figure1Type).to.equal(0x7fffff02)
+                    const size0Type = decoder.ulong()
+                    expect(size0Type).to.equal(0x7fffff00)
 
-                        const figure1RepositoryId = decoder.ulong()
-                        expect(figure1RepositoryId).to.equal(0xffffffff)
-                        // console.log(figure1RepositoryId.toString(16))
+                    const w0 = decoder.double()
+                    expect(w0).to.equal(30)
+                    const h0 = decoder.double()
+                    expect(h0).to.equal(40)
+
+                    const figure1Type = decoder.ulong()
+                    expect(figure1Type).to.equal(0x7fffff02)
+
+                    const figure1RepositoryId = decoder.ulong()
+                    expect(figure1RepositoryId).to.equal(0xffffffff)
+                    // console.log(figure1RepositoryId.toString(16))
                 })
 
-                it("setFigureModel with a null pointer inside the valuetype", function() {
+                it("setFigureModel with a null pointer inside the valuetype", function () {
                     const data = parseOmniDump(
                         `4749 4f50 0102 0100 9400 0000 0400 0000 GIOP............
                         0300 0000 0000 0000 1400 0000 ff62 6964 .............bid
@@ -642,40 +642,40 @@ describe("CDR/GIOP", () => {
                         3000 0000 0a00 0000 0000 0000 00ff ff7f 0...............
                         0000 0000 0000 3e40 0000 0000 0000 4440 ......>@......D@
                         `)
-                        const decoder = new GIOPDecoder(data.buffer)
+                    const decoder = new GIOPDecoder(data.buffer)
 
-                        decoder.scanGIOPHeader()
-                        expect(decoder.type).to.equal(MessageType.REQUEST)
-    
-                        const request = decoder.scanRequestHeader()
-                        expect(request.responseExpected).to.be.true
-                        // expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
-                        expect(request.method).equals("setFigureModel")
-    
-                        const figureModelType = decoder.ulong()
-                        expect(figureModelType).to.equal(0x7fffff00)
+                    decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(MessageType.REQUEST)
 
-                        const sequenceLength = decoder.ulong()
-                        expect(sequenceLength).to.equal(1)
+                    const request = decoder.scanRequestHeader()
+                    expect(request.responseExpected).to.be.true
+                    // expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
+                    expect(request.method).equals("setFigureModel")
 
-                        const figure0Type = decoder.ulong()
-                        expect(figure0Type).to.equal(0x7fffff02)
-                        const figure0RepositoryId = decoder.string()
-                        expect(figure0RepositoryId).to.equal("IDL:Rectangle:1.0")
+                    const figureModelType = decoder.ulong()
+                    expect(figureModelType).to.equal(0x7fffff00)
 
-                        const figureId = decoder.ulong()
-                        expect(figureId).to.equal(10)
+                    const sequenceLength = decoder.ulong()
+                    expect(sequenceLength).to.equal(1)
 
-                        const origin0Type = decoder.ulong()
-                        expect(origin0Type).to.equal(0) // the null pointer is encoded as 0 :)
+                    const figure0Type = decoder.ulong()
+                    expect(figure0Type).to.equal(0x7fffff02)
+                    const figure0RepositoryId = decoder.string()
+                    expect(figure0RepositoryId).to.equal("IDL:Rectangle:1.0")
 
-                        const size0Type = decoder.ulong()
-                        expect(size0Type).to.equal(0x7fffff00)
+                    const figureId = decoder.ulong()
+                    expect(figureId).to.equal(10)
 
-                        const w0 = decoder.double()
-                        expect(w0).to.equal(30)
-                        const h0 = decoder.double()
-                        expect(h0).to.equal(40)
+                    const origin0Type = decoder.ulong()
+                    expect(origin0Type).to.equal(0) // the null pointer is encoded as 0 :)
+
+                    const size0Type = decoder.ulong()
+                    expect(size0Type).to.equal(0x7fffff00)
+
+                    const w0 = decoder.double()
+                    expect(w0).to.equal(30)
+                    const h0 = decoder.double()
+                    expect(h0).to.equal(40)
                 })
             })
         })
@@ -735,8 +735,30 @@ describe("CDR/GIOP", () => {
         })
     })
 
-    describe("ASN.1", function() {
-        it.only("decode", function() {
+    describe("ASN.1", function () {
+        it.only("JacORB with CSIv2 GSSUP Username+Password Auth", function () {
+            const data = parseHexDump(
+                `0000 47 49 4f 50 01 00 00 00 00 00 00 d3 00 00 00 03 GIOP............
+                0010 00 00 00 0f 00 00 00 52 00 00 00 00 00 00 00 00 .......R........
+                0020 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00 00 ................
+                0030 01 00 00 00 00 00 00 32 60 30 06 06 67 81 02 01 .......2.0..g...
+                0040 01 01 00 00 00 00 00 00 00 05 4a 61 63 6b 6f 00 ..........Jacko.
+                0050 00 00 00 00 00 0e 4d 61 73 74 65 72 20 6f 66 20 ......Master of 
+                0060 4e 6f 6e 65 00 00 00 00 00 00 00 00 00 00 00 01 None............
+                0070 00 00 00 0c 00 00 00 00 05 01 00 01 00 01 01 09 ................
+                0080 4a 41 43 01 00 00 00 00 00 00 00 00 01 00 00 00 JAC.............
+                0090 00 00 00 0b 4e 61 6d 65 53 65 72 76 69 63 65 00 ....NameService.
+                00a0 00 00 00 06 5f 69 73 5f 61 00 00 00 00 00 00 00 ...._is_a.......
+                00b0 00 00 00 2b 49 44 4c 3a 6f 6d 67 2e 6f 72 67 2f ...+IDL:omg.org/
+                00c0 43 6f 73 4e 61 6d 69 6e 67 2f 4e 61 6d 69 6e 67 CosNaming/Naming
+                00d0 43 6f 6e 74 65 78 74 45 78 74 3a 31 2e 30 00    ContextExt:1.0.`)
+            const decoder = new GIOPDecoder(data.buffer)
+            decoder.scanGIOPHeader()
+            decoder.scanRequestHeader()
+        })
+
+        it("decode", function () {
+            // [IETF RFC 2743] 3.1, “Mechanism-Independent Token Format,” pp. 81-82.
             // { iso-itu-t (2) international-organization (23) omg (130) security (1) authentication (1) gssup-mechanism (1) }
             const data = parseHexDump(
                 `0000 60 28 06 06 67 81 02 01 01 01 00 00 00 00 00 00 .(..g...........
@@ -745,15 +767,35 @@ describe("CDR/GIOP", () => {
 
             const decoder = new GIOPDecoder(data.buffer)
 
-            decoder.octet()
-            decoder.octet()
-            decoder.octet()
-            decoder.octet()
+            const t0 = decoder.asn1tag()
+            console.log(t0.toString())
+            const offset0 = decoder.offset
 
-            // 67
-            const c = decoder.octet()
-            console.log(Math.floor(c/40))
-            console.log(c%40)
+            const t1 = decoder.asn1tag()
+            console.log(t1.toString())
+            const oid = decoder.asn1oid(t1.length)
+            console.log(oid)
+
+            // const t2 = decoder.asn1tag()
+            // console.log(t2.toString())
+
+            console.log(`offset = ${decoder.offset}, remaining = ${t0.length - (decoder.offset - offset0)}`)
+
+            const cdr = new GIOPDecoder(decoder.buffer.slice(decoder.offset))
+            cdr.endian()
+            const te = new TextDecoder()
+            const user = te.decode(cdr.blob())
+            const password = te.decode(cdr.blob())
+            const realm = te.decode(cdr.blob())
+            console.log(`username="${user}"`)
+            console.log(`password="${password}"`)
+            console.log(`realm="${realm}"`)
+
+            console.log(`length=${cdr.buffer.byteLength}`)
+            console.log(`offset = ${cdr.offset}`)
+
+            // const t2 = decoder.asn1tag()
+            // console.log(t2.toString())
 
         })
     })
@@ -859,9 +901,9 @@ class GIOPTest_impl extends skel.GIOPTest {
     }
     override async sendSequence(v0: Array<string>, v1: Array<number>) {
         this.msg = `sendSequence([`
-        v0.forEach( v => this.msg += `${v},`)
+        v0.forEach(v => this.msg += `${v},`)
         this.msg += `],[`
-        v1.forEach( v => this.msg += `${v},`)
+        v1.forEach(v => this.msg += `${v},`)
         this.msg += `])`
     }
     override async sendValuePoint(v0: Point) {
@@ -926,7 +968,7 @@ class Point extends Object implements value.Point {
     }
 }
 
-class NamedPoint extends Point implements value.NamedPoint  {
+class NamedPoint extends Point implements value.NamedPoint {
     name!: string
 
     constructor(init: Partial<NamedPoint>) {
@@ -940,7 +982,7 @@ class NamedPoint extends Point implements value.NamedPoint  {
 
 // TODO: see if we can re-activate write-valueimpl.ts to get rid of the boilderplate
 // without the earlier disadvantages
-class FigureModel implements value.FigureModel  {
+class FigureModel implements value.FigureModel {
     data!: Array<value.Figure>
     constructor(init: Partial<FigureModel> | undefined = undefined) {
         value.initFigureModel(this, init)
