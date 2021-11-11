@@ -894,13 +894,17 @@ export class GIOPDecoder extends GIOPBase {
                                 break
                             }
 
-                            const authorizationTokenLength = this.ulong()
+                            // bearer tokens for further authorization (e.g. a JWT)
+                            const authorizationTokenCount = this.ulong()
                             // console.log(`  authorizationTokenLength=${authorizationTokenLength}`)
-                            if (authorizationTokenLength !== 0) {
-                                console.log(`Can not authenticate client: Found Authorization Token which is not supported in CSIv2 Level 0.`)
-                                break
+                            for(let i=0; i < authorizationTokenCount; ++i) {
+                                const authorizationElementType = this.ulong()
+                                const vendorMinorCodeSetId = authorizationElementType >> 20
+                                const typeIdentifier = authorizationElementType & 0xfffff
+                                const authorizationElementContents = this.blob()
                             }
 
+                            // if given, use this identity instead of the one from the authentication layer
                             const tokenType = this.ulong()
                             // console.log(`  tokenType=${IdentityTokenType[tokenType]}`)
                             switch (tokenType) {
@@ -913,18 +917,53 @@ export class GIOPDecoder extends GIOPBase {
                                 }
                             }
 
+                            // The Generic Security Service (GSS) defined in RFC 2743 and 2743 provides an
+                            // API between a network protocol implementation and an authentication framework.
+                            // Each authentication mechanism is identified with an OID
+                            //
+                            // Kerberos
+                            //   1.2.840.113554.1.2.2     Kerberos v5 (RFC 1964)
+                            //   1.2.840.113554.1.2.2.3   Kerberos v5 user to user
+                            //   1.2.840.48018.1.2.2      Kerberos v5 (MS Windows Bug, 48018 == 113554 & 0xFFFF)
+                            // Microsoft
+                            //   1.2.752.43.14.2          NETLOGON
+                            //   1.3.6.1.5.5.2            SPNEGO (RFC 4178)
+                            //   1.3.6.1.5.2.5            IAKERB (draft-ietf-kitten-iakerb-03)
+                            //   1.3.6.1.4.1.311.2.2.10   NTLM SSP
+                            //   1.3.6.1.4.1.311.2.2.30   NEGOEX
+                            // Salted Challenge Response Authentication Mechanism
+                            //   1.3.6.1.5.5.14           SCRAM-SHA-1 (RFC 5802)
+                            //   1.3.6.1.5.5.18           SCRAM-SHA-256 (RFC 7677)
+                            // Extensible Authentication Protocol
+                            //   1.3.6.1.5.5.15.1.1.*     GSS-EAP (arc) (RFC 7055)
+                            //   1.3.6.1.5.2.7            PKU2U – draft-zhu-pku2u-09
+                            // Simple Public Key Mechanism
+                            //   1.3.6.1.5.5.1.1          SPKM-1 (RFC 2025)
+                            //   1.3.6.1.5.5.1.2          SPKM-2 (RFC 2025)
+                            //   1.3.6.1.5.5.1.3          SPKM-3 (RFC 2847)
+                            // Low Infrastructure Public Key Mechanism Using SPKM
+                            //   1.3.6.1.5.5.9            LIPKEY (RFC 2847)
+                            // OMG
+                            //   2.23.130.1.1.1           CORBA Username Password (GSSUP)
+
+                            // authentication
                             const blobLength = this.ulong()
 
                             // CORBA 3.4, Part 2, 10.2.4.1.1 GSSUP Initial Context Token
                             //
                             // The format of a GSSUP initial context token shall be as defined in
                             // [IETF RFC 2743] 3.1, “Mechanism-Independent Token Format,” pp. 81-82.
+                            // RFC 2744 is the GSS C API, it's intended to be between the protocol (e.g. IIOP)
+                            // and the security mechanism (eg. Kerberos, JWT, ...)
                             //
                             // This GSSToken shall contain an ASN.1 tag followed by a token length, ...
                             if (this.asn1expect(ASN1Class.APPLICATION, 0, ASN1Encoding.CONSTRUCTED) === undefined)
                                 break
 
                             // ... an authentication mechanism identifier, and ...
+                            // Generic Security Service User Password (GSSUP)
+                            // {iso-itu-t(2) international-organization(23) omg(130) security(1) authentication(1) gssup-mechanism(1)}
+                        
                             if (!this.asn1expectOID([2, 23, 130, 1, 1, 1 ]))
                                 break
 
