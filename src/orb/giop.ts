@@ -800,12 +800,24 @@ export class GIOPDecoder extends GIOPBase {
                     default:
                         completionStatusName = `${completionStatus}`
                 }
-                // A.5 Exception Codes
+
+                // VMCID
                 let vendorList: { [index: number]: string } = {
-                    0x4f4d0: "OMG",
-                    0x41540: "OmniORB"
+                    0x41540: "OmniORB",
+                    0x47430: "GNU Classpath",
+                    0x49424: "IBM",
+                    0x49540: "IONA",
+                    0x4A430: "JacORB",
+                    0x4D313: "corba.js", // not registered
+                    0x4F4D0: "OMG",
+                    0x53550: "SUN",
+                    0x54410: "TAO",
+                    0x56420: "Borland (VisiBroker)",
+                    0xA11C0: "Adiron"
                 }
                 const vendor = vendorId in vendorList ? ` ${vendorList[vendorId]}` : ""
+
+                // A.5 Exception Codes
                 let explanation = ""
 
                 // CORBA 3.4, Part 2, A.5 Exception Codes

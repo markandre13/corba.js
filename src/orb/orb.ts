@@ -251,6 +251,7 @@ export class ORB implements EventTarget {
     //
     // Network IN
     //
+
     socketRcvd(connection: Connection, buffer: ArrayBuffer): void {
         // TODO: split this method up
         // FIXME: buffer may contain multiple or incomplete messages
@@ -361,6 +362,7 @@ export class ORB implements EventTarget {
     //
     // EventTarget methods 
     //
+
     // FIXME: on() & once() are much nicer event APIs :)
     addEventListener(type: "close",
         listener: EventListenerOrEventListenerObject | null,
@@ -460,8 +462,9 @@ export class ORB implements EventTarget {
     // Object resolve_initial_references ( in ObjectId identifier) raises (InvalidName);
 
     //
-    // initial references
+    // NameService
     //
+
     bind(id: string, obj: Skeleton): void {
         const nameService = this.initialReferences.get("NameService")
         if (nameService === undefined)
@@ -497,6 +500,7 @@ export class ORB implements EventTarget {
         throw Error("obsolete")
     }
 
+    setAuthenticator(connection: Connection, )
 
     //
     // Access Control List
