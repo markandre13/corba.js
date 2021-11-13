@@ -32,6 +32,89 @@ export enum MessageType {
     FRAGMENT = 7
 }
 
+export enum TagType {
+    ORB_TYPE = 0,
+    CODE_SETS = 1,
+    POLICIES = 2,
+    ALTERNATE_IIOP_ADDRESS = 3,
+
+    // chaos starts below...
+    // some of these tag's might not be on top level but only within CSI_SEC_MECH_LIST?
+    ASSOCIATION_OPTIONS = 13,
+    SEC_NAME = 14, // security name to identify the target
+
+    SPKM_1_SEC_MECH = 15,
+    SPKM_2_SEC_MECH = 16,
+    KerberosV5_SEC_MECH = 17,
+    CSI_ECMA_Secret_SEC_MECH = 18,
+    CSI_ECMA_Hybrid_SEC_MECH = 19,
+    CSI_ECMA_Public_SEC_MECH = 21,
+    GENERIC_SEC_MECH = 22, // mechanisms not registered with OMG identified using ASN.1 OIDs
+
+    // there is SECIOP and SSL/TLS
+
+    CSI_SEC_MECH_LIST = 33,
+    // struct CompoundSecMechList {
+    //    boolean stateful;
+    //    sequence<CompoundSecMech> mechanism_list;
+    // };
+    // struct CompoundSecMech {
+    //     AssociationOptions target_requires;
+    //     IOP::TaggedComponent transport_mech;
+    //     AS_ContextSec as_context_mech;
+    //     SAS_ContextSec sas_context_mech;
+    // };
+
+        SSL_SEC_TRANS = 10,
+        // struct SSL {
+        //     Security::AssociationOptions target_supports;
+        //     Security::AssociationOptions target_requires;
+        //     unsigned short prototype;
+        // };
+
+        TLS_SEC_TRANS = 36,
+        // within TAG_CSI_SEC_MECH_LIST
+        // struct TLS_SEC_TRANS {
+        //     AssociationOptions target_supports;
+        //     AssociationOptions target_requires;
+        //     TransportAddressList addresses;
+        // };
+
+    IIOP_SEC_TRANS = 43,
+        INET_SEC_TRANS = 123, // aka SECIOP_INET_SEC_TRANS
+        // struct SECIOP_INET_SEC_TRANS {
+        //     unsigned short port;
+        // };
+
+        SECIOP_SEC_TRANS = 35,
+        // within TAG_CSI_SEC_MECH_LIST
+        // use SECIOP underneath CSI
+        // struct SECIOP_SEC_TRANS {
+        //     AssociationOptions target_supports;
+        //     AssociationOptions target_requires;
+        //     CSI::OID mech_oid;
+        //     CSI::GSS_NT_ExportedName target_name;
+        //     TransportAddressList addresses;
+        // };
+
+    FIREWALL_TRANS = 13,
+    PASSTHRU_TRANS = 41,
+
+    FIREWALL_PATH = 42,
+
+    SCCP_CONTACT_INFO = 14,
+    JAVA_CODEBASE = 15,
+    TRANSACTION_POLICY = 16,
+    MESSAGE_ROUTERS = 30,
+    OTS_POLICY = 31,
+    INV_POLICY = 32,
+    TAG_NULL_TAG = 34,
+    ACTIVITY_POLICY = 37,
+    RMI_CUSTOM_MAX_STREAM_FORMAT = 38,
+    GROUP = 39,
+    GROUP_IIOP = 40,
+}
+
 export enum ServiceId {
     TransactionService = 0,
     CodeSets = 1,
@@ -1033,7 +1116,7 @@ export class GIOPDecoder extends GIOPBase {
                             const length = this.ulong()
                             const nextOffset = this.offset + length
                             switch (id) {
-                                case 0: // TAG_ORB_TYPE
+                                case TagType.ORB_TYPE:
                                     const typeCount = this.ulong()
                                     for (let j = 0; j < typeCount; ++j) {
                                         const orbType = this.ulong()
@@ -1087,11 +1170,11 @@ export class GIOPDecoder extends GIOPBase {
                                         // console.log(`IOR: component[${i}] = ORB_TYPE ${name}`)
                                     }
                                     break
-                                case 1: // TAG_CODE_SETS 
+                                case TagType.CODE_SETS:
                                     // Corba 3.4, Part 2, 7.10.2.4 CodeSet Component of IOR Multi-Component Profile
                                     // console.log(`IOR: component[${i}] = CODE_SETS`)
                                     break
-                                case 2: // TAG_POLICIES
+                                case TagType.POLICIES:
                                     // console.log(`IOR: component[${i}] = POLICIES`)
                                     break
                                 default:
