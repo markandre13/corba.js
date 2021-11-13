@@ -18,8 +18,9 @@
 
 import { expect } from "chai"
 
-import { ORB, CORBAObject } from "corba.js"
-import { TcpProtocol } from "corba.js/net/socket"
+import { ORB, CORBAObject, EstablishContext, GSSUPInitialContextToken, AuthenticationStatus } from "corba.js"
+import { TcpProtocol } from "corba.js/net/tcp"
+import { Connection } from "corba.js/orb/connection"
 import * as iface from "./generated/access"
 import * as skel from "./generated/access_skel"
 import * as stub from "./generated/access_stub"
@@ -170,13 +171,7 @@ import { mockConnection } from "./util"
 // }
 
 // values match 
-enum AuthenticationStatus {
-    SUCCESS,
-    ERROR_UNSPECIFIED = 1, // error, but server doesn't reveal reason
-    ERROR_BADPASSWORD,
-    ERROR_NOUSER,
-    ERROR_BAD_TARGET
-}
+
 
 // Security Service Specification 1.5, 2.3.3.2 SecurityLevel2::PrincipalAuthenticator Interface
 // CORBA::Current -> SecurityLevel1::Current -> SecurityLevel2::Current
@@ -237,9 +232,14 @@ describe("access", async function () {
             const orb = new ORB()
 
             // AUTHENTICATION SERVER SIDE
-            orb.setAuthenticator( (connection: Connection, credentials: Credentials) => {
-                if (credentials instanceof InitialContextToken) {
-                    return AuthenticationStatus.SUCCESS;
+            orb.setAuthenticator( (connection: Connection, context: EstablishContext) => {
+                if (context.authentication instanceof GSSUPInitialContextToken) {
+                    if (context.authentication.user === "mark" &&
+                       context.authentication.password === "topsecret" &&
+                       context.authentication.target_name === "")
+                    {
+                        return AuthenticationStatus.SUCCESS;
+                    }
                 }
                 return AuthenticationStatus.ERROR_UNSPECIFIED
             })
@@ -257,8 +257,7 @@ describe("access", async function () {
             // authorizationToken // list
             // identityToken // one
             // authenticationToken // one
-            orb.addCredentials("remotehost", new GSSUPInitialContextToken("user", "password", "remotehost")) 
-            //  GSSUP, user, password, target_name
+            // orb.addCredentials("remotehost", new GSSUPInitialContextToken("user", "password", "")) 
 
             // what when a connection goes down, is re-established and the ACL?
             // what about life time and garbage collection?

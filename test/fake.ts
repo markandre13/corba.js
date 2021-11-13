@@ -3,7 +3,7 @@ import { Socket } from "net"
 import { ORB } from "corba.js"
 import { Protocol } from "corba.js/orb/protocol"
 import { Connection } from "corba.js/orb/connection"
-import { TcpProtocol } from "corba.js/net/socket"
+import { TcpProtocol } from "corba.js/net/tcp"
 
 const InitialInitiatorRequestIdBiDirectionalIIOP = 0
 const InitialResponderRequestIdBiDirectionalIIOP = 1

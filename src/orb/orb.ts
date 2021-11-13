@@ -18,7 +18,7 @@
 
 import { Protocol } from "./protocol"
 import { Connection } from "./connection"
-import { GIOPDecoder, GIOPEncoder, MessageType, LocateStatusType, ReplyStatus, ObjectReference } from "./giop"
+import { GIOPDecoder, GIOPEncoder, MessageType, LocateStatusType, ReplyStatus, ObjectReference, EstablishContext, AuthenticationStatus } from "./giop"
 import { IOR } from "./ior"
 import { Uint8Map } from "./uint8map"
 import { CorbaName, UrlParser } from "./url"
@@ -38,6 +38,8 @@ export class PromiseHandler {
     decode: (decoder: GIOPDecoder) => void
     reject: (reason?: any) => void
 }
+
+type Authenticator = (connection: Connection, context: EstablishContext) => AuthenticationStatus
 
 // TODO: to have only one ORB instance, split ORB into ORB, Connection (requestIds & ACL) and CrudeObjectAdapter (stubs, servants, valuetypes)
 export class ORB implements EventTarget {
@@ -500,7 +502,11 @@ export class ORB implements EventTarget {
         throw Error("obsolete")
     }
 
-    setAuthenticator(connection: Connection, )
+
+    authenticator?: Authenticator
+    setAuthenticator( authenticator: Authenticator) {
+        this.authenticator = authenticator
+    }
 
     //
     // Access Control List

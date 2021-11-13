@@ -32,6 +32,7 @@ export enum MessageType {
     FRAGMENT = 7
 }
 
+// IOR Tag
 export enum TagType {
     ORB_TYPE = 0,
     CODE_SETS = 1,
@@ -115,6 +116,7 @@ export enum TagType {
     GROUP_IIOP = 40,
 }
 
+// Component
 export enum ServiceId {
     TransactionService = 0,
     CodeSets = 1,
@@ -155,6 +157,41 @@ enum SASType {
     MessageInContext
 }
 
+export class AuthorizationToken {
+    type: number
+    content: Uint8Array
+    constructor(type: number, content: Uint8Array) {
+        this.type = type
+        this.content = content
+    }
+}
+
+export class GSSUPInitialContextToken {
+    user: string
+    password: string
+    target_name: string
+    constructor(user: string, password: string, target_name: string) {
+        this.user = user
+        this.password = password
+        this.target_name = target_name
+    }
+}
+
+export class EstablishContext {
+    clientContextId = 0n
+    authorization: any[] = []
+    identity: any
+    authentication: any
+}
+
+export enum AuthenticationStatus {
+    SUCCESS,
+    ERROR_UNSPECIFIED = 1, // error, but server doesn't reveal reason
+    ERROR_BADPASSWORD,
+    ERROR_NOUSER,
+    ERROR_BAD_TARGET
+}
+
 enum IdentityTokenType {
     // Identity token is absent; the message conveys no representation of identity assertion.
     Absent = 0,
@@ -183,7 +220,6 @@ export enum ReplyStatus {
     LOCATION_FORWARD_PERM = 4,
     NEEDS_ADDRESSING_MODE = 5
 }
-
 
 export class GIOPBase {
     offset = 0;
@@ -979,9 +1015,8 @@ export class GIOPDecoder extends GIOPBase {
                     // console.log(`serviceContext[${i}] = SecurityAttributeService ${SASType[type]}`)
                     switch (type) {
                         case SASType.EstablishContext: {
-
-                            const clientContextId = this.ulonglong()
-                            // console.log(`  clientContextId=${clientContextId}`)
+                            const context = new EstablishContext()
+                            context.clientContextId = this.ulonglong()
 
                             // console.log(`octets left: ${this.encapStack[this.encapStack.length - 1].nextOffset - this.offset}`)
                             if (this.encapStack[this.encapStack.length - 1].nextOffset - this.offset < 4) {
@@ -993,10 +1028,13 @@ export class GIOPDecoder extends GIOPBase {
                             const authorizationTokenCount = this.ulong()
                             // console.log(`  authorizationTokenLength=${authorizationTokenLength}`)
                             for(let i=0; i < authorizationTokenCount; ++i) {
-                                const authorizationElementType = this.ulong()
-                                const vendorMinorCodeSetId = authorizationElementType >> 20
-                                const typeIdentifier = authorizationElementType & 0xfffff
-                                const authorizationElementContents = this.blob()
+                                const type = this.ulong()
+                                // const vendorMinorCodeSetId = type >> 20
+                                // const typeIdentifier = type & 0xfffff
+                                const content = this.blob()
+                                context.authorization.push(
+                                    new AuthorizationToken(type, content)
+                                )
                             }
 
                             // if given, use this identity instead of the one from the authentication layer
@@ -1066,11 +1104,18 @@ export class GIOPDecoder extends GIOPBase {
                             const cdr = new GIOPDecoder(this.buffer.slice(this.offset))
                             cdr.endian()
                             const te = new TextDecoder()
-                            const user = te.decode(cdr.blob())
-                            const password = te.decode(cdr.blob())
-                            const target_name = te.decode(cdr.blob())
 
-                            console.log(`InitialContextToken(username="${user}", password="${password}", target_name="${target_name}")`)
+                            context.authentication = new GSSUPInitialContextToken(
+                                te.decode(cdr.blob()),
+                                te.decode(cdr.blob()),
+                                te.decode(cdr.blob())
+                            )
+
+                            if (this.connection?.orb.authenticator) {
+                                this.connection?.orb.authenticator(this.connection, context)
+                            }
+
+                            // console.log(`InitialContextToken(username="${user}", password="${password}", target_name="${target_name}")`)
                         } break
                     }
                 } break
