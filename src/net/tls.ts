@@ -58,7 +58,7 @@ export class TlsProtocol implements Protocol {
         this.serverSocket = createServer(this.options, (socket: TLSSocket) => {
             const connection = new TlsConnection(socket, orb)
             connection.requestId = InitialResponderRequestIdBiDirectionalIIOP
-            socket.setNoDelay()
+            // socket.setNoDelay()
             socket.on("error", (error: Error) => orb.socketError(connection, error))
             socket.on("close", (hadError: boolean) => orb.socketClosed(connection))
             socket.on("data", (data: Buffer) => orb.socketRcvd(connection, data.buffer))
@@ -77,14 +77,17 @@ export class TlsProtocol implements Protocol {
     }
 }
 
-class TlsConnection extends Connection {
-    private socket: TLSSocket
+export class TlsConnection extends Connection {
+    socket: TLSSocket
 
     constructor(socket: TLSSocket, orb: ORB) {
         super(orb)
         this.socket = socket
     }
 
+    get peerCertificate() {
+        return this.socket.getPeerCertificate()
+    }
     get localAddress(): string {
         return this.socket.localAddress!
     }

@@ -20,6 +20,7 @@ import { expect } from "chai"
 
 import { ORB, CORBAObject, EstablishContext, GSSUPInitialContextToken, AuthenticationStatus } from "corba.js"
 import { TcpProtocol } from "corba.js/net/tcp"
+import { TlsConnection, TlsProtocol } from "corba.js/net/tls"
 import { Connection } from "corba.js/orb/connection"
 import * as iface from "./generated/access"
 import * as skel from "./generated/access_skel"
@@ -230,19 +231,6 @@ describe("access", async function () {
     describe("authentication", function () {
         xit("JacORB SAS", async function () {
             const orb = new ORB()
-
-            // AUTHENTICATION SERVER SIDE
-            orb.setAuthenticator( (connection: Connection, context: EstablishContext) => {
-                if (context.authentication instanceof GSSUPInitialContextToken) {
-                    if (context.authentication.user === "mark" &&
-                       context.authentication.password === "topsecret" &&
-                       context.authentication.target_name === "")
-                    {
-                        return AuthenticationStatus.SUCCESS;
-                    }
-                }
-                return AuthenticationStatus.ERROR_UNSPECIFIED
-            })
 
             // AUTHORIZATION
             // * The ACL restricts access to objects added to the NameService

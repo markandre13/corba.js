@@ -18,8 +18,9 @@
 
 import { expect } from "chai"
 
-import { ORB } from "corba.js"
-import { TlsProtocol } from "corba.js/net/tls"
+import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, ORB } from "corba.js"
+import { TlsConnection, TlsProtocol } from "corba.js/net/tls"
+import { Connection } from "corba.js/orb/connection"
 import { readFileSync} from "fs"
 
 import * as iface from "../generated/access"
@@ -34,9 +35,10 @@ import * as stub from "../generated/access_stub"
 
 describe("net", async function () {
     describe("tls", function () {
-        it.only("server and client", async function () {
+        it("TLS without client authentication", async function () {
             const serverORB = new ORB()
-            const serverImpl = new Server_impl(serverORB, "S")
+
+            const serverImpl = new Server_impl(serverORB)
             serverORB.bind("Server", serverImpl)
 
             const tls = new TlsProtocol({
@@ -48,32 +50,86 @@ describe("net", async function () {
                 ]
             })
             serverORB.addProtocol(tls)
-            await tls.listen(serverORB, "localhost", 2809)
+            await tls.listen(serverORB, "localhost", 2810)
 
             const clientORB = new ORB()
             clientORB.registerStubClass(stub.Server)
             clientORB.addProtocol(new TlsProtocol())
 
-            const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
+            const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2810#Server"))
             await server.call()
             expect(serverImpl.wasCalled).to.be.true
-
-            // const servant = new SASDemo_impl(orb)
-            // orb.bind("Server", servant)
         })
+
+        // TLS with TLS client authentication
+
+        // 
+        it("TLS with CSIv2 GSSUP client authentication", async function () {
+            const initialContext = new GSSUPInitialContextToken("mark", "topsecret", "")
+            let sendInitialContext: GSSUPInitialContextToken | undefined
+            let rcvdInitialContext: GSSUPInitialContextToken | undefined
+
+            const clientORB = new ORB()
+            clientORB.registerStubClass(stub.Server)
+            clientORB.addProtocol(new TlsProtocol())
+
+            clientORB.setOutgoingAuthenticator( (connection: Connection) => {
+                if (connection instanceof TlsConnection) {
+                    if (connection.peerCertificate.subject.CN === "localhost") {
+                        sendInitialContext = initialContext
+                        return sendInitialContext
+                    }
+                    return undefined
+                }
+            })
+
+            const serverORB = new ORB()
+            const serverImpl = new Server_impl(serverORB)
+            serverORB.bind("Server", serverImpl)
+
+            const tls = new TlsProtocol({
+                passphrase: "alice",
+                key: readFileSync('test/x509/intermediate/private/server.key.pem'),
+                cert: readFileSync('test/x509/intermediate/certs/server.cert.pem'),
+                ca: [ 
+                    readFileSync('test/x509/intermediate/certs/ca-chain.cert.pem'),
+                ]
+            })
+            serverORB.addProtocol(tls)
+
+            serverORB.setIncomingAuthenticator( (connection: Connection, context: EstablishContext) => {
+                if (context.authentication instanceof GSSUPInitialContextToken) {
+                    if (context.authentication.user === "mark" &&
+                       context.authentication.password === "topsecret" &&
+                       context.authentication.target_name === "")
+                    {
+                        rcvdInitialContext = context.authentication
+                        return AuthenticationStatus.SUCCESS;
+                    }
+                }
+                return AuthenticationStatus.ERROR_UNSPECIFIED
+            })
+            await tls.listen(serverORB, "localhost", 2809)
+
+            const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
+            expect(sendInitialContext).to.deep.equal(initialContext)
+            expect(rcvdInitialContext).to.deep.equal(initialContext)
+
+            await server.call()
+            expect(serverImpl.wasCalled).to.be.true
+        })
+
+        // check failures
+
     })
 })
 
 class Server_impl extends skel.Server {
-    name: string
     wasCalled: boolean
-    listener: Map<string, iface.Listener>
 
-    constructor(orb: ORB, name: string) {
+    constructor(orb: ORB) {
         super(orb)
-        this.name = name
         this.wasCalled = false
-        this.listener = new Map<string, iface.Listener>()
     }
 
     async call() {
@@ -81,34 +137,12 @@ class Server_impl extends skel.Server {
         return 0
     }
 
-    async set(listener: skel.Listener) {
-        let name = await listener.getName()
-        this.listener.set(name, listener)
-        return 0
+    async set(listener: skel.Listener): Promise<number> {
+        throw Error()
     }
 
-    async get(name: string) {
-        return this.listener.get(name) as skel.Listener
+    async get(name: string): Promise<skel.Listener> {
+        throw Error()
     }
 }
 
-class Listener_impl extends skel.Listener {
-    name: string
-    wasCalled: boolean
-
-    constructor(orb: ORB, name: string) {
-        super(orb)
-        this.name = name
-        this.wasCalled = false
-    }
-
-    async getName() {
-        return this.name
-    }
-
-    async call() {
-        // this.name = name
-        this.wasCalled = true
-        return 0
-    }
-}

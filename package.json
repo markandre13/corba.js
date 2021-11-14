@@ -21,7 +21,7 @@
     "build:src:compile": "ttsc",
 
     "test": "npm run build && NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem node --enable-source-maps ./node_modules/.bin/mocha --exit 'lib/test/**/*.spec.js'",
-    "test:watch": "npm run build:idl:build && npm run build:idl:compile && ttsc --watch & node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch 'lib/test/**/*.spec.js'",
+    "test:watch": "npm run build:idl:build && npm run build:idl:compile && ttsc --watch & NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch 'lib/test/**/*.spec.js'",
     
     "omni:runs": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runs'",
     "omni:runc": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runc'",

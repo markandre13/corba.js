@@ -18,7 +18,7 @@
 
 import { Protocol } from "./protocol"
 import { Connection } from "./connection"
-import { GIOPDecoder, GIOPEncoder, MessageType, LocateStatusType, ReplyStatus, ObjectReference, EstablishContext, AuthenticationStatus } from "./giop"
+import { GIOPDecoder, GIOPEncoder, MessageType, LocateStatusType, ReplyStatus, ObjectReference, EstablishContext, AuthenticationStatus, GSSUPInitialContextToken } from "./giop"
 import { IOR } from "./ior"
 import { Uint8Map } from "./uint8map"
 import { CorbaName, UrlParser } from "./url"
@@ -39,7 +39,8 @@ export class PromiseHandler {
     reject: (reason?: any) => void
 }
 
-type Authenticator = (connection: Connection, context: EstablishContext) => AuthenticationStatus
+type IncomingAuthenticator = (connection: Connection, context: EstablishContext) => AuthenticationStatus
+type OutgoingAuthenticator = (connection: Connection) => GSSUPInitialContextToken | undefined
 
 // TODO: to have only one ORB instance, split ORB into ORB, Connection (requestIds & ACL) and CrudeObjectAdapter (stubs, servants, valuetypes)
 export class ORB implements EventTarget {
@@ -504,9 +505,14 @@ export class ORB implements EventTarget {
     }
 
 
-    authenticator?: Authenticator
-    setAuthenticator( authenticator: Authenticator) {
-        this.authenticator = authenticator
+    incomingAuthenticator?: IncomingAuthenticator
+    setIncomingAuthenticator( authenticator: IncomingAuthenticator) {
+        this.incomingAuthenticator = authenticator
+    }
+
+    outgoingAuthenticator?: OutgoingAuthenticator
+    setOutgoingAuthenticator( authenticator: OutgoingAuthenticator) {
+        this.outgoingAuthenticator = authenticator
     }
 
     //

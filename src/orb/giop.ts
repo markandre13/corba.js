@@ -66,37 +66,37 @@ export enum TagType {
     //     SAS_ContextSec sas_context_mech;
     // };
 
-        SSL_SEC_TRANS = 10,
-        // struct SSL {
-        //     Security::AssociationOptions target_supports;
-        //     Security::AssociationOptions target_requires;
-        //     unsigned short prototype;
-        // };
+    SSL_SEC_TRANS = 10,
+    // struct SSL {
+    //     Security::AssociationOptions target_supports;
+    //     Security::AssociationOptions target_requires;
+    //     unsigned short prototype;
+    // };
 
-        TLS_SEC_TRANS = 36,
-        // within TAG_CSI_SEC_MECH_LIST
-        // struct TLS_SEC_TRANS {
-        //     AssociationOptions target_supports;
-        //     AssociationOptions target_requires;
-        //     TransportAddressList addresses;
-        // };
+    TLS_SEC_TRANS = 36,
+    // within TAG_CSI_SEC_MECH_LIST
+    // struct TLS_SEC_TRANS {
+    //     AssociationOptions target_supports;
+    //     AssociationOptions target_requires;
+    //     TransportAddressList addresses;
+    // };
 
     IIOP_SEC_TRANS = 43,
-        INET_SEC_TRANS = 123, // aka SECIOP_INET_SEC_TRANS
-        // struct SECIOP_INET_SEC_TRANS {
-        //     unsigned short port;
-        // };
+    INET_SEC_TRANS = 123, // aka SECIOP_INET_SEC_TRANS
+    // struct SECIOP_INET_SEC_TRANS {
+    //     unsigned short port;
+    // };
 
-        SECIOP_SEC_TRANS = 35,
-        // within TAG_CSI_SEC_MECH_LIST
-        // use SECIOP underneath CSI
-        // struct SECIOP_SEC_TRANS {
-        //     AssociationOptions target_supports;
-        //     AssociationOptions target_requires;
-        //     CSI::OID mech_oid;
-        //     CSI::GSS_NT_ExportedName target_name;
-        //     TransportAddressList addresses;
-        // };
+    SECIOP_SEC_TRANS = 35,
+    // within TAG_CSI_SEC_MECH_LIST
+    // use SECIOP underneath CSI
+    // struct SECIOP_SEC_TRANS {
+    //     AssociationOptions target_supports;
+    //     AssociationOptions target_requires;
+    //     CSI::OID mech_oid;
+    //     CSI::GSS_NT_ExportedName target_name;
+    //     TransportAddressList addresses;
+    // };
 
     FIREWALL_TRANS = 13,
     PASSTHRU_TRANS = 41,
@@ -402,7 +402,17 @@ export class GIOPEncoder extends GIOPBase {
             return
         }
 
-        this.ulong(1) // emit one service context
+        let count = 1
+        let initialToken
+
+        if (this.connection.orb.outgoingAuthenticator) {
+            initialToken = this.connection.orb.outgoingAuthenticator(this.connection)
+            if (initialToken) {
+                ++count
+            }
+        }
+
+        this.ulong(count) // count
 
         // CORBA 3.4 Part 2, 9.8.1 Bi-directional IIOP Service Context
         // TODO: send listen point only once per connection
@@ -411,6 +421,10 @@ export class GIOPEncoder extends GIOPBase {
         this.string(this.connection!.localAddress)
         this.ushort(this.connection!.localPort)
         this.endEncapsulation()
+
+        if (initialToken) {
+            this.establishSecurityContext(initialToken)
+        }
 
         /*
         this.beginEncapsulation(ServiceId.CodeSets)
@@ -423,40 +437,37 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     // CORBA 3.4 Part 2, page 176
-    establishSecurityContext() {
+    establishSecurityContext(initialToken: GSSUPInitialContextToken) {
         this.beginEncapsulation(ServiceId.SecurityAttributeService)
         this.ulong(SASType.EstablishContext)
 
         // ContextId client_context_id;
-        this.ulonglong(0n) // 0 = stateless
+        this.ulonglong(1n)
 
-        // AuthorizationToken authorization_token;
+        // sequence<AuthorizationToken>;
         this.ulong(0) // empty sequence
 
         // IdentityToken identity_token;
         this.ulong(IdentityTokenType.Absent)
-        this.bool(true) // absent!
+        this.bool(true)
 
-        // GSSToken client_authentication_token;
+        this.reserveSize()
 
-        // get_gss_init_token
-
-        // This GSSToken shall contain 
-        // * an ASN.1 tag followed by 
-        // * a token length, // ?
-        // * an authentication mechanism identifier,
-        // * and a CDR encapsulation containing a GSSUP inner context token as defined by
-        //   the type GSSUP::InitialContextToken in Module GSSUP - Username/Password GSSAPI Token Formats on page 172 (and repeated below).
-
-        // { iso-itu-t (2) international-organization (23) omg (130) security (1) authentication (1) gssup-mechanism (1) }
-
-        // struct InitialContextToken, page 172
-        this.beginEncapsulation(0) // ????
-        // username
-        // password
-        // target_name
-        this.endEncapsulation()
-
+        // GSSUP :={ iso-itu-t (2) international-organization (23) omg (130) security (1) authentication (1) gssup-mechanism (1) }
+        this.asn1tag(ASN1Class.APPLICATION, 0, ASN1Encoding.CONSTRUCTED, (encoder) => {
+            encoder.asn1tag(ASN1Class.UNIVERSAL, ASN1UniversalTag.OID, ASN1Encoding.PRIMITIVE, (encoder) => {
+                encoder.asn1oid([2, 23, 130, 1, 1, 1])
+            })
+            
+            encoder.endian()
+            const te = new TextEncoder()
+            encoder.blob(te.encode(initialToken.user))
+            encoder.blob(te.encode(initialToken.password))
+            encoder.blob(te.encode(initialToken.target_name))
+            
+        })
+        this.fillinSize()
+        
         this.endEncapsulation()
     }
 
@@ -681,6 +692,63 @@ export class GIOPEncoder extends GIOPBase {
         this.align(8)
         this.data.setFloat64(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 8
+    }
+
+    // ASN.1 uses two different octet stream based encodings for numbers:
+    // implicit length
+    // * encoding: most to least significant septet
+    // * length: most significant bit of octet of zero indicates last septet
+    // explicit length
+    // * encoding: most to least significant octet
+    // * length is known
+    asn1number(n: number) {
+        let out: number[] = []
+        while (n > 0x7F) {
+            out.push(n & 0x7F)
+            n >>= 7
+        }
+        out.push(n)
+        for(let i = out.length - 1; i > 0; --i) {
+            this.octet(out[i] | 0x80)
+        }
+        this.octet(out[0])
+    }
+
+    asn1numberE(n: number) {
+        let out: number[] = []
+        while (n > 0) {
+            out.push(n & 0xFF)
+            n >>= 8
+        }
+        this.octet(out.length)
+        for(let i=out.length-1; i>=0; --i) {
+            this.octet(out[i])
+        }
+    }
+
+    asn1tag(tagClass: number, tag: number, encoding: number, sub: ((encoder: GIOPEncoder) => void) | undefined) {
+        const c = (tagClass << 6) | (encoding << 5)
+        if (tag < 0x1F) {
+            this.octet(c | tag)
+        } else {
+            this.octet(c | 0x1F)
+            this.asn1number(tag)
+        }
+        const subencoder = new GIOPEncoder()
+        if (sub !== undefined) {
+            sub(subencoder)
+        }
+        this.asn1number(subencoder.offset)
+        for(let i=0; i<subencoder.offset; ++i) {
+            this.octet(subencoder.bytes[i])
+        }
+    }
+
+    asn1oid(oid: number[]) {
+        this.octet(oid[0] * 40 + oid[1])
+        for(let i=2; i<oid.length; ++i) {
+            this.asn1number(oid[i])
+        }
     }
 }
 
@@ -1003,6 +1071,7 @@ export class GIOPDecoder extends GIOPBase {
         // console.log(`serviceContextListLength = ${serviceContextListLength}`)
         for (let i = 0; i < serviceContextListLength; ++i) {
             const serviceId = this.beginEncapsulation()
+            // console.log(`serviceContext[${i}] = ${ServiceId[serviceId]} (0x${serviceId.toString(16)})`)
 
             switch (serviceId) {
                 case ServiceId.BI_DIR_IIOP: {
@@ -1017,6 +1086,7 @@ export class GIOPDecoder extends GIOPBase {
                         case SASType.EstablishContext: {
                             const context = new EstablishContext()
                             context.clientContextId = this.ulonglong()
+                            // console.log(`  clientContextId = ${context.clientContextId}`)
 
                             // console.log(`octets left: ${this.encapStack[this.encapStack.length - 1].nextOffset - this.offset}`)
                             if (this.encapStack[this.encapStack.length - 1].nextOffset - this.offset < 4) {
@@ -1026,8 +1096,8 @@ export class GIOPDecoder extends GIOPBase {
 
                             // bearer tokens for further authorization (e.g. a JWT)
                             const authorizationTokenCount = this.ulong()
-                            // console.log(`  authorizationTokenLength=${authorizationTokenLength}`)
-                            for(let i=0; i < authorizationTokenCount; ++i) {
+                            // console.log(`  authorizationTokenLength=${authorizationTokenCount}`)
+                            for (let i = 0; i < authorizationTokenCount; ++i) {
                                 const type = this.ulong()
                                 // const vendorMinorCodeSetId = type >> 20
                                 // const typeIdentifier = type & 0xfffff
@@ -1046,7 +1116,7 @@ export class GIOPDecoder extends GIOPBase {
                                     // console.log(`    Absent = ${absent}`)
                                 } break
                                 default: {
-                                    console.log(`Can not authenticate client: CSIv2 tokenType=${IdentityTokenType[tokenType]} not supported.`)
+                                    // console.log(`Can not authenticate client: CSIv2 tokenType=${IdentityTokenType[tokenType]} not supported.`)
                                 }
                             }
 
@@ -1079,8 +1149,9 @@ export class GIOPDecoder extends GIOPBase {
                             // OMG
                             //   2.23.130.1.1.1           CORBA Username Password (GSSUP)
 
-                            // authentication
+                            // authentication                          
                             const blobLength = this.ulong()
+                            // console.log(`  authentication length = ${blobLength}`)
 
                             // CORBA 3.4, Part 2, 10.2.4.1.1 GSSUP Initial Context Token
                             //
@@ -1096,8 +1167,8 @@ export class GIOPDecoder extends GIOPBase {
                             // ... an authentication mechanism identifier, and ...
                             // Generic Security Service User Password (GSSUP)
                             // {iso-itu-t(2) international-organization(23) omg(130) security(1) authentication(1) gssup-mechanism(1)}
-                        
-                            if (!this.asn1expectOID([2, 23, 130, 1, 1, 1 ]))
+
+                            if (!this.asn1expectOID([2, 23, 130, 1, 1, 1]))
                                 break
 
                             // ... a CDR encapsulation containing a GSSUP inner context token as defined by the type GSSUP::InitialContextToken
@@ -1111,8 +1182,8 @@ export class GIOPDecoder extends GIOPBase {
                                 te.decode(cdr.blob())
                             )
 
-                            if (this.connection?.orb.authenticator) {
-                                this.connection?.orb.authenticator(this.connection, context)
+                            if (this.connection?.orb.incomingAuthenticator) {
+                                this.connection?.orb.incomingAuthenticator(this.connection, context)
                             }
 
                             // console.log(`InitialContextToken(username="${user}", password="${password}", target_name="${target_name}")`)
@@ -1120,7 +1191,7 @@ export class GIOPDecoder extends GIOPBase {
                     }
                 } break
                 default:
-                    // console.log(`serviceContext[${i}] = ${ServiceId[serviceId]} (0x${serviceId.toString(16)})`)
+                // console.log(`serviceContext[${i}] = ${ServiceId[serviceId]} (0x${serviceId.toString(16)})`)
             }
             this.endEncapsulation()
         }
@@ -1466,6 +1537,21 @@ export class GIOPDecoder extends GIOPBase {
         return value
     }
 
+    asn1number(): number {
+        let n = 0
+        while (true) {
+            const c = this.octet()
+            n <<= 7
+            if (c & 0x80) {
+                n |= c & 0x7f
+            } else {
+                n |= c
+                break
+            }
+        }
+        return n
+    }
+
     asn1tag() {
         const tag = new ASN1Tag()
         let state = 0
@@ -1563,7 +1649,7 @@ export class GIOPDecoder extends GIOPBase {
             console.log(`Can not authenticate client: Wrong OID`)
             return false
         }
-        for(let i=0; i<oid.length; ++i) {
+        for (let i = 0; i < oid.length; ++i) {
             if (oid[i] !== got[i]) {
                 console.log(`Can not authenticate client: Wrong OID`)
                 return false
