@@ -17,23 +17,31 @@
  */
 
 import { ORB } from "corba.js"
-import { connect, createServer, Server, TLSSocket } from "tls"
+import { connect, createServer, Server, TlsOptions, TLSSocket } from "tls"
 import { Connection } from "../orb/connection"
 import { Protocol } from "../orb/protocol"
 
 const InitialInitiatorRequestIdBiDirectionalIIOP = 0
 const InitialResponderRequestIdBiDirectionalIIOP = 1
 
-export class SslProtocol implements Protocol {
+export class TlsProtocol implements Protocol {
+    options: TlsOptions
     serverSocket?: Server
+
+    constructor(options: TlsOptions = {}) {
+        this.options = options
+    }
+
     // called by the ORB
     async connect(orb: ORB, hostname: string, port: number) {
+        
         return new Promise<Connection>( (resolve, reject) => {
-            const socket = connect(port, hostname)
-            socket.setNoDelay()
-            socket.once("error", (error: Error) => reject(error))
-            socket.connect(port, hostname, () => {
-                const connection = new TcpConnection(socket, orb)
+            // const socket = connect(port, hostname)
+            // console.log(`connected`)
+            // socket.setNoDelay()
+            // socket.once("error", (error: Error) => reject(error))
+            const socket = connect(port, hostname, {}, () => {
+                const connection = new TlsConnection(socket, orb)
                 connection.requestId = InitialInitiatorRequestIdBiDirectionalIIOP
                 // clear error handler?
                 socket.on("error", (error: Error) => orb.socketError(connection, error))
@@ -46,10 +54,9 @@ export class SslProtocol implements Protocol {
     }
 
     // create a server socket
-    listen(orb: ORB, hostname: string, port: number): void {
-        this.serverSocket = createServer({}, (socket: TLSSocket) => {
-            console.log(`accepted connection from ${socket.remoteAddress}:${socket.remotePort}`)
-            const connection = new TcpConnection(socket, orb)
+    async listen(orb: ORB, hostname: string, port: number) {
+        this.serverSocket = createServer(this.options, (socket: TLSSocket) => {
+            const connection = new TlsConnection(socket, orb)
             connection.requestId = InitialResponderRequestIdBiDirectionalIIOP
             socket.setNoDelay()
             socket.on("error", (error: Error) => orb.socketError(connection, error))
@@ -57,7 +64,9 @@ export class SslProtocol implements Protocol {
             socket.on("data", (data: Buffer) => orb.socketRcvd(connection, data.buffer))
             orb.addConnection(connection)
         })
-        this.serverSocket.listen(port, hostname)
+        return new Promise<void>( (resolve, reject) => {
+            this.serverSocket!.listen(port, hostname, () => resolve())
+        })
     }
     
     close(): void {
@@ -68,7 +77,7 @@ export class SslProtocol implements Protocol {
     }
 }
 
-class TcpConnection extends Connection {
+class TlsConnection extends Connection {
     private socket: TLSSocket
 
     constructor(socket: TLSSocket, orb: ORB) {

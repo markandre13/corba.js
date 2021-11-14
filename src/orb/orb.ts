@@ -353,6 +353,7 @@ export class ORB implements EventTarget {
 
     socketError(connection: Connection, error: Error): void {
         // FIXME: no error handling implemented yet
+        throw error
     }
 
     socketClosed(connection: Connection): void {

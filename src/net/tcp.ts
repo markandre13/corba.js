@@ -16,6 +16,12 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+// CORBA Ports
+//   683 CORBA IIOP
+//   684 CORBA IIOP SSL
+//  1050 CORBA Management Agent
+//  2809 CORBA LOC
+
 import { ORB } from "corba.js"
 import { Socket, Server, createServer } from "net"
 import { Connection } from "../orb/connection"
