@@ -96,22 +96,21 @@ describe("net", async function () {
                     })
                 }
 
-                if (id === 2) {
-                    await expect(clientORB.stringToObject("corbaname::localhost:2809#Server")).to.be.rejectedWith(NO_PERMISSION)
-                    // await serverORB.shutdown()
-                    return
-                }
+                const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
 
-                const anyObject = await clientORB.stringToObject("corbaname::localhost:2809#Server")
-                const server = stub.Server.narrow(anyObject)
-                if (id === 1) {
-                    expect(sendInitialContext).to.deep.equal(validCredentials)
-                    expect(rcvdInitialContext).to.deep.equal(validCredentials)
-                }
-
-                if (id === 0) {
-                    await server.call()
-                    expect(serverImpl.wasCalled).to.be.true
+                switch (id) {
+                    case 0:
+                        await server.call()
+                        expect(serverImpl.wasCalled).to.be.true
+                        break
+                    case 1:
+                        await server.call()
+                        expect(sendInitialContext).to.deep.equal(validCredentials)
+                        expect(rcvdInitialContext).to.deep.equal(validCredentials)
+                        break
+                    case 2:
+                        await expect(server.call()).to.be.rejectedWith(NO_PERMISSION)
+                        break
                 }
 
                 await serverORB.shutdown()

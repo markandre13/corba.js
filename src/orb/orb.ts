@@ -93,14 +93,15 @@ export class ORB implements EventTarget {
     servantIdCounter: bigint = 0n
 
     accesibleServants = new Set<Skeleton>()
+    namingService: NamingContextExtImpl
 
     initialReferences: Map<string, Skeleton> = new Map()
     listeners: Map<string, Set<EventListenerOrEventListenerObject>> = new Map()
 
     constructor() {
-        const nameService = new NamingContextExtImpl(this)
-        this.initialReferences.set("NameService", nameService)
-        this.servants.set(ORB.nameServiceKey, nameService)
+        this.namingService = new NamingContextExtImpl(this)
+        this.initialReferences.set("NameService", this.namingService)
+        this.servants.set(ORB.nameServiceKey, this.namingService)
     }
 
     //
@@ -343,7 +344,7 @@ export class ORB implements EventTarget {
                 for (let i = 0; i < request.serviceContext.length; ++i) {
                     const e = request.serviceContext[i]
                     if (e instanceof EstablishContext) {
-                        if (this.incomingAuthenticator) {
+                        if (this.incomingAuthenticator && servant !== this.namingService) {
                             if (this.incomingAuthenticator(connection, e) !== AuthenticationStatus.SUCCESS) {
                                 if (request.responseExpected) {
                                     const encoder = new GIOPEncoder(connection)
