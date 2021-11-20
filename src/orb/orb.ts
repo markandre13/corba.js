@@ -46,6 +46,18 @@ export class NO_PERMISSION extends SystemException {
     }
 }
 
+export class BAD_OPERATION extends SystemException {
+    override toString() {
+        return `BAD_OPERATION(minor=0x${this.minor.toString(16)}, completed=${CompletionStatus[this.completed]})`
+    }
+}
+
+export class OBJECT_NOT_EXIST extends SystemException {
+    override toString() {
+        return `OBJECT_NOT_EXIST(minor=0x${this.minor.toString(16)}, completed=${CompletionStatus[this.completed]})`
+    }
+}
+
 export interface ValueTypeInformation {
     attributes: Array<string>
     encode: (encoder: GIOPEncoder, obj: any) => void
@@ -311,6 +323,23 @@ export class ORB implements EventTarget {
             } break
             case MessageType.REQUEST: {
                 const request = decoder.scanRequestHeader()
+
+                const servant = this.servants.get(request.objectKey)
+                if (servant === undefined) {
+                    if (request.responseExpected) {
+                        const encoder = new GIOPEncoder(connection)
+                        encoder.skipReplyHeader()
+                        encoder.string("IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0")
+                        encoder.ulong(0x4f4d0001) // Attempt to pass an unactivated (unregistered) value as an object reference.
+                        encoder.ulong(CompletionStatus.NO) // completionStatus
+                        const length = encoder.offset
+                        encoder.setGIOPHeader(MessageType.REPLY)
+                        encoder.setReplyHeader(request.requestId, ReplyStatus.SYSTEM_EXCEPTION)
+                        connection.send(encoder.buffer.slice(0, length))
+                    }
+                    return
+                }
+
                 for (let i = 0; i < request.serviceContext.length; ++i) {
                     const e = request.serviceContext[i]
                     if (e instanceof EstablishContext) {
@@ -325,13 +354,6 @@ export class ORB implements EventTarget {
                                     const length = encoder.offset
                                     encoder.setGIOPHeader(MessageType.REPLY)
                                     encoder.setReplyHeader(request.requestId, ReplyStatus.SYSTEM_EXCEPTION)
-
-                                    // const exceptionId = decoder.string()
-                                    // const minorCodeValue = decoder.ulong()
-                                    // const completionStatus = decoder.ulong()
-                                    // const vendorId = (minorCodeValue & 0xFFFFF000) >> 12
-                                    // const minorCode = minorCodeValue & 0x00000FFF
-
                                     connection.send(encoder.buffer.slice(0, length))
                                 }
                                 return
@@ -340,21 +362,16 @@ export class ORB implements EventTarget {
                     }
                 }
 
-                const servant = this.servants.get(request.objectKey)
-
-                // console.log(`ORB ${this.name} got request`)
-                // console.log(request)
-                if (servant === undefined) {
-                    throw Error(`ORB.handleMethod(): client required method '${request.method}' on server for unknown object key ${request.objectKey}`)
-                }
                 // FIXME: disabled security check (doesn't work anyway after introducing multiple connections per ORB)
                 // if (!servant.acl.has(this)) {
                 //     throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with object key ${data.objectKey}`)
                 // }
+
+                // FIXME: this always returns true
                 if (request.method == '_is_a') {
                     const repositoryId = decoder.string()
                     // console.log(Object.getPrototypeOf(servant))
-                    console.log(`_is_a("${repositoryId}")`)
+                    // console.log(`_is_a("${repositoryId}")`)
 
                     const encoder = new GIOPEncoder(connection)
                     encoder.skipReplyHeader()
@@ -369,7 +386,18 @@ export class ORB implements EventTarget {
 
                 const method = (servant as any)[`_orb_${request.method}`]
                 if (method === undefined) {
-                    throw Error(`ORB.handleMethod(): client required unknown method '${request.method}' on server for servant with object key ${request.objectKey}`)
+                    if (request.responseExpected) {
+                        const encoder = new GIOPEncoder(connection)
+                        encoder.skipReplyHeader()
+                        encoder.string("IDL:omg.org/CORBA/BAD_OPERATION:1.0")
+                        encoder.ulong(0x4f4d0002) // Operation or attribute not known to target object
+                        encoder.ulong(CompletionStatus.NO) // completionStatus
+                        const length = encoder.offset
+                        encoder.setGIOPHeader(MessageType.REPLY)
+                        encoder.setReplyHeader(request.requestId, ReplyStatus.SYSTEM_EXCEPTION)
+                        connection.send(encoder.buffer.slice(0, length))
+                    }
+                    return
                 }
 
                 const encoder = new GIOPEncoder(connection)
@@ -393,11 +421,12 @@ export class ORB implements EventTarget {
                         }
                     })
             } break
+
             case MessageType.REPLY: {
                 const data = decoder.scanReplyHeader()
                 const handler = connection.pendingReplies.get(data.requestId)
                 if (handler === undefined) {
-                    console.log(`Unexpected reply to request ${data.requestId}`)
+                    console.log(`corba.js: Unexpected reply to request ${data.requestId}`)
                     return
                 }
                 try {
@@ -413,25 +442,7 @@ export class ORB implements EventTarget {
                             // 0.4.3.2 ReplyBody: SystemExceptionReplyBody
                             const exceptionId = decoder.string()
                             const minorCodeValue = decoder.ulong()
-                            const completionStatus = decoder.ulong()
-                            const vendorId = (minorCodeValue & 0xFFFFF000) >> 12
-                            const minorCode = minorCodeValue & 0x00000FFF
-
-                            // FIXME: make org.omg.CORBA.CompletionStatus an enum
-                            let completionStatusName
-                            switch (completionStatus) {
-                                case 0:
-                                    completionStatusName = "yes"
-                                    break
-                                case 1:
-                                    completionStatusName = "no"
-                                    break
-                                case 2:
-                                    completionStatusName = "maybe"
-                                    break
-                                default:
-                                    completionStatusName = `${completionStatus}`
-                            }
+                            const completionStatus = decoder.ulong() as CompletionStatus
 
                             // VMCID
                             let vendorList: { [index: number]: string } = {
@@ -447,6 +458,7 @@ export class ORB implements EventTarget {
                                 0x56420: "Borland (VisiBroker)",
                                 0xA11C0: "Adiron"
                             }
+                            const vendorId = (minorCodeValue & 0xFFFFF000) >> 12
                             const vendor = vendorId in vendorList ? ` ${vendorList[vendorId]}` : ""
 
                             // A.5 Exception Codes
@@ -494,22 +506,26 @@ export class ORB implements EventTarget {
                                     }
                                     explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
                                 } break
+                                case "IDL:omg.org/CORBA/BAD_OPERATION:1.0": {
+                                    const ex = new BAD_OPERATION()
+                                    ex.minor = minorCodeValue
+                                    ex.completed = completionStatus
+                                    throw ex
+                                }
                                 case "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0": {
-                                    const explanationList: { [index: number]: string } = {
-                                        // OMG
-                                        // OmniORB
-                                        0x41540001: "???"
-                                    }
-                                    explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                                } break
+                                    const ex = new OBJECT_NOT_EXIST()
+                                    ex.minor = minorCodeValue
+                                    ex.completed = completionStatus
+                                    throw ex
+                                }
                                 case "IDL:omg.org/CORBA/NO_PERMISSION:1.0": {
                                     const ex = new NO_PERMISSION()
-                                    ex.minor = minorCode
+                                    ex.minor = minorCodeValue
                                     ex.completed = completionStatus
                                     throw ex
                                 }
                             }
-                            throw new Error(`CORBA System Exception ${exceptionId} from ${connection!.remoteAddress}:${connection!.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${completionStatusName}`)
+                            throw new Error(`CORBA System Exception ${exceptionId} from ${connection!.remoteAddress}:${connection!.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${CompletionStatus[completionStatus]}`)
                         default:
                             throw new Error(`ReplyStatusType ${data.replyStatus} is not supported`)
                     }
