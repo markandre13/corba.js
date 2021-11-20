@@ -25,4 +25,5 @@ import { Connection } from "./connection"
 export interface Protocol {
     // client/initiator: called by the ORB
     connect(orb: ORB, hostname: string, port: number): Promise<Connection>
+    close(): Promise<void>
 }

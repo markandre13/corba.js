@@ -70,6 +70,8 @@ export class FakeTcpProtocol implements Protocol {
         })
     }
 
+    async close() {}
+
     async reset() {
         if (this.verbose) {
             console.log(`FAKE: RESET`)
@@ -221,7 +223,7 @@ class TcpFakeConnection extends Connection {
         return this._remotePort
     }
 
-    close() {
+    async close() {
         this.socket!.destroy()
     }
 

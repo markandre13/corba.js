@@ -695,12 +695,9 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     // ASN.1 uses two different octet stream based encodings for numbers:
-    // implicit length
+    // implicit length for smaller numbers
     // * encoding: most to least significant septet
     // * length: most significant bit of octet of zero indicates last septet
-    // explicit length
-    // * encoding: most to least significant octet
-    // * length is known
     asn1number(n: number) {
         let out: number[] = []
         while (n > 0x7F) {
@@ -714,6 +711,9 @@ export class GIOPEncoder extends GIOPBase {
         this.octet(out[0])
     }
 
+    // number with explicit length for larger numbers
+    // * encoding: most to least significant octet
+    // * length is known
     asn1numberE(n: number) {
         let out: number[] = []
         while (n > 0) {
@@ -1183,7 +1183,9 @@ export class GIOPDecoder extends GIOPBase {
                             )
 
                             if (this.connection?.orb.incomingAuthenticator) {
-                                this.connection?.orb.incomingAuthenticator(this.connection, context)
+                                if (this.connection?.orb.incomingAuthenticator(this.connection, context) !== AuthenticationStatus.SUCCESS) {
+                                    throw Error("Bad Credentials")
+                                }
                             }
 
                             // console.log(`InitialContextToken(username="${user}", password="${password}", target_name="${target_name}")`)

@@ -45,6 +45,8 @@ class MockProtocol implements Protocol {
     async connect(orb: ORB, hostname: string, port: number): Promise<Connection> {
         throw Error(`Unexpected call to MockProtocol.connect(${orb.name}, ${hostname}, ${port}): all connections should be initialized already`)
     }
+    async close() {
+    }
 }
 
 class MockConnection extends Connection {
@@ -74,7 +76,7 @@ class MockConnection extends Connection {
         return this._remotePort
     }
 
-    close(): void {}
+    async close() {}
     send(buffer: ArrayBuffer): void {
         if (this.verbose) {
             console.log(`MockConnection.send(): orb=${this.orb.name} port ${this._localPort} to ${this._remotePort}`)

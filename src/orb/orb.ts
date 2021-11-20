@@ -96,6 +96,16 @@ export class ORB implements EventTarget {
         this.connections.forEach( c => console.log(`CONNECTION ${c.localAddress}:${c.localPort}->${c.remoteAddress}:${c.remotePort}`))
     }
 
+    async shutdown() {
+        for(let i=0; i<this.protocols.length; ++i) {
+            await this.protocols[i].close()
+        }
+        for(let i=0; i<this.connections.length; ++i) {
+            await this.connections[i].close()
+        }
+        this.connections.length = 0
+    }
+
     // TEST SUPPORT, AS OF NOW THIS WORKS ONLY FOR OUTGOING CONNECTIONS
     async replaceAllConnections() {
         // console.log(`CONNECTIONS BEFORE REPLACE`)

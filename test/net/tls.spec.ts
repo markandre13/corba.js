@@ -16,111 +16,106 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import forEach from "mocha-each"
 import { expect } from "chai"
 
 import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, ORB } from "corba.js"
 import { TlsConnection, TlsProtocol } from "corba.js/net/tls"
 import { Connection } from "corba.js/orb/connection"
-import { readFileSync} from "fs"
+import { readFileSync } from "fs"
 
 import * as iface from "../generated/access"
 import * as skel from "../generated/access_skel"
 import * as stub from "../generated/access_stub"
 
-// import { Connection } from "corba.js/orb/connection"
-// import * as iface from "./generated/access"
-// import * as skel from "./generated/access_skel"
-// import * as stub from "./generated/access_stub"
-// import { mockConnection } from "./util"
-
 describe("net", async function () {
-    describe("tls", function () {
-        it("TLS without client authentication", async function () {
-            const serverORB = new ORB()
+    describe.only("tls", function () {
+        forEach([
+            ["only", 0],
+            ["with valid CSIv2 GSSUP client authentication", 1],
+            ["with CSIv2 GSSUP client authentication and unknown user", 2]
+        ]).
+            it("TLS %s", async function (name, id) {
+                const validCredentials = new GSSUPInitialContextToken("bob", "No RISC No Fun", "")
+                const wrongUser = new GSSUPInitialContextToken("mallory", "No RISC No Fun", "")
+                let sendInitialContext: GSSUPInitialContextToken | undefined
+                let rcvdInitialContext: GSSUPInitialContextToken | undefined
 
-            const serverImpl = new Server_impl(serverORB)
-            serverORB.bind("Server", serverImpl)
+                const serverORB = new ORB()
 
-            const tls = new TlsProtocol({
-                passphrase: "alice",
-                key: readFileSync('test/x509/intermediate/private/server.key.pem'),
-                cert: readFileSync('test/x509/intermediate/certs/server.cert.pem'),
-                ca: [ 
-                    readFileSync('test/x509/intermediate/certs/ca-chain.cert.pem'),
-                ]
-            })
-            serverORB.addProtocol(tls)
-            await tls.listen(serverORB, "localhost", 2810)
-
-            const clientORB = new ORB()
-            clientORB.registerStubClass(stub.Server)
-            clientORB.addProtocol(new TlsProtocol())
-
-            const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2810#Server"))
-            await server.call()
-            expect(serverImpl.wasCalled).to.be.true
-        })
-
-        // TLS with TLS client authentication
-
-        // 
-        it("TLS with CSIv2 GSSUP client authentication", async function () {
-            const initialContext = new GSSUPInitialContextToken("mark", "topsecret", "")
-            let sendInitialContext: GSSUPInitialContextToken | undefined
-            let rcvdInitialContext: GSSUPInitialContextToken | undefined
-
-            const clientORB = new ORB()
-            clientORB.registerStubClass(stub.Server)
-            clientORB.addProtocol(new TlsProtocol())
-
-            clientORB.setOutgoingAuthenticator( (connection: Connection) => {
-                if (connection instanceof TlsConnection) {
-                    if (connection.peerCertificate.subject.CN === "localhost") {
-                        sendInitialContext = initialContext
-                        return sendInitialContext
-                    }
-                    return undefined
+                const serverImpl = new Server_impl(serverORB)
+                serverORB.bind("Server", serverImpl)
+                if (id !== 0) {
+                    serverORB.setIncomingAuthenticator((connection: Connection, context: EstablishContext) => {
+                        if (context.authentication instanceof GSSUPInitialContextToken) {
+                            if (context.authentication.user === "mallory") {
+                                return AuthenticationStatus.ERROR_NOUSER
+                            }
+                            if (context.authentication.user === "bob" &&
+                                context.authentication.password === "No RISC No Fun" &&
+                                context.authentication.target_name === "") {
+                                rcvdInitialContext = context.authentication
+                                return AuthenticationStatus.SUCCESS
+                            }
+                        }
+                        return AuthenticationStatus.ERROR_UNSPECIFIED
+                    })
                 }
-            })
 
-            const serverORB = new ORB()
-            const serverImpl = new Server_impl(serverORB)
-            serverORB.bind("Server", serverImpl)
+                const tls = new TlsProtocol({
+                    passphrase: "alice",
+                    key: readFileSync('test/x509/intermediate/private/server.key.pem'),
+                    cert: readFileSync('test/x509/intermediate/certs/server.cert.pem'),
+                    ca: [
+                        readFileSync('test/x509/intermediate/certs/ca-chain.cert.pem'),
+                    ]
+                })
+                serverORB.addProtocol(tls)
+                await tls.listen(serverORB, "localhost", 2809)
 
-            const tls = new TlsProtocol({
-                passphrase: "alice",
-                key: readFileSync('test/x509/intermediate/private/server.key.pem'),
-                cert: readFileSync('test/x509/intermediate/certs/server.cert.pem'),
-                ca: [ 
-                    readFileSync('test/x509/intermediate/certs/ca-chain.cert.pem'),
-                ]
-            })
-            serverORB.addProtocol(tls)
-
-            serverORB.setIncomingAuthenticator( (connection: Connection, context: EstablishContext) => {
-                if (context.authentication instanceof GSSUPInitialContextToken) {
-                    if (context.authentication.user === "mark" &&
-                       context.authentication.password === "topsecret" &&
-                       context.authentication.target_name === "")
-                    {
-                        rcvdInitialContext = context.authentication
-                        return AuthenticationStatus.SUCCESS;
-                    }
+                const clientORB = new ORB()
+                clientORB.registerStubClass(stub.Server)
+                clientORB.addProtocol(new TlsProtocol())
+                if (id !== 0) {
+                    clientORB.setOutgoingAuthenticator((connection: Connection) => {
+                        if (connection instanceof TlsConnection) {
+                            if (connection.peerCertificate.subject.CN === "localhost") {
+                                switch (id) {
+                                    case 1:
+                                        sendInitialContext = validCredentials
+                                        break
+                                    case 2:
+                                        sendInitialContext = wrongUser
+                                        break
+                                }
+                                return sendInitialContext
+                            }
+                            return undefined
+                        }
+                    })
                 }
-                return AuthenticationStatus.ERROR_UNSPECIFIED
+
+                let server
+                try {
+                    server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
+                }
+                catch(e) {
+                    console.log(`ORB.stringToOject() failed`)
+                    console.log(e)
+                    throw e
+                }
+                if (id === 1) {
+                    expect(sendInitialContext).to.deep.equal(validCredentials)
+                    expect(rcvdInitialContext).to.deep.equal(validCredentials)
+                }
+
+                if (id === 0) {
+                    await server.call()
+                    expect(serverImpl.wasCalled).to.be.true
+                }
+
+                await serverORB.shutdown()
             })
-            await tls.listen(serverORB, "localhost", 2809)
-
-            const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
-            expect(sendInitialContext).to.deep.equal(initialContext)
-            expect(rcvdInitialContext).to.deep.equal(initialContext)
-
-            await server.call()
-            expect(serverImpl.wasCalled).to.be.true
-        })
-
-        // check failures
-
     })
 })
 
