@@ -367,16 +367,12 @@ export class ORB implements EventTarget {
                 //     throw Error(`ORB.handleMethod(): client required method '${data.method}' on server but has no rights to access servant with object key ${data.objectKey}`)
                 // }
 
-                // FIXME: this always returns true
                 if (request.method == '_is_a') {
                     const repositoryId = decoder.string()
-                    // console.log(Object.getPrototypeOf(servant))
-                    // console.log(`_is_a("${repositoryId}")`)
 
                     const encoder = new GIOPEncoder(connection)
                     encoder.skipReplyHeader()
-                    // "IDL:omg.org/CosNaming/NamingContextExt:1.0"
-                    encoder.bool(true)
+                    encoder.bool(`IDL:${(servant as any).constructor._idlClassName()}:1.0` === repositoryId)
                     const length = encoder.offset
                     encoder.setGIOPHeader(MessageType.REPLY)
                     encoder.setReplyHeader(request.requestId, ReplyStatus.NO_EXCEPTION)
@@ -391,7 +387,7 @@ export class ORB implements EventTarget {
                         encoder.skipReplyHeader()
                         encoder.string("IDL:omg.org/CORBA/BAD_OPERATION:1.0")
                         encoder.ulong(0x4f4d0002) // Operation or attribute not known to target object
-                        encoder.ulong(CompletionStatus.NO) // completionStatus
+                        encoder.ulong(CompletionStatus.NO)
                         const length = encoder.offset
                         encoder.setGIOPHeader(MessageType.REPLY)
                         encoder.setReplyHeader(request.requestId, ReplyStatus.SYSTEM_EXCEPTION)
