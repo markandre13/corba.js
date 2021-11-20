@@ -17,19 +17,20 @@
  */
 
 import forEach from "mocha-each"
-import { expect } from "chai"
+import { expect, use } from "chai"
+import * as chaiAsPromised from "chai-as-promised"
+use(chaiAsPromised.default)
 
 import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, ORB } from "corba.js"
 import { TlsConnection, TlsProtocol } from "corba.js/net/tls"
 import { Connection } from "corba.js/orb/connection"
 import { readFileSync } from "fs"
 
-import * as iface from "../generated/access"
 import * as skel from "../generated/access_skel"
 import * as stub from "../generated/access_stub"
 
 describe("net", async function () {
-    describe.only("tls", function () {
+    describe("tls", function () {
         forEach([
             ["only", 0],
             ["with valid CSIv2 GSSUP client authentication", 1],
@@ -95,15 +96,15 @@ describe("net", async function () {
                     })
                 }
 
-                let server
-                try {
-                    server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
+                if (id === 2) {
+                    // as of now this already fails as the check is also executed for the name service
+                    expect(clientORB.stringToObject("corbaname::localhost:2809#Server")).to.be.rejectedWith(Error)
+                    // await serverORB.shutdown()
+                    return
                 }
-                catch(e) {
-                    console.log(`ORB.stringToOject() failed`)
-                    console.log(e)
-                    throw e
-                }
+
+                const anyObject = await clientORB.stringToObject("corbaname::localhost:2809#Server")
+                const server = stub.Server.narrow(anyObject)
                 if (id === 1) {
                     expect(sendInitialContext).to.deep.equal(validCredentials)
                     expect(rcvdInitialContext).to.deep.equal(validCredentials)

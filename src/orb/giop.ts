@@ -752,11 +752,19 @@ export class GIOPEncoder extends GIOPBase {
     }
 }
 
-class RequestData {
+export class BidirectionalIIOPServiceContext {
+    host!: string
+    port!: number
+}
+
+export class RequestData {
     requestId!: number
     responseExpected!: boolean
     objectKey!: Uint8Array
     method!: string
+    error?: Error
+
+    serviceContext!: any[]
 }
 
 class ReplyData {
@@ -892,7 +900,7 @@ export class GIOPDecoder extends GIOPBase {
         const data = new RequestData()
 
         if (this.majorVersion == 1 && this.minorVersion <= 1) {
-            this.serviceContext()
+            data.serviceContext = this.serviceContext()
         }
         data.requestId = this.ulong()
         const responseFlags = this.octet()
@@ -939,7 +947,7 @@ export class GIOPDecoder extends GIOPBase {
             const requestingPrincipalLength = this.ulong()
             // FIXME: this.offset += requestingPrincipalLength???
         } else {
-            this.serviceContext()
+            data.serviceContext = this.serviceContext()
             this.align(8)
         }
 
@@ -959,113 +967,13 @@ export class GIOPDecoder extends GIOPBase {
             this.serviceContext()
         }
 
-        switch (data.replyStatus) {
-            case ReplyStatus.NO_EXCEPTION:
-                break
-            case ReplyStatus.USER_EXCEPTION:
-                throw Error(`CORBA User Exception`)
-            case ReplyStatus.SYSTEM_EXCEPTION:
-                // 0.4.3.2 ReplyBody: SystemExceptionReplyBody
-                const exceptionId = this.string()
-                const minorCodeValue = this.ulong()
-                const completionStatus = this.ulong()
-                const vendorId = (minorCodeValue & 0xFFFFF000) >> 12
-                const minorCode = minorCodeValue & 0x00000FFF
-
-                // FIXME: make org.omg.CORBA.CompletionStatus an enum
-                let completionStatusName
-                switch (completionStatus) {
-                    case 0:
-                        completionStatusName = "yes"
-                        break
-                    case 1:
-                        completionStatusName = "no"
-                        break
-                    case 2:
-                        completionStatusName = "maybe"
-                        break
-                    default:
-                        completionStatusName = `${completionStatus}`
-                }
-
-                // VMCID
-                let vendorList: { [index: number]: string } = {
-                    0x41540: "OmniORB",
-                    0x47430: "GNU Classpath",
-                    0x49424: "IBM",
-                    0x49540: "IONA",
-                    0x4A430: "JacORB",
-                    0x4D313: "corba.js", // not registered
-                    0x4F4D0: "OMG",
-                    0x53550: "SUN",
-                    0x54410: "TAO",
-                    0x56420: "Borland (VisiBroker)",
-                    0xA11C0: "Adiron"
-                }
-                const vendor = vendorId in vendorList ? ` ${vendorList[vendorId]}` : ""
-
-                // A.5 Exception Codes
-                let explanation = ""
-
-                // CORBA 3.4, Part 2, A.5 Exception Codes
-                switch (exceptionId) {
-                    case "IDL:omg.org/CORBA/MARSHAL:1.0": {
-                        let explanationList: { [index: number]: string } = {
-                            // OMG
-                            0x4f4d0001: "Unable to locate value factory.",
-                            0x4f4d0002: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
-                            0x4f4d0003: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
-                            0x4f4d0004: "Attempt to marshal local object.",
-                            0x4f4d0005: "wchar or wstring data erroneously sent by client over GIOP 1.0 connection.",
-                            0x4f4d0006: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
-                            0x4f4d0007: "Unsupported RMI/IDL custom value type stream format.",
-                            // OmniORB
-                            0x4154000a: "Pass end of message",
-                            0x41540012: "Sequence is too long",
-                            0x41540015: "Index out of range",
-                            0x41540016: "Received an invalid zero length string",
-                            0x41540034: "Invalid IOR",
-                            0x4154004f: "Invalid ContextList",
-                            0x4154005a: "Invalid Indirection",
-                            0x4154005b: "Invalid TypeCodeKind",
-                            0x4154005d: "Message too long",
-                            0x41540070: "Invalid value tag"
-                        }
-                        explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                    } break
-                    case "IDL:omg.org/CORBA/TRANSIENT:1.0": {
-                        const explanationList: { [index: number]: string } = {
-                            // OMG
-                            // OmniORB
-                            0x41540002: "Connect Failed"
-                        }
-                        explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                    } break
-                    case "IDL:omg.org/CORBA/BAD_PARAM:1.0": {
-                        const explanationList: { [index: number]: string } = {
-                            // OMG
-                            // OmniORB
-                            0x4154001d: "Invalid initial size"
-                        }
-                        explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                    } break
-                    case "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0": {
-                        const explanationList: { [index: number]: string } = {
-                            // OMG
-                            // OmniORB
-                            0x41540001: "???"
-                        }
-                        explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                    } break
-                }
-                throw Error(`CORBA System Exception ${exceptionId} from ${this.connection!.remoteAddress}:${this.connection!.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${completionStatusName}`)
-            default:
-                throw Error(`ReplyStatusType ${data.replyStatus} is not supported`)
-        }
         return data
     }
 
-    serviceContext() {
+    // return data, move checking the auth stuff up to the orb
+    serviceContext(): any[] {
+        const result = []
+
         const serviceContextListLength = this.ulong()
 
         // console.log(`serviceContextListLength = ${serviceContextListLength}`)
@@ -1075,8 +983,10 @@ export class GIOPDecoder extends GIOPBase {
 
             switch (serviceId) {
                 case ServiceId.BI_DIR_IIOP: {
-                    const host = this.string()
-                    const port = this.ushort()
+                    const ctx = new BidirectionalIIOPServiceContext()
+                    ctx.host = this.string()
+                    ctx.port = this.ushort()
+                    result.push(ctx)
                     // console.log(`serviceContext[${i}] = BiDirIIOP listenPoint ${host}:${port}`)
                 } break
                 case ServiceId.SecurityAttributeService: {
@@ -1181,13 +1091,7 @@ export class GIOPDecoder extends GIOPBase {
                                 te.decode(cdr.blob()),
                                 te.decode(cdr.blob())
                             )
-
-                            if (this.connection?.orb.incomingAuthenticator) {
-                                if (this.connection?.orb.incomingAuthenticator(this.connection, context) !== AuthenticationStatus.SUCCESS) {
-                                    throw Error("Bad Credentials")
-                                }
-                            }
-
+                            result.push(context)
                             // console.log(`InitialContextToken(username="${user}", password="${password}", target_name="${target_name}")`)
                         } break
                     }
@@ -1197,6 +1101,7 @@ export class GIOPDecoder extends GIOPBase {
             }
             this.endEncapsulation()
         }
+        return result
     }
 
     reference(length: number | undefined = undefined): ObjectReference {

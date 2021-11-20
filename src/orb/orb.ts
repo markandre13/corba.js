@@ -18,7 +18,7 @@
 
 import { Protocol } from "./protocol"
 import { Connection } from "./connection"
-import { GIOPDecoder, GIOPEncoder, MessageType, LocateStatusType, ReplyStatus, ObjectReference, EstablishContext, AuthenticationStatus, GSSUPInitialContextToken } from "./giop"
+import { GIOPDecoder, GIOPEncoder, MessageType, LocateStatusType, ReplyStatus, ObjectReference, EstablishContext, AuthenticationStatus, GSSUPInitialContextToken, RequestData } from "./giop"
 import { IOR } from "./ior"
 import { Uint8Map } from "./uint8map"
 import { CorbaName, UrlParser } from "./url"
@@ -78,7 +78,7 @@ export class ORB implements EventTarget {
     addProtocol(protocol: Protocol) {
         this.protocols.push(protocol)
     }
-    
+
     addConnection(connection: Connection) {
         this.connections.push(connection)
     }
@@ -93,14 +93,14 @@ export class ORB implements EventTarget {
     }
 
     logConnection() {
-        this.connections.forEach( c => console.log(`CONNECTION ${c.localAddress}:${c.localPort}->${c.remoteAddress}:${c.remotePort}`))
+        this.connections.forEach(c => console.log(`CONNECTION ${c.localAddress}:${c.localPort}->${c.remoteAddress}:${c.remotePort}`))
     }
 
     async shutdown() {
-        for(let i=0; i<this.protocols.length; ++i) {
+        for (let i = 0; i < this.protocols.length; ++i) {
             await this.protocols[i].close()
         }
-        for(let i=0; i<this.connections.length; ++i) {
+        for (let i = 0; i < this.connections.length; ++i) {
             await this.connections[i].close()
         }
         this.connections.length = 0
@@ -118,7 +118,7 @@ export class ORB implements EventTarget {
             oldConnection.close()
             // console.log(`REPLACE ${oldConnection.localAddress}:${oldConnection.localPort}->${oldConnection.remoteAddress}:${oldConnection.remotePort}`)
             // console.log(`   WITH ${newConnection.localAddress}:${newConnection.localPort}->${newConnection.remoteAddress}:${newConnection.remotePort}`)
-            oldConnection.stubsById.forEach( (stub, key) => {
+            oldConnection.stubsById.forEach((stub, key) => {
                 stub.connection = newConnection
                 newConnection.stubsById.set(key, stub)
             })
@@ -286,7 +286,27 @@ export class ORB implements EventTarget {
             } break
             case MessageType.REQUEST: {
                 const request = decoder.scanRequestHeader()
+                for (let i = 0; i < request.serviceContext.length; ++i) { 
+                    const e = request.serviceContext[i]
+                    if (e instanceof EstablishContext) {
+                        if (this.incomingAuthenticator) {
+                            if (this.incomingAuthenticator(connection, e) !== AuthenticationStatus.SUCCESS) {
+                                if (request.responseExpected) {
+                                    const encoder = new GIOPEncoder(connection)
+                                    encoder.skipReplyHeader()
+                                    const length = encoder.offset
+                                    encoder.setGIOPHeader(MessageType.REPLY)
+                                    encoder.setReplyHeader(request.requestId, ReplyStatus.USER_EXCEPTION)
+                                    connection.send(encoder.buffer.slice(0, length))
+                                }
+                                return
+                            }
+                        }
+                    }
+                }
+
                 const servant = this.servants.get(request.objectKey)
+
                 // console.log(`ORB ${this.name} got request`)
                 // console.log(request)
                 if (servant === undefined) {
@@ -346,6 +366,7 @@ export class ORB implements EventTarget {
                     return
                 }
                 connection.pendingReplies.delete(data.requestId)
+
                 switch (data.replyStatus) {
                     case ReplyStatus.NO_EXCEPTION:
                         handler.decode(decoder)
@@ -353,6 +374,106 @@ export class ORB implements EventTarget {
                     case ReplyStatus.USER_EXCEPTION:
                         handler.reject(new Error(`User Exception`))
                         break
+                    case ReplyStatus.SYSTEM_EXCEPTION:
+                        // 0.4.3.2 ReplyBody: SystemExceptionReplyBody
+                        const exceptionId = decoder.string()
+                        const minorCodeValue = decoder.ulong()
+                        const completionStatus = decoder.ulong()
+                        const vendorId = (minorCodeValue & 0xFFFFF000) >> 12
+                        const minorCode = minorCodeValue & 0x00000FFF
+        
+                        // FIXME: make org.omg.CORBA.CompletionStatus an enum
+                        let completionStatusName
+                        switch (completionStatus) {
+                            case 0:
+                                completionStatusName = "yes"
+                                break
+                            case 1:
+                                completionStatusName = "no"
+                                break
+                            case 2:
+                                completionStatusName = "maybe"
+                                break
+                            default:
+                                completionStatusName = `${completionStatus}`
+                        }
+        
+                        // VMCID
+                        let vendorList: { [index: number]: string } = {
+                            0x41540: "OmniORB",
+                            0x47430: "GNU Classpath",
+                            0x49424: "IBM",
+                            0x49540: "IONA",
+                            0x4A430: "JacORB",
+                            0x4D313: "corba.js", // not registered
+                            0x4F4D0: "OMG",
+                            0x53550: "SUN",
+                            0x54410: "TAO",
+                            0x56420: "Borland (VisiBroker)",
+                            0xA11C0: "Adiron"
+                        }
+                        const vendor = vendorId in vendorList ? ` ${vendorList[vendorId]}` : ""
+        
+                        // A.5 Exception Codes
+                        let explanation = ""
+        
+                        // CORBA 3.4, Part 2, A.5 Exception Codes
+                        switch (exceptionId) {
+                            case "IDL:omg.org/CORBA/MARSHAL:1.0": {
+                                let explanationList: { [index: number]: string } = {
+                                    // OMG
+                                    0x4f4d0001: "Unable to locate value factory.",
+                                    0x4f4d0002: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
+                                    0x4f4d0003: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
+                                    0x4f4d0004: "Attempt to marshal local object.",
+                                    0x4f4d0005: "wchar or wstring data erroneously sent by client over GIOP 1.0 connection.",
+                                    0x4f4d0006: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
+                                    0x4f4d0007: "Unsupported RMI/IDL custom value type stream format.",
+                                    // OmniORB
+                                    0x4154000a: "Pass end of message",
+                                    0x41540012: "Sequence is too long",
+                                    0x41540015: "Index out of range",
+                                    0x41540016: "Received an invalid zero length string",
+                                    0x41540034: "Invalid IOR",
+                                    0x4154004f: "Invalid ContextList",
+                                    0x4154005a: "Invalid Indirection",
+                                    0x4154005b: "Invalid TypeCodeKind",
+                                    0x4154005d: "Message too long",
+                                    0x41540070: "Invalid value tag"
+                                }
+                                explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                            } break
+                            case "IDL:omg.org/CORBA/TRANSIENT:1.0": {
+                                const explanationList: { [index: number]: string } = {
+                                    // OMG
+                                    // OmniORB
+                                    0x41540002: "Connect Failed"
+                                }
+                                explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                            } break
+                            case "IDL:omg.org/CORBA/BAD_PARAM:1.0": {
+                                const explanationList: { [index: number]: string } = {
+                                    // OMG
+                                    // OmniORB
+                                    0x4154001d: "Invalid initial size"
+                                }
+                                explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                            } break
+                            case "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0": {
+                                const explanationList: { [index: number]: string } = {
+                                    // OMG
+                                    // OmniORB
+                                    0x41540001: "???"
+                                }
+                                explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
+                            } break
+                        }
+                        handler.reject(
+                            new Error(`CORBA System Exception ${exceptionId} from ${connection!.remoteAddress}:${connection!.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${completionStatusName}`)
+                        )
+                        break
+                    default:
+                        handler.reject(new Error(`ReplyStatusType ${data.replyStatus} is not supported`))
                 }
             } break
             default: {
@@ -516,12 +637,12 @@ export class ORB implements EventTarget {
 
 
     incomingAuthenticator?: IncomingAuthenticator
-    setIncomingAuthenticator( authenticator: IncomingAuthenticator) {
+    setIncomingAuthenticator(authenticator: IncomingAuthenticator) {
         this.incomingAuthenticator = authenticator
     }
 
     outgoingAuthenticator?: OutgoingAuthenticator
-    setOutgoingAuthenticator( authenticator: OutgoingAuthenticator) {
+    setOutgoingAuthenticator(authenticator: OutgoingAuthenticator) {
         this.outgoingAuthenticator = authenticator
     }
 
