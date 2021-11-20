@@ -21,7 +21,7 @@ import { expect, use } from "chai"
 import * as chaiAsPromised from "chai-as-promised"
 use(chaiAsPromised.default)
 
-import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, ORB } from "corba.js"
+import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, NO_PERMISSION, ORB } from "corba.js"
 import { TlsConnection, TlsProtocol } from "corba.js/net/tls"
 import { Connection } from "corba.js/orb/connection"
 import { readFileSync } from "fs"
@@ -48,14 +48,14 @@ describe("net", async function () {
                 serverORB.bind("Server", serverImpl)
                 if (id !== 0) {
                     serverORB.setIncomingAuthenticator((connection: Connection, context: EstablishContext) => {
-                        if (context.authentication instanceof GSSUPInitialContextToken) {
-                            if (context.authentication.user === "mallory") {
+                        if (context.clientAuthenticationToken instanceof GSSUPInitialContextToken) {
+                            if (context.clientAuthenticationToken.user === "mallory") {
                                 return AuthenticationStatus.ERROR_NOUSER
                             }
-                            if (context.authentication.user === "bob" &&
-                                context.authentication.password === "No RISC No Fun" &&
-                                context.authentication.target_name === "") {
-                                rcvdInitialContext = context.authentication
+                            if (context.clientAuthenticationToken.user === "bob" &&
+                                context.clientAuthenticationToken.password === "No RISC No Fun" &&
+                                context.clientAuthenticationToken.target_name === "") {
+                                rcvdInitialContext = context.clientAuthenticationToken
                                 return AuthenticationStatus.SUCCESS
                             }
                         }
@@ -97,8 +97,7 @@ describe("net", async function () {
                 }
 
                 if (id === 2) {
-                    // as of now this already fails as the check is also executed for the name service
-                    expect(clientORB.stringToObject("corbaname::localhost:2809#Server")).to.be.rejectedWith(Error)
+                    await expect(clientORB.stringToObject("corbaname::localhost:2809#Server")).to.be.rejectedWith(NO_PERMISSION)
                     // await serverORB.shutdown()
                     return
                 }

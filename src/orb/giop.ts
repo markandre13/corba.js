@@ -177,11 +177,129 @@ export class GSSUPInitialContextToken {
     }
 }
 
-export class EstablishContext {
+export class SecurityContext {}
+
+export class EstablishContext extends SecurityContext {
     clientContextId = 0n
-    authorization: any[] = []
-    identity: any
-    authentication: any
+    authorizationToken: any[] = []
+    identityToken: any
+    clientAuthenticationToken: any // GSSToken
+
+    decode(decoder: GIOPDecoder) {
+        this.clientContextId = decoder.ulonglong()
+        // console.log(`  clientContextId = ${context.clientContextId}`)
+
+        // console.log(`octets left: ${this.encapStack[this.encapStack.length - 1].nextOffset - this.offset}`)
+        if (decoder.encapStack[decoder.encapStack.length - 1].nextOffset - decoder.offset < 4) {
+            // console.log(`use previously negotiated context (?)`)
+            return
+        }
+
+        // bearer tokens for further authorization (e.g. a JWT)
+        const authorizationTokenCount = decoder.ulong()
+        // console.log(`  authorizationTokenLength=${authorizationTokenCount}`)
+        for (let i = 0; i < authorizationTokenCount; ++i) {
+            const type = decoder.ulong()
+            // const vendorMinorCodeSetId = type >> 20
+            // const typeIdentifier = type & 0xfffff
+            const content = decoder.blob()
+            this.authorizationToken.push(
+                new AuthorizationToken(type, content)
+            )
+        }
+
+        // if given, use this identity instead of the one from the authentication layer
+        const tokenType = decoder.ulong()
+        // console.log(`  tokenType=${IdentityTokenType[tokenType]}`)
+        switch (tokenType) {
+            case IdentityTokenType.Absent: {
+                const absent = decoder.bool()
+                // console.log(`    Absent = ${absent}`)
+            } break
+            default: {
+                // console.log(`Can not authenticate client: CSIv2 tokenType=${IdentityTokenType[tokenType]} not supported.`)
+            }
+        }
+
+        // The Generic Security Service (GSS) defined in RFC 2743 and 2743 provides an
+        // API between a network protocol implementation and an authentication framework.
+        // Each authentication mechanism is identified with an OID
+        //
+        // Kerberos
+        //   1.2.840.113554.1.2.2     Kerberos v5 (RFC 1964)
+        //   1.2.840.113554.1.2.2.3   Kerberos v5 user to user
+        //   1.2.840.48018.1.2.2      Kerberos v5 (MS Windows Bug, 48018 == 113554 & 0xFFFF)
+        // Microsoft
+        //   1.2.752.43.14.2          NETLOGON
+        //   1.3.6.1.5.5.2            SPNEGO (RFC 4178)
+        //   1.3.6.1.5.2.5            IAKERB (draft-ietf-kitten-iakerb-03)
+        //   1.3.6.1.4.1.311.2.2.10   NTLM SSP
+        //   1.3.6.1.4.1.311.2.2.30   NEGOEX
+        // Salted Challenge Response Authentication Mechanism
+        //   1.3.6.1.5.5.14           SCRAM-SHA-1 (RFC 5802)
+        //   1.3.6.1.5.5.18           SCRAM-SHA-256 (RFC 7677)
+        // Extensible Authentication Protocol
+        //   1.3.6.1.5.5.15.1.1.*     GSS-EAP (arc) (RFC 7055)
+        //   1.3.6.1.5.2.7            PKU2U – draft-zhu-pku2u-09
+        // Simple Public Key Mechanism
+        //   1.3.6.1.5.5.1.1          SPKM-1 (RFC 2025)
+        //   1.3.6.1.5.5.1.2          SPKM-2 (RFC 2025)
+        //   1.3.6.1.5.5.1.3          SPKM-3 (RFC 2847)
+        // Low Infrastructure Public Key Mechanism Using SPKM
+        //   1.3.6.1.5.5.9            LIPKEY (RFC 2847)
+        // OMG
+        //   2.23.130.1.1.1           CORBA Username Password (GSSUP)
+
+        // authentication                          
+        const blobLength = decoder.ulong()
+        // console.log(`  authentication length = ${blobLength}`)
+
+        // CORBA 3.4, Part 2, 10.2.4.1.1 GSSUP Initial Context Token
+        //
+        // The format of a GSSUP initial context token shall be as defined in
+        // [IETF RFC 2743] 3.1, “Mechanism-Independent Token Format,” pp. 81-82.
+        // RFC 2744 is the GSS C API, it's intended to be between the protocol (e.g. IIOP)
+        // and the security mechanism (eg. Kerberos, JWT, ...)
+        //
+        // This GSSToken shall contain an ASN.1 tag followed by a token length, ...
+        if (decoder.asn1expect(ASN1Class.APPLICATION, 0, ASN1Encoding.CONSTRUCTED) === undefined)
+            return
+
+        // ... an authentication mechanism identifier, and ...
+        // Generic Security Service User Password (GSSUP)
+        // {iso-itu-t(2) international-organization(23) omg(130) security(1) authentication(1) gssup-mechanism(1)}
+
+        if (!decoder.asn1expectOID([2, 23, 130, 1, 1, 1]))
+            return
+
+        // ... a CDR encapsulation containing a GSSUP inner context token as defined by the type GSSUP::InitialContextToken
+        const cdr = new GIOPDecoder(decoder.buffer.slice(decoder.offset))
+        cdr.endian()
+        const te = new TextDecoder()
+
+        this.clientAuthenticationToken = new GSSUPInitialContextToken(
+            te.decode(cdr.blob()),
+            te.decode(cdr.blob()),
+            te.decode(cdr.blob())
+        )
+    }
+}
+
+// COBRA 3.3 part 2, 10.2.2.2
+// send along with a NO_PERMISSION exception
+// 10.3.5 ContextError Values and Exceptions
+export class ContextError extends SecurityContext {
+    clientContextId = 0n
+    majorStatus: number = 1
+    minorStatus: number = 1
+    errorToken: any // GSSToken
+}
+
+// COBRA 3.3 part 2, 10.2.2.3
+export class CompleteEstablishContext extends SecurityContext {
+    clientContextId = 0n
+    contextStateful!: boolean
+    finalContextToken: any // GSSToken
 }
 
 export enum AuthenticationStatus {
@@ -219,6 +337,56 @@ export enum ReplyStatus {
     // since GIOP 1.2
     LOCATION_FORWARD_PERM = 4,
     NEEDS_ADDRESSING_MODE = 5
+}
+
+export class BidirectionalIIOPServiceContext {
+    host!: string
+    port!: number
+}
+
+export class RequestData {
+    requestId!: number
+    responseExpected!: boolean
+    objectKey!: Uint8Array
+    method!: string
+    error?: Error
+
+    serviceContext!: any[]
+}
+
+class ReplyData {
+    requestId!: number
+    replyStatus!: ReplyStatus
+}
+
+class LocateRequest {
+    requestId!: number
+    objectKey!: Uint8Array
+}
+
+export enum LocateStatusType {
+    UNKNOWN_OBJECT = 0,
+    OBJECT_HERE = 1,
+    OBJECT_FORWARD = 2,
+    // GIOP >= 1.2
+    OBJECT_FORWARD_PERM = 3,
+    LOC_SYSTEM_EXCEPTION = 4,
+    LOC_NEEDS_ADDRESSING_MODE = 5
+}
+
+class LocateReply {
+    requestId!: number
+    status!: LocateStatusType
+}
+
+export class ObjectReference {
+    oid!: string
+    host!: string
+    port!: number
+    objectKey!: Uint8Array
+    toString(): string {
+        return `ObjectReference(oid=${this.oid}, host=${this.host}, port=${this.port}, objectKey=${this.objectKey}')`
+    }
 }
 
 export class GIOPBase {
@@ -752,56 +920,6 @@ export class GIOPEncoder extends GIOPBase {
     }
 }
 
-export class BidirectionalIIOPServiceContext {
-    host!: string
-    port!: number
-}
-
-export class RequestData {
-    requestId!: number
-    responseExpected!: boolean
-    objectKey!: Uint8Array
-    method!: string
-    error?: Error
-
-    serviceContext!: any[]
-}
-
-class ReplyData {
-    requestId!: number
-    replyStatus!: ReplyStatus
-}
-
-class LocateRequest {
-    requestId!: number
-    objectKey!: Uint8Array
-}
-
-export enum LocateStatusType {
-    UNKNOWN_OBJECT = 0,
-    OBJECT_HERE = 1,
-    OBJECT_FORWARD = 2,
-    // GIOP >= 1.2
-    OBJECT_FORWARD_PERM = 3,
-    LOC_SYSTEM_EXCEPTION = 4,
-    LOC_NEEDS_ADDRESSING_MODE = 5
-}
-
-class LocateReply {
-    requestId!: number
-    status!: LocateStatusType
-}
-
-export class ObjectReference {
-    oid!: string
-    host!: string
-    port!: number
-    objectKey!: Uint8Array
-    toString(): string {
-        return `ObjectReference(oid=${this.oid}, host=${this.host}, port=${this.port}, objectKey=${this.objectKey}')`
-    }
-}
-
 export class GIOPDecoder extends GIOPBase {
     buffer: ArrayBuffer
     data: DataView
@@ -995,104 +1113,24 @@ export class GIOPDecoder extends GIOPBase {
                     switch (type) {
                         case SASType.EstablishContext: {
                             const context = new EstablishContext()
-                            context.clientContextId = this.ulonglong()
-                            // console.log(`  clientContextId = ${context.clientContextId}`)
-
-                            // console.log(`octets left: ${this.encapStack[this.encapStack.length - 1].nextOffset - this.offset}`)
-                            if (this.encapStack[this.encapStack.length - 1].nextOffset - this.offset < 4) {
-                                // console.log(`use previously negotiated context (?)`)
-                                break
-                            }
-
-                            // bearer tokens for further authorization (e.g. a JWT)
-                            const authorizationTokenCount = this.ulong()
-                            // console.log(`  authorizationTokenLength=${authorizationTokenCount}`)
-                            for (let i = 0; i < authorizationTokenCount; ++i) {
-                                const type = this.ulong()
-                                // const vendorMinorCodeSetId = type >> 20
-                                // const typeIdentifier = type & 0xfffff
-                                const content = this.blob()
-                                context.authorization.push(
-                                    new AuthorizationToken(type, content)
-                                )
-                            }
-
-                            // if given, use this identity instead of the one from the authentication layer
-                            const tokenType = this.ulong()
-                            // console.log(`  tokenType=${IdentityTokenType[tokenType]}`)
-                            switch (tokenType) {
-                                case IdentityTokenType.Absent: {
-                                    const absent = this.bool()
-                                    // console.log(`    Absent = ${absent}`)
-                                } break
-                                default: {
-                                    // console.log(`Can not authenticate client: CSIv2 tokenType=${IdentityTokenType[tokenType]} not supported.`)
-                                }
-                            }
-
-                            // The Generic Security Service (GSS) defined in RFC 2743 and 2743 provides an
-                            // API between a network protocol implementation and an authentication framework.
-                            // Each authentication mechanism is identified with an OID
-                            //
-                            // Kerberos
-                            //   1.2.840.113554.1.2.2     Kerberos v5 (RFC 1964)
-                            //   1.2.840.113554.1.2.2.3   Kerberos v5 user to user
-                            //   1.2.840.48018.1.2.2      Kerberos v5 (MS Windows Bug, 48018 == 113554 & 0xFFFF)
-                            // Microsoft
-                            //   1.2.752.43.14.2          NETLOGON
-                            //   1.3.6.1.5.5.2            SPNEGO (RFC 4178)
-                            //   1.3.6.1.5.2.5            IAKERB (draft-ietf-kitten-iakerb-03)
-                            //   1.3.6.1.4.1.311.2.2.10   NTLM SSP
-                            //   1.3.6.1.4.1.311.2.2.30   NEGOEX
-                            // Salted Challenge Response Authentication Mechanism
-                            //   1.3.6.1.5.5.14           SCRAM-SHA-1 (RFC 5802)
-                            //   1.3.6.1.5.5.18           SCRAM-SHA-256 (RFC 7677)
-                            // Extensible Authentication Protocol
-                            //   1.3.6.1.5.5.15.1.1.*     GSS-EAP (arc) (RFC 7055)
-                            //   1.3.6.1.5.2.7            PKU2U – draft-zhu-pku2u-09
-                            // Simple Public Key Mechanism
-                            //   1.3.6.1.5.5.1.1          SPKM-1 (RFC 2025)
-                            //   1.3.6.1.5.5.1.2          SPKM-2 (RFC 2025)
-                            //   1.3.6.1.5.5.1.3          SPKM-3 (RFC 2847)
-                            // Low Infrastructure Public Key Mechanism Using SPKM
-                            //   1.3.6.1.5.5.9            LIPKEY (RFC 2847)
-                            // OMG
-                            //   2.23.130.1.1.1           CORBA Username Password (GSSUP)
-
-                            // authentication                          
-                            const blobLength = this.ulong()
-                            // console.log(`  authentication length = ${blobLength}`)
-
-                            // CORBA 3.4, Part 2, 10.2.4.1.1 GSSUP Initial Context Token
-                            //
-                            // The format of a GSSUP initial context token shall be as defined in
-                            // [IETF RFC 2743] 3.1, “Mechanism-Independent Token Format,” pp. 81-82.
-                            // RFC 2744 is the GSS C API, it's intended to be between the protocol (e.g. IIOP)
-                            // and the security mechanism (eg. Kerberos, JWT, ...)
-                            //
-                            // This GSSToken shall contain an ASN.1 tag followed by a token length, ...
-                            if (this.asn1expect(ASN1Class.APPLICATION, 0, ASN1Encoding.CONSTRUCTED) === undefined)
-                                break
-
-                            // ... an authentication mechanism identifier, and ...
-                            // Generic Security Service User Password (GSSUP)
-                            // {iso-itu-t(2) international-organization(23) omg(130) security(1) authentication(1) gssup-mechanism(1)}
-
-                            if (!this.asn1expectOID([2, 23, 130, 1, 1, 1]))
-                                break
-
-                            // ... a CDR encapsulation containing a GSSUP inner context token as defined by the type GSSUP::InitialContextToken
-                            const cdr = new GIOPDecoder(this.buffer.slice(this.offset))
-                            cdr.endian()
-                            const te = new TextDecoder()
-
-                            context.authentication = new GSSUPInitialContextToken(
-                                te.decode(cdr.blob()),
-                                te.decode(cdr.blob()),
-                                te.decode(cdr.blob())
-                            )
+                            context.decode(this)
                             result.push(context)
                             // console.log(`InitialContextToken(username="${user}", password="${password}", target_name="${target_name}")`)
+                        } break
+                        case SASType.CompleteEstablishContext: {
+                            const context = new CompleteEstablishContext()
+                            context.clientContextId = this.ulonglong()
+                            context.contextStateful = this.bool()
+                            // finalContextToken
+                            result.push(context)
+                        } break
+                        case SASType.ContextError: {
+                            const context = new ContextError()
+                            context.clientContextId = this.ulonglong()
+                            context.majorStatus = this.long()
+                            context.minorStatus = this.long()
+                            // errorToken
+                            result.push(context)
                         } break
                     }
                 } break

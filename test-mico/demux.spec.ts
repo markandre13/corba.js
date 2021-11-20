@@ -29,7 +29,7 @@
 
 import { use, expect } from "chai"
 import * as chaiAsPromised from "chai-as-promised"
-use(chaiAsPromised.default)
+use(chaiAsPromised)
 
 import { ORB } from "corba.js"
 
