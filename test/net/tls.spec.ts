@@ -35,6 +35,8 @@ describe("net", async function () {
             ["only", 0],
             ["with valid CSIv2 GSSUP client authentication", 1],
             ["with CSIv2 GSSUP client authentication and unknown user", 2]
+            // send the full security context only once, then just the contextid
+            // add internal caching to prevent calling the authenticators to often
         ]).
             it("TLS %s", async function (name, id) {
                 const validCredentials = new GSSUPInitialContextToken("bob", "No RISC No Fun", "")
@@ -47,6 +49,8 @@ describe("net", async function () {
                 const serverImpl = new Server_impl(serverORB)
                 serverORB.bind("Server", serverImpl)
                 if (id !== 0) {
+                    // TODO: this could also include the object & method
+                    // TODO: additionally to AuthenticationStatus, we could also return a scope for caching ie. connection, object, method, none
                     serverORB.setIncomingAuthenticator((connection: Connection, context: EstablishContext) => {
                         if (context.clientAuthenticationToken instanceof GSSUPInitialContextToken) {
                             if (context.clientAuthenticationToken.user === "mallory") {

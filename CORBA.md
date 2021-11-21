@@ -1,23 +1,78 @@
-NOTES ON CORBA'S binary General Inter-ORB Protocol (GIOP)
+# CORBA Technical Notes
 
-GIOP FEATURES
+## Glossary
 
-GIOP
-* is a binary format
-* can handle multiple pointers to the same object
-  in case the object has been stored before, a relative offset will point to the previous definition
-* can handle multiple occurences of id strings
-  in case the string has been stored before, a relative offset will point to the previous definition
-
-CORBA TERMS
-
-  GIOP (General Inter-ORB Protocol)
-  IIOP (Internet Inter-ORB Protocol)
-  IOR (Interoperable Object Reference)
-  RepositoryID ID to identify valuetypes
-  CDR (Common Type Representation)
+  CDR (Common Type Representation): CORBA's binary encoding
+  GIOP (General Inter-ORB Protocol): transport layer independent CORBA protocol
+  IIOP (Internet Inter-ORB Protocol): GIOP over TCP
+  IDL (Interface Definition Language): language independent definition of CORBA types
+  interface: IDL keyword, defines an object which can be contacted over GIOP
+  valuetype: IDL keyword, defines data which can be send over GIOP
+  struct: IDL keyword, defines data which can be send over GIOP, unlike valuetypes, which were introduced later, they can not be subclassed
+  Repository ID: identifies the type of interfaces/objects and valuetypes.
+  Object Key: identifies an object within an ORB
+  IOR (Interoperable Object Reference): identifies an object and an ORB
+  Service Context: Additional information send along CORBA messages
+  CSI Common Security Infrastructure: Security extension using Service Context for communication
+  GSS 
+  CSS
+  TSS
   BOA (Basic Object Adapter)
   POA (Portable Object Adapter, replaced BOA since CORBA 2.2)
+
+## Persistence
+
+```CORBA <-> Object Oriented Programming Language <-> Object-Relational Mapping```
+
+* Transient Objects: bound to the life time of the object adapter, the default
+* Persistent Objects: enable with setting policy LifeSpanPolicy=PERSISTENT, IdAssignmentPolicy=USER_ID
+  PortableServer::ObjectId_var oid = PortableServer::string_to_ObjectId("Stock_Factory");
+  child_poa->activate_object_with_id(oid.in(), &stock_factory_i);
+  CORBA::Object_var stock_factory = child_poa->id_to_reference(oid.in ());
+
+## Security
+
+### Introduction
+
+CORBA's Common Security Infrastructure 2 (CSIv2) is quite enterprisy and hence either
+absent or incomplete in open source ORBs like MICO, OmniORB or JacORB. And even closed
+source ORBs (VisiBroker) usually provide their own custom APIs.
+
+So corba.js also has an incomplete implementation and also provides it's own custome API.
+But it is compatible on the protocol level with the standard and has been tested with JacORB.
+
+### Architecture
+
+CSI makes use of two other security technologies:
+
+* TLS (RFC 8446 et al.) is mandatory to provide confidentiality and authenticate CORBA
+  servers. Authenticating clients via TLS is optional (and cumbersome, as it requires
+  to install and manage X.509 certificates on the client).
+
+* Generic Security Service Application Program Interface (GSSAPI; RFC 2078,
+  RFC 2744) add's additional authentication mechanism to that provided by TLS,
+  especially username/password authentication.
+  
+  Instead of CORBA's CDR binary encoding, GSS uses ASN.1 DER, which is also used for
+  X.509 certificates and many other old-school internet protocols like Kerberos 5,
+  LDAP, SNMP, etc.
+
+  Of this corba.js only implements what is needed to support CORBA's username/password
+  authentication (GSSUP).
+
+  But the protocol is flexible enough to handle Kerberos, LDAP or JWTs.
+
+### corba.js Security API
+
+#### Authorization for incoming connections
+
+ORB.setIncomingAuthenticator()
+
+#### Authorization for outgoing connections
+
+ORB.setOutgoingAuthenticator()
+
+## Value Types
 
 CORBA 3.3, 9.3.4 Value Types
 

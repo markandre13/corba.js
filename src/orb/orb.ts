@@ -347,6 +347,12 @@ export class ORB implements EventTarget {
                         if (this.incomingAuthenticator && servant !== this.namingService) {
                             if (this.incomingAuthenticator(connection, e) !== AuthenticationStatus.SUCCESS) {
                                 if (request.responseExpected) {
+                                    // FIXME: https://owasp.org/www-community/controls/Blocking_Brute_Force_Attacks
+                                    // * add random delay... even on success
+                                    // Many failed logins from the same IP address
+                                    // Logins with multiple usernames from the same IP address
+                                    // Logins for a single account coming from many different IP addresses
+
                                     const encoder = new GIOPEncoder(connection)
                                     encoder.skipReplyHeader()
                                     encoder.string("IDL:omg.org/CORBA/NO_PERMISSION:1.0")
