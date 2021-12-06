@@ -5,8 +5,8 @@
   "author": "Mark-André Hopf <mhopf@mark13.org>",
   "license": "AGPL-3.0",
   "type": "module",
-  "main": "lib/index.js",
-  "types": "lib/orb.d.ts",
+  "main": "lib/src/orb/index.js",
+  "types": "lib/src/orb/index.d.ts",
   "bin": {
     "corba-idl": "./bin/corba-idl"
   },

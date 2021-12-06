@@ -5,10 +5,8 @@
     "moduleResolution": "node",
     "traceResolution": false,
     "esModuleInterop": true,
-    // "composite": true,
     "incremental": true,
-
-    // "lib": ["dom", "esnext"],
+    "declaration": true,
     "outDir": "lib",
     "baseUrl": ".",
     "paths": {
