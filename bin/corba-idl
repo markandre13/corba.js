@@ -1,2 +1,15 @@
 #!/bin/sh
-exec node --enable-source-maps "${0%/*}/../lib/idl/idl.cjs" $*
+
+tryrun() {
+  if test -f "$1" ; then
+    exec /usr/bin/env node --enable-source-maps -- $*
+  fi
+}
+
+tryrun "${0%/*}/../lib/idl/idl.cjs" $*
+tryrun "${0%/*}/../corba.js/lib/idl/idl.cjs" $*
+
+echo "${0%/*}"
+
+echo "$0: internal error; couldn't find idl.cjs" 1>&2
+exit 1
