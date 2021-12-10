@@ -22,7 +22,7 @@ import * as chaiAsPromised from "chai-as-promised"
 use(chaiAsPromised.default)
 
 import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, NO_PERMISSION, ORB } from "corba.js"
-import { TlsConnection, TlsProtocol } from "corba.js/net/tls"
+import { WssProtocol, WssConnection } from "corba.js/net/ws"
 import { Connection } from "corba.js/orb/connection"
 import { readFileSync } from "fs"
 
@@ -30,13 +30,16 @@ import * as skel from "../generated/access_skel"
 import * as stub from "../generated/access_stub"
 
 describe("net", async function () {
-    describe("tls", function () {
+    describe("wss", function () {
+
+        let serverORB: ORB
+        this.beforeEach( () => serverORB = new ORB())
+        this.afterEach( async () => await serverORB.shutdown() )
+
         forEach([
             ["only", 0],
             ["with valid CSIv2 GSSUP client authentication", 1],
             ["with CSIv2 GSSUP client authentication and unknown user", 2]
-            // send the full security context only once, then just the contextid
-            // add internal caching to prevent calling the authenticators to often
         ]).
             it("TLS %s", async function (name, id) {
                 const validCredentials = new GSSUPInitialContextToken("bob", "No RISC No Fun", "")
@@ -44,7 +47,7 @@ describe("net", async function () {
                 let sendInitialContext: GSSUPInitialContextToken | undefined
                 let rcvdInitialContext: GSSUPInitialContextToken | undefined
 
-                const serverORB = new ORB()
+                // const serverORB = new ORB()
 
                 const serverImpl = new Server_impl(serverORB)
                 serverORB.bind("Server", serverImpl)
@@ -67,7 +70,7 @@ describe("net", async function () {
                     })
                 }
 
-                const tls = new TlsProtocol({
+                const tls = new WssProtocol({
                     passphrase: "alice",
                     key: readFileSync('test/x509/intermediate/private/server.key.pem'),
                     cert: readFileSync('test/x509/intermediate/certs/server.cert.pem'),
@@ -76,14 +79,14 @@ describe("net", async function () {
                     ]
                 })
                 serverORB.addProtocol(tls)
-                await tls.listen(serverORB, "localhost", 2809)
+                await tls.listen(serverORB, 2809)
 
                 const clientORB = new ORB()
                 clientORB.registerStubClass(stub.Server)
-                clientORB.addProtocol(new TlsProtocol())
+                clientORB.addProtocol(new WssProtocol())
                 if (id !== 0) {
                     clientORB.setOutgoingAuthenticator((connection: Connection) => {
-                        if (connection instanceof TlsConnection) {
+                        if (connection instanceof WssConnection) {
                             if (connection.peerCertificate.subject.CN === "localhost") {
                                 switch (id) {
                                     case 1:
@@ -102,6 +105,7 @@ describe("net", async function () {
 
                 const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
 
+                await server.call()
                 switch (id) {
                     case 0:
                         await server.call()
@@ -118,7 +122,7 @@ describe("net", async function () {
                         break
                 }
 
-                await serverORB.shutdown()
+                // await serverORB.shutdown()
             })
     })
 })

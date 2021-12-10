@@ -21,7 +21,7 @@ import { expect, use } from "chai"
 import * as chaiAsPromised from "chai-as-promised"
 use(chaiAsPromised.default)
 
-import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, ORB } from "corba.js"
+import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, NO_PERMISSION, ORB } from "corba.js"
 import { WsProtocol } from "corba.js/net/ws"
 import { Connection } from "corba.js/orb/connection"
 
@@ -31,54 +31,87 @@ import * as stub from "../generated/access_stub"
 describe("net", async function () {
     describe("ws", function () {
 
-        it("WS with valid CSIv2 GSSUP client authentication", async function () {
-            const validCredentials = new GSSUPInitialContextToken("bob", "No RISC No Fun", "")
-            const wrongUser = new GSSUPInitialContextToken("mallory", "No RISC No Fun", "")
-            let sendInitialContext: GSSUPInitialContextToken | undefined
-            let rcvdInitialContext: GSSUPInitialContextToken | undefined
+        let serverORB: ORB
+        this.beforeEach( () => serverORB = new ORB())
+        this.afterEach( async () => await serverORB.shutdown() )
 
-            const serverORB = new ORB()
+        forEach([
+            ["only", 0],
+            ["with valid CSIv2 GSSUP client authentication", 1],
+            // FIXME: corba.js exception handling does not work with package websocket
+            ["with CSIv2 GSSUP client authentication and unknown user", 2]
+        ]).
+            it("WS %s", async function (name, id) {
+                const validCredentials = new GSSUPInitialContextToken("bob", "No RISC No Fun", "")
+                const wrongUser = new GSSUPInitialContextToken("mallory", "No RISC No Fun", "")
+                let sendInitialContext: GSSUPInitialContextToken | undefined
+                let rcvdInitialContext: GSSUPInitialContextToken | undefined
 
-            const serverImpl = new Server_impl(serverORB)
-            serverORB.bind("Server", serverImpl)
+                // const serverORB = new ORB()
 
-            serverORB.setIncomingAuthenticator((connection: Connection, context: EstablishContext) => {
-                if (context.clientAuthenticationToken instanceof GSSUPInitialContextToken) {
-                    if (context.clientAuthenticationToken.user === "mallory") {
-                        return AuthenticationStatus.ERROR_NOUSER
-                    }
-                    if (context.clientAuthenticationToken.user === "bob" &&
-                        context.clientAuthenticationToken.password === "No RISC No Fun" &&
-                        context.clientAuthenticationToken.target_name === "") {
-                        rcvdInitialContext = context.clientAuthenticationToken
-                        return AuthenticationStatus.SUCCESS
-                    }
+                const serverImpl = new Server_impl(serverORB)
+                serverORB.bind("Server", serverImpl)
+                if (id !== 0) {
+                    // TODO: this could also include the object & method
+                    // TODO: additionally to AuthenticationStatus, we could also return a scope for caching ie. connection, object, method, none
+                    serverORB.setIncomingAuthenticator((connection: Connection, context: EstablishContext) => {
+                        if (context.clientAuthenticationToken instanceof GSSUPInitialContextToken) {
+                            if (context.clientAuthenticationToken.user === "mallory") {
+                                return AuthenticationStatus.ERROR_NOUSER
+                            }
+                            if (context.clientAuthenticationToken.user === "bob" &&
+                                context.clientAuthenticationToken.password === "No RISC No Fun" &&
+                                context.clientAuthenticationToken.target_name === "") {
+                                rcvdInitialContext = context.clientAuthenticationToken
+                                return AuthenticationStatus.SUCCESS
+                            }
+                        }
+                        return AuthenticationStatus.ERROR_UNSPECIFIED
+                    })
                 }
-                return AuthenticationStatus.ERROR_UNSPECIFIED
+
+                const tls = new WsProtocol()
+                serverORB.addProtocol(tls)
+                await tls.listen(serverORB, 2809)
+
+                const clientORB = new ORB()
+                clientORB.registerStubClass(stub.Server)
+                clientORB.addProtocol(new WsProtocol())
+                if (id !== 0) {
+                    clientORB.setOutgoingAuthenticator((connection: Connection) => {
+                        switch (id) {
+                            case 1:
+                                sendInitialContext = validCredentials
+                                break
+                            case 2:
+                                sendInitialContext = wrongUser
+                                break
+                        }
+                        return sendInitialContext
+                    })
+                }
+
+                const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
+
+                await server.call()
+                switch (id) {
+                    case 0:
+                        await server.call()
+                        expect(serverImpl.wasCalled).to.be.true
+                        break
+                    case 1:
+                        await server.call()
+                        expect(serverImpl.wasCalled).to.be.true
+                        expect(sendInitialContext).to.deep.equal(validCredentials)
+                        expect(rcvdInitialContext).to.deep.equal(validCredentials)
+                        break
+                    case 2:
+                        await expect(server.call()).to.be.rejectedWith(NO_PERMISSION)
+                        break
+                }
+
+                // await serverORB.shutdown()
             })
-
-            const tls = new WsProtocol()
-            serverORB.addProtocol(tls)
-            await tls.listen(serverORB, 2809)
-
-            const clientORB = new ORB()
-            clientORB.registerStubClass(stub.Server)
-            clientORB.addProtocol(new WsProtocol())
-
-            clientORB.setOutgoingAuthenticator((connection: Connection) => {
-                sendInitialContext = validCredentials
-                return validCredentials
-            })
-
-            const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
-
-            await server.call()
-            expect(sendInitialContext).to.deep.equal(validCredentials)
-            expect(rcvdInitialContext).to.deep.equal(validCredentials)
-            expect(serverImpl.wasCalled).to.be.true
-
-            await serverORB.shutdown()
-        })
     })
 })
 

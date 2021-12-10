@@ -24,6 +24,7 @@ const InitialInitiatorRequestIdBiDirectionalIIOP = 0
 const InitialResponderRequestIdBiDirectionalIIOP = 1
 
 import * as http from "http"
+import * as https from "https"
 import {
     server as WebSocketServer,
     client as WebSocketClient,
@@ -32,6 +33,7 @@ import {
     Message
 } from "websocket"
 import * as ws from "websocket"
+import { TLSSocket } from "tls"
 
 // WebSocket close codes
 enum CloseCode {
@@ -56,15 +58,25 @@ enum CloseCode {
     CLOSE_CUSTOM = 4000
 }
 
-export class WsProtocol implements Protocol {
-    serverSocket?: http.Server
+export abstract class WsProtocolBase<S extends http.Server, O extends http.ServerOptions> implements Protocol {
+    serverSocket?: S
+    serverOptions?: O
+
+    constructor(options?: O) {
+        this.serverOptions = options
+    }
+
+    abstract getUrl(host: string, port: number): string
+    abstract createServer(): S
+    abstract createConnection(orb: ORB, connection: WebSocketConnection): WsConnection
+
     // called by the ORB
     async connect(orb: ORB, host: string, port: number) {
         return new Promise<Connection>((resolve, reject) => {
             const socket = new (ws as any).default.client() as WebSocketClient
             socket.once("connectFailed", (error: Error) => reject(error))
             socket.once("connect", (wsConnection: WebSocketConnection) => {
-                const connection = new WsConnection(wsConnection, orb)
+                const connection = this.createConnection(orb, wsConnection)
                 connection.requestId = InitialInitiatorRequestIdBiDirectionalIIOP
                 wsConnection.on("error", (error: Error) => orb.socketError(connection, error))
                 wsConnection.on("close", (code: number, desc: string) => orb.socketClosed(connection))
@@ -82,7 +94,7 @@ export class WsProtocol implements Protocol {
                 orb.addConnection(connection)
                 resolve(connection)
             })
-            const url = `ws://${host}:${port}/`
+            const url = this.getUrl(host, port)
             // console.log(`WsProtocol.connect(orb, '${host}', ${port}) -> ${url}`)
             socket.connect(url)
         })
@@ -90,8 +102,8 @@ export class WsProtocol implements Protocol {
 
     // create a server socket
     listen(orb: ORB, port: number): void {
-        this.serverSocket = http.createServer()
-        const wss = new (ws as any).default.server({ 
+        this.serverSocket = this.createServer()
+        const wss = new (ws as any).default.server({
             httpServer: this.serverSocket,
             autoAcceptConnections: true // FIXME: this is a security issue?
         }) as WebSocketServer
@@ -101,7 +113,7 @@ export class WsProtocol implements Protocol {
         })
         wss.on("connect", (wsConnection: WebSocketConnection) => {
             // console.log(`accepted connection from ${wsConnection}`)
-            const connection = new WsConnection(wsConnection, orb)
+            const connection = this.createConnection(orb, wsConnection)
             connection.requestId = InitialResponderRequestIdBiDirectionalIIOP
             wsConnection.on("error", (error: Error) => { orb.socketError(connection, error) })
             wsConnection.on("close", (code: number, desc: string) => { orb.socketClosed(connection) })
@@ -133,12 +145,42 @@ export class WsProtocol implements Protocol {
     }
 }
 
-export class WsConnection extends Connection {
-    private wsConnection: WebSocketConnection
+export class WsProtocol extends WsProtocolBase<http.Server, http.ServerOptions> {
+    override createServer(): http.Server {
+        if (this.serverOptions) {
+            return http.createServer(this.serverOptions)
+        }
+        return http.createServer()
+    }
+    override createConnection(orb: ORB, connection: WebSocketConnection): WsConnection {
+        return new WsConnection(orb, connection)
+    }
+    override getUrl(host: string, port: number) {
+        return `ws://${host}:${port}/`
+    }
+}
 
-    constructor(wsConnection: WebSocketConnection, orb: ORB) {
+export class WssProtocol extends WsProtocolBase<https.Server, https.ServerOptions> {
+    override createServer(): https.Server {
+        if (this.serverOptions) {
+            return https.createServer(this.serverOptions)
+        }
+        return https.createServer()
+    }
+    override createConnection(orb: ORB, connection: WebSocketConnection): WsConnection {
+        return new WssConnection(orb, connection)
+    }
+    override getUrl(host: string, port: number) {
+        return `wss://${host}:${port}/`
+    }
+}
+
+export class WsConnection extends Connection {
+    protected wsConnection: WebSocketConnection
+
+    constructor(orb: ORB, connection: WebSocketConnection) {
         super(orb)
-        this.wsConnection = wsConnection
+        this.wsConnection = connection
     }
 
     get localAddress(): string {
@@ -159,5 +201,14 @@ export class WsConnection extends Connection {
     }
     send(buffer: ArrayBuffer): void {
         this.wsConnection.sendBytes(Buffer.from(buffer))
+    }
+}
+
+export class WssConnection extends WsConnection {
+    constructor(orb: ORB, connection: WebSocketConnection) {
+        super(orb, connection)
+    }
+    get peerCertificate() {
+        return (this.wsConnection.socket as TLSSocket).getPeerCertificate()
     }
 }

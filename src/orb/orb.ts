@@ -534,6 +534,7 @@ export class ORB implements EventTarget {
                     }
                 }
                 catch (e) {
+                    // FIXME: this works with tcp and tls but not the websocket library
                     handler.reject(e)
                 }    
             } break
