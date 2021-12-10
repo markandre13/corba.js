@@ -56,15 +56,15 @@ enum CloseCode {
     CLOSE_CUSTOM = 4000
 }
 
-export class WSProtocol implements Protocol {
+export class WsProtocol implements Protocol {
     serverSocket?: http.Server
     // called by the ORB
-    async connect(orb: ORB, url: string) {
+    async connect(orb: ORB, host: string, port: number) {
         return new Promise<Connection>((resolve, reject) => {
             const socket = new (ws as any).default.client() as WebSocketClient
             socket.once("connectFailed", (error: Error) => reject(error))
             socket.once("connect", (wsConnection: WebSocketConnection) => {
-                const connection = new WSConnection(wsConnection, orb)
+                const connection = new WsConnection(wsConnection, orb)
                 connection.requestId = InitialInitiatorRequestIdBiDirectionalIIOP
                 wsConnection.on("error", (error: Error) => orb.socketError(connection, error))
                 wsConnection.on("close", (code: number, desc: string) => orb.socketClosed(connection))
@@ -82,21 +82,26 @@ export class WSProtocol implements Protocol {
                 orb.addConnection(connection)
                 resolve(connection)
             })
+            const url = `ws://${host}:${port}/`
+            // console.log(`WsProtocol.connect(orb, '${host}', ${port}) -> ${url}`)
             socket.connect(url)
         })
     }
 
     // create a server socket
     listen(orb: ORB, port: number): void {
-        const httpServer = http.createServer()
-        const wss = new (ws as any).default.server({ httpServer, autoAcceptConnections: true }) as WebSocketServer
+        this.serverSocket = http.createServer()
+        const wss = new (ws as any).default.server({ 
+            httpServer: this.serverSocket,
+            autoAcceptConnections: true // FIXME: this is a security issue?
+        }) as WebSocketServer
         wss.on("request", (request: WebSocketRequest) => {
             request.accept()
             console.log(`accepted connection from ${request.host}`)
         })
         wss.on("connect", (wsConnection: WebSocketConnection) => {
             // console.log(`accepted connection from ${wsConnection}`)
-            const connection = new WSConnection(wsConnection, orb)
+            const connection = new WsConnection(wsConnection, orb)
             connection.requestId = InitialResponderRequestIdBiDirectionalIIOP
             wsConnection.on("error", (error: Error) => { orb.socketError(connection, error) })
             wsConnection.on("close", (code: number, desc: string) => { orb.socketClosed(connection) })
@@ -114,8 +119,8 @@ export class WSProtocol implements Protocol {
             orb.addConnection(connection)
         })
         // httpServer.once("error", (error: Error) => reject(error))
-        httpServer.listen(port, () => {
-            console.log(`server is listening on port ${port}`)
+        this.serverSocket.listen(port, () => {
+            // console.log(`server is listening on port ${port}`)
             // resolve(wss)
         })
     }
@@ -128,7 +133,7 @@ export class WSProtocol implements Protocol {
     }
 }
 
-class WSConnection extends Connection {
+export class WsConnection extends Connection {
     private wsConnection: WebSocketConnection
 
     constructor(wsConnection: WebSocketConnection, orb: ORB) {
