@@ -38,7 +38,6 @@ describe("net", async function () {
         forEach([
             ["only", 0],
             ["with valid CSIv2 GSSUP client authentication", 1],
-            // FIXME: corba.js exception handling does not work with package websocket
             ["with CSIv2 GSSUP client authentication and unknown user", 2]
         ]).
             it("WS %s", async function (name, id) {
@@ -93,7 +92,6 @@ describe("net", async function () {
 
                 const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
 
-                await server.call()
                 switch (id) {
                     case 0:
                         await server.call()

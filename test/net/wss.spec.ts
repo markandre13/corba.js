@@ -105,7 +105,6 @@ describe("net", async function () {
 
                 const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
 
-                await server.call()
                 switch (id) {
                     case 0:
                         await server.call()
