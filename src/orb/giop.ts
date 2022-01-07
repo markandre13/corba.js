@@ -16,7 +16,8 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { CORBAObject, ORB, IOR, Stub, Skeleton, ValueTypeInformation } from "corba.js"
+import { CORBAObject, ORB, Stub, Skeleton, ValueTypeInformation } from "./orb"
+import { IOR } from "./ior"
 import { Connection } from "./connection"
 import { ASN1Tag, ASN1Encoding, ASN1Class, ASN1UniversalTag } from "./asn1"
 

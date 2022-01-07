@@ -33,8 +33,7 @@
     "sourceMap": true
   },
   "include": [
-    "src/orb",
-    "src/net",
-    "src/idl",
-    "test"  ]
+    "src",
+    "test"
+  ]
 }
