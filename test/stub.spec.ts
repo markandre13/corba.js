@@ -23,7 +23,7 @@ import * as skel from "./generated/stub_skel"
 import * as stub from "./generated/stub_stub"
 import { mockConnection } from "./util"
 
-xdescribe("stub", function() {
+describe("stub", function() {
     it("the client won't create another object on the server when receiving an object reference", async function() {
 
         let serverORB = new ORB()
@@ -38,7 +38,7 @@ xdescribe("stub", function() {
         mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
-        let server = stub.Server.narrow(await clientORB.resolve("Server"))
+        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
         let data = await server.getData()
         data.hello()
         expect(Data_impl.numberOfInstances).to.equal(1)
@@ -57,7 +57,7 @@ xdescribe("stub", function() {
         mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
-        let server = stub.Server.narrow(await clientORB.resolve("Server"))
+        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
 
         let data = new Data_impl(clientORB)
         Server_impl.dataCounter = 0
@@ -82,7 +82,7 @@ xdescribe("stub", function() {
         mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
-        let server = stub.Server.narrow(await clientORB.resolve("Server"))
+        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
 
         let data = new Data_impl(clientORB)
         // expect(serverORB.stubsById.size).to.equal(0)
