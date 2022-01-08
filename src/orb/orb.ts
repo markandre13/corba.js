@@ -682,21 +682,19 @@ export class ORB implements EventTarget {
     }
 
     //
-    // JSON
+    // GIOP: do this with a unit test
     //
 
-    serialize(object: any): string {
-        throw Error("obsolete")
+    serialize(value: any): ArrayBuffer {
+        const encoder = new GIOPEncoder()
+        encoder.value(value)
+        return encoder.buffer
     }
 
-    deserialize(text: string): any {
-        throw Error("obsolete")
+    deserialize(buffer: ArrayBuffer): any {
+        const decoder = new GIOPDecoder(buffer)
+        return decoder.value()
     }
-
-    _deserialize(data: any): any {
-        throw Error("obsolete")
-    }
-
 
     incomingAuthenticator?: IncomingAuthenticator
     setIncomingAuthenticator(authenticator: IncomingAuthenticator) {

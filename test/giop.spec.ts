@@ -735,6 +735,22 @@ describe("CDR/GIOP", () => {
         })
     })
 
+    describe("persistence", function() {
+        it("serialize/deserialize", function() {
+            
+            const r = new Rectangle()
+            r.origin = new Point({x: 10, y: 20})
+            r.size = new Size({ width: 30, height: 40 })
+            const valueIn = new FigureModel()
+            valueIn.data.push(r)
+
+            const binary = orb.serialize(valueIn)
+            const valueOut = orb.deserialize(binary)
+
+            expect(valueIn).to.deep.equal(valueOut)
+        })
+    })
+
     describe("ASN.1", function () {
         it("JacORB with CSIv2 GSSUP Username+Password Auth", function () {
             const data = parseHexDump(
