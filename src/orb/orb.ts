@@ -773,12 +773,14 @@ export class ORB implements EventTarget {
 
     serialize(value: any): ArrayBuffer {
         const encoder = new GIOPEncoder()
+        encoder.endian()
         encoder.value(value)
-        return encoder.buffer
+        return encoder.buffer.slice(0, encoder.offset)
     }
 
     deserialize(buffer: ArrayBuffer): any {
         const decoder = new GIOPDecoder(buffer)
+        decoder.endian()
         return decoder.value()
     }
 
