@@ -63,21 +63,21 @@ class MockConnection extends Connection {
         this.verbose = verbose
     }
 
-    get localAddress(): string {
+    override get localAddress(): string {
         return "mock"
     }
-    get localPort(): number {
+    override get localPort(): number {
         return this._localPort
     }
-    get remoteAddress(): string {
+    override get remoteAddress(): string {
         return "mock"
     }
-    get remotePort(): number {
+    override get remotePort(): number {
         return this._remotePort
     }
 
-    async close() {}
-    send(buffer: ArrayBuffer): void {
+    override close() {}
+    override send(buffer: ArrayBuffer): void {
         if (this.verbose) {
             console.log(`MockConnection.send(): orb=${this.orb.name} port ${this._localPort} to ${this._remotePort}`)
             hexdump(new Uint8Array(buffer))

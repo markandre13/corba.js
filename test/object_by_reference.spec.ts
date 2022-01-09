@@ -24,7 +24,7 @@ import * as skel from "./generated/object_by_reference_skel"
 import * as stub from "./generated/object_by_reference_stub"
 import { mockConnection } from "./util"
 
-xdescribe("object by reference", function() {
+describe("object by reference", function() {
     it("return value and argument", async function() {
         let serverORB = new ORB()
 //serverORB.debug = 1
@@ -38,7 +38,7 @@ xdescribe("object by reference", function() {
             
         mockConnection(serverORB, clientORB)
            
-        let object = await clientORB.resolve("Server")
+        let object = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
         let serverObject = stub.Server.narrow(object)
         
         let session = await serverObject.getSession()

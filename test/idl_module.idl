@@ -34,7 +34,7 @@ module M1 {
         //                ::M1::N2 h(in ::M1::N2 a);
                 };
                 interface M1M2X2 {
-                        oneway void m(in X1 x1);
+                        void m(in X1 x1);
                         V1 f(in V1 a);
                         V2 g(in V2 a);
                         M1::V2 h(in M1::V2 a);

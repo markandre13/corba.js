@@ -29,32 +29,147 @@ export class Exception extends Error {
 export class UserException extends Exception {
 }
 
-enum CompletionStatus {
+export enum CompletionStatus {
     YES,
     NO,
     MAYBE
 }
 
-export class SystemException extends Exception {
-    minor!: number
-    completed!: CompletionStatus
+export abstract class SystemException extends Exception {
+    minor: number
+    completed: CompletionStatus
+    constructor(minor: number, completed: CompletionStatus) {
+        super()
+        this.minor = minor
+        this.completed = completed
+    }
+    abstract get major(): string
+}
+
+export class MARSHAL extends SystemException {
+    constructor(minor: number, completed: CompletionStatus) {
+        super(minor, completed)
+        let explanationList: { [index: number]: string } = {
+            // OMG
+            0x4f4d0001: "Unable to locate value factory.",
+            0x4f4d0002: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
+            0x4f4d0003: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
+            0x4f4d0004: "Attempt to marshal local object.",
+            0x4f4d0005: "wchar or wstring data erroneously sent by client over GIOP 1.0 connection.",
+            0x4f4d0006: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
+            0x4f4d0007: "Unsupported RMI/IDL custom value type stream format.",
+            // OmniORB
+            0x4154000a: "Pass end of message",
+            0x41540012: "Sequence is too long",
+            0x41540015: "Index out of range",
+            0x41540016: "Received an invalid zero length string",
+            0x41540034: "Invalid IOR",
+            0x4154004f: "Invalid ContextList",
+            0x4154005a: "Invalid Indirection",
+            0x4154005b: "Invalid TypeCodeKind",
+            0x4154005d: "Message too long",
+            0x41540070: "Invalid value tag"
+        }
+        const description = this.minor in explanationList ? `, ${explanationList[this.minor]}` : ""
+        this.message = `MARSHAL(minor=0x${this.minor.toString(16)}, completed=${CompletionStatus[this.completed]}${description})`
+    }
+    get major(): string {
+        return "IDL:omg.org/CORBA/MARSHAL:1.0"
+    }
 }
 
 export class NO_PERMISSION extends SystemException {
+    constructor(minor: number, completed: CompletionStatus) {
+        super(minor, completed)
+    }
     override toString() {
         return `NO_PERMISSION(minor=0x${this.minor.toString(16)}, completed=${CompletionStatus[this.completed]})`
+    }
+    get major(): string {
+        return "IDL:omg.org/CORBA/NO_PERMISSION:1.0"
+    }
+}
+
+export class BAD_PARAM extends SystemException {
+    constructor(minor: number, completed: CompletionStatus) {
+        super(minor, completed)
+        let explanationList: { [index: number]: string } = {
+            // OMG
+            // OmniORB
+            0x4154001d: "Invalid initial size"
+        }
+        const description = this.minor in explanationList ? `, ${explanationList[this.minor]}` : ""
+        this.message = `BAD_PARAM(minor=0x${this.minor.toString(16)}, completed=${CompletionStatus[this.completed]}${description})`
+    }
+    get major(): string {
+        return "IDL:omg.org/CORBA/BAD_PARAM:1.0"
     }
 }
 
 export class BAD_OPERATION extends SystemException {
+    constructor(minor: number, completed: CompletionStatus) {
+        super(minor, completed)
+    }
     override toString() {
         return `BAD_OPERATION(minor=0x${this.minor.toString(16)}, completed=${CompletionStatus[this.completed]})`
+    }
+    get major(): string {
+        return "IDL:omg.org/CORBA/BAD_OPERATION:1.0"
     }
 }
 
 export class OBJECT_NOT_EXIST extends SystemException {
+    constructor(minor: number, completed: CompletionStatus) {
+        super(minor, completed)
+    }
     override toString() {
         return `OBJECT_NOT_EXIST(minor=0x${this.minor.toString(16)}, completed=${CompletionStatus[this.completed]})`
+    }
+    get major(): string {
+        return "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0"
+    }
+}
+
+export class TRANSIENT extends SystemException {
+    constructor(minor: number, completed: CompletionStatus) {
+        super(minor, completed)
+        let explanationList: { [index: number]: string } = {
+            // OMG
+            // OmniORB
+            0x41540002: "Connect Failed"
+        }
+        const description = this.minor in explanationList ? `, ${explanationList[this.minor]}` : ""
+        this.message = `TRANSIENT(minor=0x${this.minor.toString(16)}, completed=${CompletionStatus[this.completed]}${description})`
+    }
+    get major(): string {
+        return "IDL:omg.org/CORBA/TRANSIENT:1.0"
+    }
+}
+
+export class OBJECT_ADAPTER extends SystemException {
+    constructor(minor: number, completed: CompletionStatus) {
+        super(minor, completed)
+        let descriptionList: { [index: number]: string } = {
+            // OMG
+            0x4f4d0001: "POA Unknown adapter",
+            0x4f4d0002: "No servant",
+            0x4f4d0003: "No default servant",
+            0x4f4d0004: "No servant manager",
+            0x4f4d0005: "Wrong incarnate policy",
+            // OmniORB
+            0x4154000f: "BiDir not allowed",
+            0x41540021: "BOA not initialized",
+            0x41540035: "POA not initialized",
+            0x4154003f: "Servant already active",
+            0x41540061: "Incompatible servant",
+        }
+        const description = this.minor in descriptionList ? `, ${descriptionList[this.minor]}` : ""
+        // TODO: the message isn't really human readable
+        // TODO: should we include which peer threw the error?
+        this.message = `OBJECT_ADAPTER(minor=0x${this.minor.toString(16)}, completed=${CompletionStatus[this.completed]}${description})`
+    }
+    get major(): string {
+        return "IDL:omg.org/CORBA/OBJECT_ADAPTER:1.0"
     }
 }
 
@@ -276,8 +391,9 @@ export class ORB implements EventTarget {
                 )
                 this.callCore(stub.connection, requestId, true, stub.id, method, encode)
             } catch (e) {
-                console.log(stub)
-                throw e
+                reject(e)
+                // console.log(stub)
+                // throw e
             }
         })
     }
@@ -306,7 +422,6 @@ export class ORB implements EventTarget {
         // FIXME: buffer may contain multiple or incomplete messages
         const decoder = new GIOPDecoder(buffer, connection)
         const type = decoder.scanGIOPHeader()
-
 
         switch (type) {
             case MessageType.LOCATE_REQUEST: {
@@ -415,12 +530,25 @@ export class ORB implements EventTarget {
                         }
                     })
                     .catch((error: Error) => {
-                        console.log(error)
                         if (request.responseExpected) {
-                            const length = encoder.offset
-                            encoder.setGIOPHeader(MessageType.REPLY)
-                            encoder.setReplyHeader(request.requestId, ReplyStatus.USER_EXCEPTION)
-                            connection.send(encoder.buffer.slice(0, length))
+                            if (error instanceof SystemException) {
+                                encoder.skipReplyHeader()
+                                encoder.string(error.major)
+                                encoder.ulong(error.minor)
+                                encoder.ulong(error.completed)
+                                const length = encoder.offset
+                                encoder.setGIOPHeader(MessageType.REPLY)
+                                encoder.setReplyHeader(request.requestId, ReplyStatus.SYSTEM_EXCEPTION)
+                                connection.send(encoder.buffer.slice(0, length))
+                            } else {
+                                const length = encoder.offset
+                                encoder.setGIOPHeader(MessageType.REPLY)
+                                encoder.setReplyHeader(request.requestId, ReplyStatus.USER_EXCEPTION)
+                                connection.send(encoder.buffer.slice(0, length))
+                            }
+                        } else {
+                            console.log(`ORB: ignoring servant exception because method does not expect response`)
+                            console.log(error)
                         }
                     })
             } break
@@ -469,64 +597,20 @@ export class ORB implements EventTarget {
 
                             // CORBA 3.4, Part 2, A.5 Exception Codes
                             switch (exceptionId) {
-                                case "IDL:omg.org/CORBA/MARSHAL:1.0": {
-                                    let explanationList: { [index: number]: string } = {
-                                        // OMG
-                                        0x4f4d0001: "Unable to locate value factory.",
-                                        0x4f4d0002: "ServerRequest::set_result called before ServerRequest::ctx when the operation IDL contains a context clause.",
-                                        0x4f4d0003: "NVList passed to ServerRequest::arguments does not describe all parameters passed by client.",
-                                        0x4f4d0004: "Attempt to marshal local object.",
-                                        0x4f4d0005: "wchar or wstring data erroneously sent by client over GIOP 1.0 connection.",
-                                        0x4f4d0006: "wchar or wstring data erroneously returned by server over GIOP 1.0 connection.",
-                                        0x4f4d0007: "Unsupported RMI/IDL custom value type stream format.",
-                                        // OmniORB
-                                        0x4154000a: "Pass end of message",
-                                        0x41540012: "Sequence is too long",
-                                        0x41540015: "Index out of range",
-                                        0x41540016: "Received an invalid zero length string",
-                                        0x41540034: "Invalid IOR",
-                                        0x4154004f: "Invalid ContextList",
-                                        0x4154005a: "Invalid Indirection",
-                                        0x4154005b: "Invalid TypeCodeKind",
-                                        0x4154005d: "Message too long",
-                                        0x41540070: "Invalid value tag"
-                                    }
-                                    explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                                } break
-                                case "IDL:omg.org/CORBA/TRANSIENT:1.0": {
-                                    const explanationList: { [index: number]: string } = {
-                                        // OMG
-                                        // OmniORB
-                                        0x41540002: "Connect Failed"
-                                    }
-                                    explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                                } break
-                                case "IDL:omg.org/CORBA/BAD_PARAM:1.0": {
-                                    const explanationList: { [index: number]: string } = {
-                                        // OMG
-                                        // OmniORB
-                                        0x4154001d: "Invalid initial size"
-                                    }
-                                    explanation = minorCodeValue in explanationList ? ` ${explanationList[minorCodeValue]}` : ""
-                                } break
-                                case "IDL:omg.org/CORBA/BAD_OPERATION:1.0": {
-                                    const ex = new BAD_OPERATION()
-                                    ex.minor = minorCodeValue
-                                    ex.completed = completionStatus
-                                    throw ex
-                                }
-                                case "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0": {
-                                    const ex = new OBJECT_NOT_EXIST()
-                                    ex.minor = minorCodeValue
-                                    ex.completed = completionStatus
-                                    throw ex
-                                }
-                                case "IDL:omg.org/CORBA/NO_PERMISSION:1.0": {
-                                    const ex = new NO_PERMISSION()
-                                    ex.minor = minorCodeValue
-                                    ex.completed = completionStatus
-                                    throw ex
-                                }
+                                case "IDL:omg.org/CORBA/MARSHAL:1.0":
+                                    throw new MARSHAL(minorCodeValue, completionStatus)
+                                case "IDL:omg.org/CORBA/TRANSIENT:1.0":
+                                    throw new TRANSIENT(minorCodeValue, completionStatus)
+                                case "IDL:omg.org/CORBA/BAD_PARAM:1.0":
+                                    throw new BAD_PARAM(minorCodeValue, completionStatus)
+                                case "IDL:omg.org/CORBA/BAD_OPERATION:1.0":
+                                    throw new BAD_OPERATION(minorCodeValue, completionStatus)
+                                case "IDL:omg.org/CORBA/OBJECT_NOT_EXIST:1.0":
+                                    throw new OBJECT_NOT_EXIST(minorCodeValue, completionStatus)
+                                case "IDL:omg.org/CORBA/OBJECT_ADAPTER:1.0":
+                                    throw new OBJECT_ADAPTER(minorCodeValue, completionStatus)
+                                case "IDL:omg.org/CORBA/NO_PERMISSION:1.0":
+                                    throw new NO_PERMISSION(minorCodeValue, completionStatus)
                             }
                             throw new Error(`CORBA System Exception ${exceptionId} from ${connection!.remoteAddress}:${connection!.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${CompletionStatus[completionStatus]}`)
                         default:
@@ -534,6 +618,8 @@ export class ORB implements EventTarget {
                     }
                 }
                 catch (e) {
+                    console.log(`caught error`)
+                    console.log(e)
                     // FIXME: this works with tcp and tls but not the websocket library
                     handler.reject(e)
                 }    

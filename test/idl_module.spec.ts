@@ -16,9 +16,9 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import * as chai from "chai"
-import * as chaiAsPromised from "chai-as-promised"
-// chai.use(chaiAsPromised as any)
+import chai from "chai"
+import chaiAsPromised from "chai-as-promised"
+chai.use(chaiAsPromised)
 const expect = chai.expect
 
 import { ORB } from "corba.js"
@@ -39,7 +39,7 @@ import { mockConnection } from "./util"
 
 let text = ""
 
-xdescribe("corba.js", function() {
+describe("corba.js", function() {
     it("module", async function() {
 
         let serverORB = new ORB()
@@ -63,19 +63,20 @@ xdescribe("corba.js", function() {
         ORB.registerValueType("M1.V2", M1.V2)
         ORB.registerValueType("M1.M2.V3", M1.M2.V3)
 
-        mockConnection(serverORB, clientORB).name = "acceptedORB"
+        mockConnection(serverORB, clientORB)
 
-        let x1 = stub.X1.narrow(await clientORB.resolve("X1"))
-        let m1x3 = stub.M1.M1X3.narrow(await clientORB.resolve("M1X3"))
-        let m1m2x2 = stub.M1.M2.M1M2X2.narrow(await clientORB.resolve("M1M2X2"))
+        let x1 = stub.X1.narrow(await clientORB.stringToObject("corbaname::mock:0#X1"))
+        let m1x3 = stub.M1.M1X3.narrow(await clientORB.stringToObject("corbaname::mock:0#M1X3"))
+        let m1m2x2 = stub.M1.M2.M1M2X2.narrow(await clientORB.stringToObject("corbaname::mock:0#M1M2X2"))
 
         await x1.f()
         expect(text).is.equal("X1")
 
         // START OF TEST IF INTERNAL ERRORS ARE PROPAGATED
-        await expect(m1m2x2.m(x1)).to.be.rejectedWith(Error, "ORB.call(): not implemented: method 'm' received stub as argument", "missing internal error")
+        await expect(m1m2x2.m(x1)).to.be.rejectedWith(Error, "ORB: can not serialize Stub yet", "missing internal error")
 
-        await expect(m1m2x2.m(x1_impl)).to.be.rejectedWith(Error, "ORB: can not deserialize object of unregistered stub 'X1'")
+        await expect(m1m2x2.m(x1_impl)).to.be.rejectedWith(Error, "OBJECT_ADAPTER(minor=0x4f4d0003, completed=NO, No default servant)")
+
         serverORB.registerStubClass(stub.X1)
         await expect(m1m2x2.m(x1_impl)).not.to.be.rejected
         // END OF TEST IF INTERNAL ERRORS ARE PROPAGATED
@@ -92,19 +93,17 @@ xdescribe("corba.js", function() {
         let v1_json = clientORB.serialize(v1_orig)
         let v1_copy = clientORB.deserialize(v1_json)
         expect(v1_orig).to.deep.equal(v1_copy)
-        expect(v1_json).to.equal('{"#T":"V1","#V":{"a":3.1415}}')
+        // expect(v1_json).to.equal('{"#T":"V1","#V":{"a":3.1415}}')
 
         let v2_orig = new M1.V2({a: 2.7182})
         let v2_json = clientORB.serialize(v2_orig)
         let v2_copy = clientORB.deserialize(v2_json)
         expect(v2_orig).to.deep.equal(v2_copy)
-        expect(v2_json).to.equal('{"#T":"M1.V2","#V":{"a":2.7182}}')
         
         let v3_orig = new M1.M2.V3({a: 1.4142})
         let v3_json = clientORB.serialize(v3_orig)
         let v3_copy = clientORB.deserialize(v3_json)
         expect(v3_orig).to.deep.equal(v3_copy)
-        expect(v3_json).to.equal('{"#T":"M1.M2.V3","#V":{"a":1.4142}}')
 
 //         let server = stub.Server.narrow(await clientORB.resolve("Server"))
 //         await server.setClient(new Client_impl(clientORB))

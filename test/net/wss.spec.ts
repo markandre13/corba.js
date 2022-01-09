@@ -18,8 +18,8 @@
 
 import forEach from "mocha-each"
 import { expect, use } from "chai"
-import * as chaiAsPromised from "chai-as-promised"
-use(chaiAsPromised.default)
+import chaiAsPromised from "chai-as-promised"
+use(chaiAsPromised)
 
 import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, NO_PERMISSION, ORB } from "corba.js"
 import { WssProtocol, WssConnection } from "corba.js/net/ws"
