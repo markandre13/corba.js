@@ -751,6 +751,15 @@ describe("CDR/GIOP", () => {
         })
     })
 
+    it.only("string() encoding/decoding", function() {
+        const textIn = "Von Äpfeln schön überfreßen."
+        const encoder = new GIOPEncoder()
+        encoder.string(textIn)
+        const decoder = new GIOPDecoder(encoder.buffer)
+        const textOut = decoder.string()
+        expect(textOut).equals(textIn)
+    })
+
     describe("ASN.1", function () {
         it("JacORB with CSIv2 GSSUP Username+Password Auth", function () {
             const data = parseHexDump(

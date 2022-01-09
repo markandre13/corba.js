@@ -784,9 +784,10 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     string(value: string) {
-        this.ulong(value.length + 1)
-        this.bytes.set(GIOPEncoder.textEncoder.encode(value), this.offset)
-        this.offset += value.length
+        const octets = GIOPEncoder.textEncoder.encode(value)
+        this.ulong(octets.length + 1)
+        this.bytes.set(octets, this.offset)
+        this.offset += octets.length
         this.bytes[this.offset] = 0
         this.offset++
     }
