@@ -7,7 +7,8 @@
   "type": "module",
   "module": "./lib/src/orb/index.js",
   "exports": {
-    ".": "./lib/src/index.js"
+    ".": "./lib/src/index.js",
+    "./lib/src/net/*": "./lib/src/net/*.js"
   },
   "types": "./lib/src/index.d.ts",
   "bin": {
