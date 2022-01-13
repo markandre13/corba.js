@@ -751,7 +751,7 @@ describe("CDR/GIOP", () => {
         })
     })
 
-    it.only("string() encoding/decoding", function() {
+    it("string() encoding/decoding", function() {
         const textIn = "Von Äpfeln schön überfreßen."
         const encoder = new GIOPEncoder()
         encoder.string(textIn)

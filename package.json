@@ -31,6 +31,8 @@
     "mico:runs": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs'",
     "mico:runc": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runc'",
     "mico:copy": "scp test/peer/mico/* 192.168.1.105:test-mico/",
+    "dev:compiler": "ttsc --watch",
+
     "update": "npx npm-check-updates -u && npm install"
   },
   "devDependencies": {

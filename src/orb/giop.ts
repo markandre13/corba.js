@@ -665,17 +665,15 @@ export class GIOPEncoder extends GIOPBase {
         const position = this.repositoryIds.get(id)
         if (position === undefined) {
             // console.log(`GIOPDecoder.repositoryId(): at 0x${this.offset.toString(16)} writing repository ID '${id}' at 0x${this.offset.toString(16)}`)
-            this.repositoryIds.set(id, this.offset)
             this.ulong(0x7fffff02) // single repositoryId
-            // console.log(`=====> place string '${id}' at 0x${this.offset.toString(16)}`)
+            this.repositoryIds.set(id, this.offset)
             this.string(id)
         } else {
             // 9.3.4.3
-            const indirection = position - this.offset - 2
             // console.log(`GIOPDecoder.repositoryId(): at 0x${this.offset.toString(16)} writing indirect repository ID '${id}' indirection ${indirection} pointing to 0x${position.toString(16)}`)
             this.ulong(0x7fffff02) // single repositoryId
-            this.ulong(0xffffffff) // sure? how the heck to we distinguish indirections to object and repositoryId?
-            this.long(indirection - 2)
+            this.ulong(0xffffffff)
+            this.long(position - this.offset)
         }
     }
 
@@ -746,11 +744,9 @@ export class GIOPEncoder extends GIOPBase {
 
         const position = this.objectPosition.get(object)
         if (position !== undefined) {
-            let indirection = position - this.offset - 2
             // console.log(`GIOPEncoder.object(): at 0x${this.offset.toString(16)} write object indirection ${indirection} pointing to 0x${position.toString(16)}`)
             this.ulong(0xffffffff)
-            indirection -= 2
-            this.long(indirection)
+            this.long(position - this.offset)
             return
         }
 
@@ -768,6 +764,7 @@ export class GIOPEncoder extends GIOPBase {
             console.log(object)
             throw Error(`ORB: can not serialize object of unregistered valuetype ${object.constructor.name}`)
         }
+        this.align(4)
         this.objectPosition.set(object, this.offset)
         this.repositoryId(valueTypeInformation.name!)
         valueTypeInformation.encode(this, object)
@@ -1308,13 +1305,16 @@ export class GIOPDecoder extends GIOPBase {
                 if (len !== 0xffffffff) {
                     repositoryId = this.string(len)
                 } else {
+                    const offset = this.offset
                     const indirection = this.long()
-                    const savedOffset = this.offset
-                    this.offset = this.offset + indirection - 4 - 6
-                    this.offset += 4 // skip marker
-                    this.offset += 2
+                    const nextOffset = this.offset
+                    this.offset = offset + indirection
+                    if ((this.offset & 0x03) !== 0) {
+                        console.error(`WRONG INDIRECTION: GOT 0x${this.offset.toString(16)}, EXPECTED 0x${(this.offset - (this.offset & 0x03)).toString(16)}`)
+                        this.offset = this.offset - (this.offset & 0x03)
+                    }
                     repositoryId = this.string()
-                    this.offset = savedOffset
+                    this.offset = nextOffset
                 }
                 if (repositoryId.length < 8 || repositoryId.substring(0, 4) !== "IDL:" || repositoryId.substring(repositoryId.length - 4) !== ":1.0")
                     throw Error(`Unsupported CORBA GIOP Repository ID '${repositoryId}'`)
