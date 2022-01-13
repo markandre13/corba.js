@@ -76,7 +76,7 @@ describe("CDR/GIOP", () => {
         // though conversion to another form may be required for transmission.
         it("char", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendChar(0, 255)
+            await server.sendChar(String.fromCharCode(0), String.fromCharCode(255))
             expect(await server.peek()).to.equal("sendChar(0,255)")
         })
 
@@ -810,8 +810,8 @@ class GIOPTest_impl extends skel.GIOPTest {
     override async sendBool(v0: boolean, v1: boolean) {
         this.msg = `sendBool(${v0},${v1})`
     }
-    override async sendChar(v0: number, v1: number) {
-        this.msg = `sendChar(${v0},${v1})`
+    override async sendChar(v0: string, v1: string) {
+        this.msg = `sendChar(${v0.charCodeAt(0)},${v1.charCodeAt(0)})`
     }
     override async sendOctet(v0: number, v1: number) {
         this.msg = `sendOctet(${v0},${v1})`

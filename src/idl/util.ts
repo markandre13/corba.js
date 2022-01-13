@@ -95,9 +95,9 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
             return "void"
         case Type.TKN_BOOLEAN:
             return "boolean"
+        case Type.TKN_CHAR:
         case Type.TKN_STRING:
             return "string"
-        case Type.TKN_CHAR:
         case Type.TKN_OCTET:
         case Type.TKN_SHORT:
         case Type.TKN_LONG:
@@ -203,8 +203,11 @@ export function defaultValueIDLtoTS(type: Node | undefined, filetype: FileType =
             return "new " + type.text! + "()"
         case Type.TKN_BOOLEAN:
             return "false"
+        case Type.TKN_CHAR:
+            return "\"\0\""
         case Type.TKN_STRING:
             return "\"\""
+        case Type.TKN_OCTET:
         case Type.TKN_SHORT:
         case Type.TKN_LONG:
         case Type.SYN_LONGLONG:

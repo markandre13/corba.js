@@ -804,8 +804,8 @@ export class GIOPEncoder extends GIOPBase {
         this.offset += 1
     }
 
-    char(value: number) {
-        this.data.setUint8(this.offset, value)
+    char(value: string) {
+        this.data.setUint8(this.offset, value.charCodeAt(0))
         this.offset += 1
     }
 
@@ -1419,7 +1419,7 @@ export class GIOPDecoder extends GIOPBase {
     }
 
     char() {
-        const value = this.data.getUint8(this.offset)
+        const value = String.fromCharCode(this.data.getUint8(this.offset))
         ++this.offset
         return value
     }
