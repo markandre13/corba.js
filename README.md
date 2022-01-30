@@ -5,8 +5,6 @@ Language (IDL) compiler for TypeScript lousily based on the CORBA specification.
 
 _CORBA is a registered trademark by the Object Management Group. http://www.corba.org/_
 
-
-
 ## What does it do?
 
 CORBA helps to hide the split of modern WebApps into frontend and backend by making
@@ -23,8 +21,6 @@ GIOP protocol. In the future there will be also support for WebRTC and/or HTTP/3
 WebTransport, where the IDL's `oneway` keyword can make use of the unreliable
 transport provided by these UDP based protocols.
 
-_(Handling of exception and pointers is currently being added to corba.js.)_
-
 ## What does it not do?
 
 CORBA's goal is to make frontend and backend look like one application, which implies tight coupling. Microservices on the other hand are intended to be loosely coupled.
@@ -37,7 +33,7 @@ See also: [REST, SOAP, and CORBA, i.e. How We Got Here](https://greglturnquist.c
 corba.js is written to be used in [workflow](https://github.com/markandre13/workflow#readme) where it handles
 
 * the communication between frontend and backend
-* persisting objects to the database (using the IDL, corba.js can convert between JSON and objects)
+* persisting objects to the database
 * persisting objects to files (using CORBA's binary encoding GIOP)
 
 In the 90ties CORBA was quite the hype but design-by-committee made it bloated, slow
@@ -55,21 +51,17 @@ In the following example, a server will provide an object of type _Server_ and
 the clients an object of type _Client_, which are to be defined in an IDL file:
 ```java
     interface Client {
-        oneway printMessage(in string message);
+        oneway void printMessage(in string message);
     }
 
     interface Server {
-        oneway registerClient(in Client client);
+        oneway void registerClient(in Client client);
         double add(in double a, in double b);
     }
 ```
 
-* ~~`oneway` is CORBA's version of `void`, meaning the method call will not
-  return a result.~~
-  
-  _Correction: `void` is CORBA's version of `void`. `oneway`
-  means that the client expects no confirmation that the call has reached it's
-  destination. This will be reflected in the 0.1.x release of corba.js_
+* `oneway` means that the client expects no confirmation that the call has
+  reached it's destination.
 * `in` specifies that the argument will not be written into to return data.
   (`out` and `inout` are not implemented by corba.js)
 
@@ -170,10 +162,14 @@ Note to self: The narrow() is a classic CORBA function, but I guess we could red
 
 ## Security Model
 
-corba.js does not implement CORBA's security model and instead relies on
-SSL/TLS and by restricting access to objects to those exchanged via
+corba.js 0.0.x did not implement CORBA's security model and instead relies on
+SSL/TLS and by restricting access to objects made public to the peer.
 
-### Bind/Resolve
+corba.js 0.1.x uses CORBA's IIOP protocol currently provides only
+SSL/TLS and password login but no means to restrict access to individual
+objects.
+
+## Bind/Resolve
 
 Ie. in the example above the side which provided the implementation
 made the object publicly accessible via
@@ -183,7 +179,9 @@ made the object publicly accessible via
 ```
 and the side using the remote object gained access to it via
 ```javascript
-    let server = orb.resolve("MyServer")
+    const server = stub.Server.narrow(
+        await orb.stringToObject("corbaname::localhost:2809#MyServer")
+    )
 ```
 ### Objects passed by reference
 
@@ -199,13 +197,13 @@ Any further access control must be dealt with by the application.
 
 The IDL compiler represents IDL types as follows in TypeScript
 
-IDL Type                        | TypeScript Type
-------------------------------- | ---------------
-boolean                         | boolean
-float, double, short, long, ... | number
-string                          | string
-sequence&lt;T&gt;               | Array&lt;T&gt;
-interface T                     | skel.T, stub.T
+IDL Type                         | TypeScript Type
+-------------------------------- | ---------------
+boolean                          | boolean
+octet, short, long float, double | number
+char, string                     | string
+sequence&lt;T&gt;                | Array&lt;T&gt;
+interface T                      | skel.T, stub.T
 
 While IDL interfaces are used to provide communication between objects
 registered at different ORBs, valuetypes can be used to exchange data
@@ -297,8 +295,6 @@ which didn't require thinking like the full list of keywords and no
 changes to the grammar).
 
 ## Protocol
-
-_NOTE: Since [workflow](https://github.com/markandre13/workflow#readme) began to use corba.js to export/import drawing, it turned out using JSON requires quite a lot of space. Because of that I began to implement a binary encoding based on CORBA's GIOP, which, at the same time, will also take care of pointers._
 
 corba.js does not implement the CORBA network protocol (GIOP/IIOP).
 
