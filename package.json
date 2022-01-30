@@ -5,12 +5,21 @@
   "author": "Mark-André Hopf <mhopf@mark13.org>",
   "license": "AGPL-3.0",
   "type": "module",
-  "module": "./lib/src/orb/index.js",
   "exports": {
-    ".": "./lib/src/index.js",
-    "./lib/src/net/*": "./lib/src/net/*.js"
+    ".": {
+        "import": "./lib/src/orb/index.js",
+        "types": "./lib/src/orb/index.d.ts"
+    },
+    "./net/*": {
+        "import": "./lib/src/net/*.js",
+        "types": "./lib/src/net/*/*.d.ts"
+    }
   },
-  "types": "./lib/src/index.d.ts",
+  "typesVersions": {
+      "*": {
+          "*": [ "lib/src/*.d.ts"]
+      }
+  },
   "bin": {
     "corba-idl": "./bin/corba-idl"
   },
