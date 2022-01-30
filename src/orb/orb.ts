@@ -280,18 +280,28 @@ export class ORB implements EventTarget {
     }
 
     async getConnection(host: string, port: number) {
-        // console.log(`ORB ${this.name}: getConnection("${host}", ${port})`)
-        for (let i = 0; i < this.connections.length; ++i) {
-            const c = this.connections[i]
-            // console.log(`  check ${c.remoteAddress}:${c.remotePort}`)
+
+        if (host = "::1") {
+            host = "localhost"
+        }
+
+        for (const c of this.connections) {
             if (c.remoteAddress == host && c.remotePort == port) {
                 return c
             }
         }
-        for (let i = 0; i < this.protocols.length; ++i) {
-            const p = this.protocols[i]
-            const c = await p.connect(this, host, port)
-            return c
+        for (const p of this.protocols) {
+            if (this.debug) {
+                if (this.connections.length === 0) {
+                    console.log(`ORB: Creating new connection to ${host}:${port} as no others exist`)
+                } else {
+                    console.log(`ORB: Creating new connection to ${host}:${port}, as none found to`)
+                }
+                for (const c of this.connections) {
+                    console.log(`ORB:  active connection ${c.remoteAddress}:${c.remotePort}`)
+                }
+            }
+            return await p.connect(this, host, port)
         }
         throw Error(`failed to allocate connection to ${host}:${port}`)
     }
@@ -405,7 +415,9 @@ export class ORB implements EventTarget {
         objectId: Uint8Array,
         method: string,
         encode: (encoder: GIOPEncoder) => void) {
-        // console.log(`ORB ${this.name}: send request method:${method}, requestId:${requestId}, responseExpected:${responseExpected}`)
+        if (this.debug) {
+            console.log(`ORB ${this.name}: send request method:${method}, requestId:${requestId}, responseExpected:${responseExpected} to ${connection.remoteAddress}:${connection.remotePort}`)
+        }
         const encoder = new GIOPEncoder(connection)
         encoder.encodeRequest(objectId, method, requestId, responseExpected)
         encode(encoder)
@@ -541,9 +553,20 @@ export class ORB implements EventTarget {
                                 encoder.setReplyHeader(request.requestId, ReplyStatus.SYSTEM_EXCEPTION)
                                 connection.send(encoder.buffer.slice(0, length))
                             } else {
+                                // const length = encoder.offset
+                                // encoder.setGIOPHeader(MessageType.REPLY)
+                                // encoder.setReplyHeader(request.requestId, ReplyStatus.USER_EXCEPTION)
+                                // connection.send(encoder.buffer.slice(0, length))
+
+                                // this is a hack for now...
+                                encoder.skipReplyHeader()
+                                encoder.string("IDL:mark13.org/CORBA/GENERIC:1.0")
+                                encoder.ulong(0)
+                                encoder.ulong(0)
+                                encoder.string(`${`IDL:${(servant as any).constructor._idlClassName()}:1.0`}:${request.method}(): ${error.message}`)
                                 const length = encoder.offset
                                 encoder.setGIOPHeader(MessageType.REPLY)
-                                encoder.setReplyHeader(request.requestId, ReplyStatus.USER_EXCEPTION)
+                                encoder.setReplyHeader(request.requestId, ReplyStatus.SYSTEM_EXCEPTION)
                                 connection.send(encoder.buffer.slice(0, length))
                             }
                         } else {
@@ -557,7 +580,8 @@ export class ORB implements EventTarget {
                 const data = decoder.scanReplyHeader()
                 const handler = connection.pendingReplies.get(data.requestId)
                 if (handler === undefined) {
-                    console.log(`corba.js: Unexpected reply to request ${data.requestId}`)
+                    console.log(`corba.js: Unexpected reply to requestId ${data.requestId} from ${connection.remoteAddress}:${connection.remotePort}`)
+                    console.log(connection.pendingReplies)
                     return
                 }
                 try {
@@ -567,8 +591,7 @@ export class ORB implements EventTarget {
                             handler.decode(decoder)
                             break
                         case ReplyStatus.USER_EXCEPTION:
-                            throw new Error(`User Exception`)
-                            break
+                            throw new Error(`User Exception for requestId ${data.requestId}`)
                         case ReplyStatus.SYSTEM_EXCEPTION:
                             // 0.4.3.2 ReplyBody: SystemExceptionReplyBody
                             const exceptionId = decoder.string()
@@ -611,15 +634,16 @@ export class ORB implements EventTarget {
                                     throw new OBJECT_ADAPTER(minorCodeValue, completionStatus)
                                 case "IDL:omg.org/CORBA/NO_PERMISSION:1.0":
                                     throw new NO_PERMISSION(minorCodeValue, completionStatus)
+                                case "IDL:mark13.org/CORBA/GENERIC:1.0":
+                                    throw new Error(`Remote CORBA exception on ${connection.remoteAddress}:${connection.remotePort}: ${decoder.string()}`)
                             }
-                            throw new Error(`CORBA System Exception ${exceptionId} from ${connection!.remoteAddress}:${connection!.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${CompletionStatus[completionStatus]}`)
+                            throw new Error(`CORBA System Exception ${exceptionId} from ${connection.remoteAddress}:${connection.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${CompletionStatus[completionStatus]}`)
                         default:
                             throw new Error(`ReplyStatusType ${data.replyStatus} is not supported`)
                     }
                 }
                 catch (e) {
-                    console.log(`caught error`)
-                    console.log(e)
+                    // console.log(`caught error: ${e}`)
                     // FIXME: this works with tcp and tls but not the websocket library
                     handler.reject(e)
                 }    
