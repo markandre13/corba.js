@@ -109,6 +109,8 @@ Here are example implementations for the client and server defined earlier:
 The server side initialization:
 
 ```javascript
+    import { WsProtocol } from "corba.js/net/ws"
+
     let orb = new ORB()
     
     // create the server implementation
@@ -122,23 +124,25 @@ The server side initialization:
     orb.registerStubClass(stub.Client)
     
     // listen for incoming WebSocket connections
-    orb.listen("0.0.0.0", 8000)
+    const protocol = new WsProtocol()
+    orb.addProtocol(protocol)
+    protocol.listen(orb, 8809)
 ```
 
 The client side initialization:
 
 ```javascript
+    import { WsProtocol } from "corba.js/net/browser"
+
     let orb = new ORB()
+    orb.addProtocol(new WsProtocol())
     
     // for the client, the server is a remote object,
     // so we need to register the server's stub
     orb.registerStubClass(stub.Server)
     
-    // connect to the WebSocket server
-    orb.connect("ws://somehostname:8000/")
-    
     // find the object registered as "MyServer"
-    let object = await orb.resolve("MyServer")
+    const object = orb.stringToObject("corbaname::localhost:8809#MyServer")
     
     // try to cast it to type stub.Server
     let server = stub.Server.narrow(object)
@@ -155,10 +159,6 @@ The client side initialization:
     // client objects
     console.log(server.add(3, 2))
 ```
-
-Note to self: The narrow() is a classic CORBA function, but I guess we could reduce it to
-
-    let server = await orb.resolve<Server>("MyServer")
 
 ## Security Model
 
