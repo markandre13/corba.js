@@ -280,8 +280,7 @@ export class ORB implements EventTarget {
     }
 
     async getConnection(host: string, port: number) {
-
-        if (host = "::1") {
+        if (host === "::1") {
             host = "localhost"
         }
 
