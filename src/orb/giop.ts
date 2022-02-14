@@ -722,7 +722,11 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     object(object: Object | undefined) {
-        // console.log(`GIOPEncoder.object(${object.constructor.name}) offset=0x${this.offset.toString(16)}`)
+        // if (object) {
+        //     console.log(`GIOPEncoder.object(${object.constructor.name}) offset=0x${this.offset.toString(16)}`)
+        // } else {
+        //     console.log(`GIOPEncoder.object(undefined)`)
+        // }
 
         if (object === undefined) {
             this.ulong(0)
@@ -764,6 +768,11 @@ export class GIOPEncoder extends GIOPBase {
             console.log(object)
             throw Error(`ORB: can not serialize object of unregistered valuetype ${object.constructor.name}`)
         }
+
+        if ((valueTypeInformation?.construct as any).name !== object.constructor.name) {
+            throw Error(`ORB: No value type registered for class ${object.constructor.name}. Best match was class ${(valueTypeInformation?.construct as any).name}.`)
+        }
+
         this.align(4)
         this.objectPosition.set(object, this.offset)
         this.repositoryId(valueTypeInformation.name!)

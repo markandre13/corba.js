@@ -52,6 +52,10 @@ module testVT {
         public Size size;
     };
 
+    valuetype Path: Figure {
+        public string d;
+    };
+
     valuetype FigureModel {
         public sequence<Figure> data;
     };

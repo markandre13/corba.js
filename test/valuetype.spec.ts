@@ -42,8 +42,12 @@ describe("corba.js", function() {
         // ORB.valueTypeByName.clear()
         // ORB.valueTypeByPrototype.clear()
 
-        let serverORB = new ORB()
-        let clientORB = new ORB()
+        const serverORB = new ORB()
+        serverORB.name = "serverORB"
+        serverORB.debug = 1
+        const clientORB = new ORB()
+        clientORB.name = "clientORB"
+        clientORB.debug = 1
 
         serverORB.bind("Server", new Server_impl(serverORB))
         
@@ -52,21 +56,21 @@ describe("corba.js", function() {
         
         mockConnection(serverORB, clientORB)
 
-        let server = stub.testVT.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
+        const server = stub.testVT.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
         await server.setClient(new Client_impl(clientORB))
 
         // server will FigureModel to client
         expect(Client_impl.figureModelReceivedFromServer).to.equal(undefined)
 
         // figure with matrix === undefined
-        let model = new FigureModel()
-        let rect0 = new Rectangle({origin: {x: 10, y: 20}, size: {width:30, height:40}})
+        const model = new FigureModel()
+        const rect0 = new Rectangle({origin: {x: 10, y: 20}, size: {width:30, height:40}})
         expect(rect0.matrix).to.be.undefined
         rect0.id = 777
         model.data.push(rect0)
 
         // figure with matrix !== undefined
-        let rect1 = new Rectangle({origin: {x: 50, y: 60}, size: {width:70, height:80}})
+        const rect1 = new Rectangle({origin: {x: 50, y: 60}, size: {width:70, height:80}})
         rect1.id = 1911
         rect1.matrix = new VTMatrix({a:0, b:1, c:2, d:3, e:4, f:5})
         model.data.push(rect1)
@@ -77,7 +81,7 @@ describe("corba.js", function() {
         // check that the figure model was received correctly
         expect(Client_impl.figureModelReceivedFromServer!.data.length).to.equal(2)
         expect(Client_impl.figureModelReceivedFromServer!.data[0]).to.be.an.instanceof(Rectangle)
-        let rectangle0 = Client_impl.figureModelReceivedFromServer!.data[0] as Rectangle
+        const rectangle0 = Client_impl.figureModelReceivedFromServer!.data[0] as Rectangle
         expect(rectangle0.toString()).to.equal("Rectangle: (10,20,30,40)")
         expect(rectangle0.id).to.equal(777)
         expect(rectangle0.matrix).to.be.undefined
@@ -87,7 +91,7 @@ describe("corba.js", function() {
         expect(rectangle0.size.toString()).to.equal("Size: width=30, height=40")
 
         expect(Client_impl.figureModelReceivedFromServer!.data[1]).to.be.an.instanceof(Rectangle)
-        let rectangle1 = Client_impl.figureModelReceivedFromServer!.data[1] as Rectangle
+        const rectangle1 = Client_impl.figureModelReceivedFromServer!.data[1] as Rectangle
         expect(rectangle1.toString()).to.equal("Rectangle: (50,60,70,80)")
         expect(rectangle1.id).to.equal(1911)
         expect(rectangle1.matrix).to.deep.equal(new VTMatrix({a:0, b:1, c:2, d:3, e:4, f:5}))
@@ -112,17 +116,17 @@ describe("corba.js", function() {
 
     describe("initialization", ()=>{
         it("create point", ()=>{
-            let point = new (ORB.lookupValueType("VTPoint"))({x: 10, y: 20})
+            const point = new (ORB.lookupValueType("VTPoint"))({x: 10, y: 20})
             expect(point).to.be.an.instanceof(VTPoint)
             expect(point.x).to.equal(10)
             expect(point.y).to.equal(20)
         })
         it("create size", ()=>{
-            let size = new (ORB.lookupValueType("testVT.Size"))()
+            const size = new (ORB.lookupValueType("testVT.Size"))()
             expect(size).to.be.an.instanceof(Size)
         })
         it("when no initializer is given _ptr valuetype members are left undefined", ()=>{
-            let f = new Rectangle()
+            const f = new Rectangle()
             expect(f.origin).to.be.an.instanceof(VTPoint)
             expect(f.size).to.be.an.instanceof(Size)
             expect(f.matrix).to.be.undefined
@@ -131,7 +135,7 @@ describe("corba.js", function() {
             // orb.serialize(f)
         })
         it("when not part of the initializer _ptr valuetype members are left undefined", ()=>{
-            let f = new Rectangle({})
+            const f = new Rectangle({})
             expect(f.origin).to.be.an.instanceof(VTPoint)
             expect(f.size).to.be.an.instanceof(Size)
             expect(f.matrix).to.be.undefined
@@ -140,7 +144,7 @@ describe("corba.js", function() {
             // orb.serialize(f)
         })
         it("when part of initializer...", ()=>{
-            let f = new Rectangle({origin: {x: 10, y: 20}, size: {width:30, height:40}})
+            const f = new Rectangle({origin: {x: 10, y: 20}, size: {width:30, height:40}})
             expect(f.origin).to.be.an.instanceof(VTPoint)
             expect(f.origin.x).to.equal(10)
             expect(f.origin.y).to.equal(20)
@@ -151,6 +155,23 @@ describe("corba.js", function() {
 
             // let orb = new ORB()
             // orb.serialize(f)
+        })
+    })
+
+    describe("usability", function() {
+        it("throw an exception when only a super class is registered", function() {
+            const orb = new ORB()
+            const path = new Path({d: "M 0 0"})
+
+            let error: any = undefined
+            try {
+                orb.serialize(path)
+            }
+            catch (caughtError) {
+                error = caughtError
+            }
+            expect(error).to.be.an.instanceof(Error)
+            expect(error.message).to.equal("ORB: No value type registered for class Path. Best match was class Figure.")
         })
     })
 })
@@ -164,7 +185,7 @@ class VTPoint implements value.VTPoint
         value.initVTPoint(this, init)
     }
     toString(): string {
-        return "VTPoint: x="+this.x+", y="+this.y
+        return `VTPoint: x=${this.x}, y=${this.y}`
     }
 }
 
@@ -175,7 +196,7 @@ class Size implements value.testVT.Size {
         value.testVT.initSize(this, init)
     }
     toString(): string {
-        return "Size: width="+this.width+", height="+this.height
+        return `Size: width=${this.width}, height=${this.height}`
     }
 }
 
@@ -226,7 +247,21 @@ class Rectangle extends Figure implements value.testVT.Rectangle {
         return undefined
     }
     toString(): string {
-        return "Rectangle: ("+this.origin.x+","+this.origin.y+","+this.size.width+","+this.size.height+")"
+        return `Rectangle: (${this.origin.x},${this.origin.y},${this.size.width},${this.size.height})`
+    }
+}
+
+class Path extends Figure implements value.testVT.Path {
+    d!: string
+    constructor(init?: Partial<Path>) {
+        super(init)
+        value.testVT.initPath(this, init)
+    }
+    getHandlePosition(i: number): VTPoint | undefined {
+        return undefined
+    }
+    toString(): string {
+        return `Path: (d=${this.d})`
     }
 }
 

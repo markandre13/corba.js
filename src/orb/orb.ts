@@ -819,7 +819,7 @@ export class ORB implements EventTarget {
 
     //
     // Access Control List
-    ///
+    //
 
     release() {
         this.aclDeleteAll()
