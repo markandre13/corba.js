@@ -300,3 +300,15 @@ corba.js does not implement the CORBA network protocol (GIOP/IIOP).
 
 As corba.js is intended to ease the implementation of WebApps, it uses
 JSON to be lightweight and efficient with some inspiration from JSON-RPC and EJSON.
+
+## Development
+
+All build stages are setup to run in watch mode for performance reasons.
+
+* I ususally run `npm dev:build` in Visual Studio Code's terminal window to
+  be able to jump from compiler errors directly into the source code.
+
+* `npm dev:test` runs all tests in watch mode.
+
+* `npm dev:test --file=lib/test/valuetype.spec.js` runs a single test file
+  in watch mode.

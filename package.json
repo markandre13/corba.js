@@ -33,14 +33,14 @@
     "build:idl:compile": "bin/corba-idl --ts-all --output-directory test/generated test/*.idl",
     "build:src:compile": "ttsc",
     "test": "npm run build && NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem node --enable-source-maps ./node_modules/.bin/mocha --exit 'lib/test/**/*.spec.js'",
-    "test:watch": "npm run build:idl:build && npm run build:idl:compile && ttsc --watch & NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch 'lib/test/**/*.spec.js'",
+    "dev:build": "npm run build:idl:build && npm run build:idl:compile && ttsc --watch",
+    "dev:test": "export NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem ; if test -z \"$npm_config_file\" ; then node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch 'lib/test/**/*.spec.js' ; else node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch $npm_config_file; fi",
     "omni:runs": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runs'",
     "omni:runc": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runc'",
     "omni:copy": "scp test/peer/omni/* test/giop.idl 192.168.1.105:test-omni/",
     "mico:runs": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs'",
     "mico:runc": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runc'",
     "mico:copy": "scp test/peer/mico/* 192.168.1.105:test-mico/",
-    "dev:compiler": "ttsc --watch",
 
     "update": "npx npm-check-updates -u && npm install"
   },
