@@ -411,20 +411,14 @@ export class GIOPBase {
     constructor(connection?: Connection) {
         this.connection = connection
     }
-
-    align(alignment: number) {
-        const inversePadding = this.offset % alignment
-        if (inversePadding !== 0)
-            this.offset += alignment - inversePadding
-    }
 }
 
 export class GIOPEncoder extends GIOPBase {
-    buffer = new ArrayBuffer(0xFFFF); // FIXME: write code to extend on demand, fragment really large messages?
-    data = new DataView(this.buffer);
-    bytes = new Uint8Array(this.buffer);
+    buffer = new ArrayBuffer(0xFFFF)
+    data = new DataView(this.buffer)
+    bytes = new Uint8Array(this.buffer)
 
-    public static textEncoder = new TextEncoder();
+    public static textEncoder = new TextEncoder()
 
     // this is the parameter as used for the DataView
     static littleEndian?: boolean
@@ -452,7 +446,7 @@ export class GIOPEncoder extends GIOPBase {
 
     // FIXME: find better names and use them everywhere
     reserveSize() {
-        this.align(4)
+        this.alignAndReserve(4)
         this.offset += 4
         this.sizeStack.push(this.offset)
     }
@@ -539,7 +533,7 @@ export class GIOPEncoder extends GIOPBase {
             this.ulong(0) // Requesting Principal length
         } else {
             this.serviceContext()
-            this.align(8)
+            this.alignAndReserve(8)
         }
     }
 
@@ -773,7 +767,7 @@ export class GIOPEncoder extends GIOPBase {
             throw Error(`ORB: No value type registered for class ${object.constructor.name}. Best match was class ${(valueTypeInformation?.construct as any).name}.`)
         }
 
-        this.align(4)
+        this.alignAndReserve(4)
         this.objectPosition.set(object, this.offset)
         this.repositoryId(valueTypeInformation.name!)
         valueTypeInformation.encode(this, object)
@@ -783,7 +777,48 @@ export class GIOPEncoder extends GIOPBase {
         this.octet(GIOPEncoder.littleEndian ? GIOPBase.ENDIAN_LITTLE : GIOPBase.ENDIAN_BIG)
     }
 
+    reserveOne() {
+        if (this.buffer.byteLength <= this.offset + 1) {
+            const bufferNew = new ArrayBuffer(this.buffer.byteLength * 2)
+            new Uint8Array(bufferNew).set(new Uint8Array(this.buffer))
+            this.buffer = bufferNew
+            this.data = new DataView(this.buffer);
+            this.bytes = new Uint8Array(this.buffer);
+        }
+    }
+
+    alignAndReserve(align: number) {
+        const inversePadding = this.offset % align
+        if (inversePadding !== 0)
+            this.offset += align - inversePadding
+        if (this.buffer.byteLength <= this.offset + align) {
+            const bufferNew = new ArrayBuffer(this.buffer.byteLength * 2)
+            new Uint8Array(bufferNew).set(new Uint8Array(this.buffer))
+            this.buffer = bufferNew
+            this.data = new DataView(this.buffer);
+            this.bytes = new Uint8Array(this.buffer);
+        }
+    }
+
+    alignAndReserveVarying(align: number, room: number) {
+        const inversePadding = this.offset % align
+        if (inversePadding !== 0)
+            this.offset += align - inversePadding
+        if (this.buffer.byteLength <= this.offset + room) {
+            let newLength = this.buffer.byteLength * 2
+            while(newLength <= this.offset + room) {
+                newLength *= 2
+            }
+            const bufferNew = new ArrayBuffer(newLength)
+            new Uint8Array(bufferNew).set(new Uint8Array(this.buffer))
+            this.buffer = bufferNew
+            this.data = new DataView(this.buffer);
+            this.bytes = new Uint8Array(this.buffer);
+        }
+    }
+
     blob(value: Uint8Array) {
+        this.alignAndReserveVarying(4, 4 + value.length)
         this.ulong(value.length)
         this.bytes.set(value, this.offset)
         this.offset += value.length
@@ -791,6 +826,7 @@ export class GIOPEncoder extends GIOPBase {
 
     string(value: string) {
         const octets = GIOPEncoder.textEncoder.encode(value)
+        this.alignAndReserveVarying(4, 4 + octets.length + 1)
         this.ulong(octets.length + 1)
         this.bytes.set(octets, this.offset)
         this.offset += octets.length
@@ -809,64 +845,67 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     bool(value: boolean) {
+        this.reserveOne()
         this.data.setUint8(this.offset, value ? 1 : 0)
         this.offset += 1
     }
 
     char(value: string) {
+        this.reserveOne()
         this.data.setUint8(this.offset, value.charCodeAt(0))
         this.offset += 1
     }
 
     octet(value: number) {
+        this.reserveOne()
         this.data.setUint8(this.offset, value)
         this.offset += 1
     }
 
     short(value: number) {
-        this.align(2)
+        this.alignAndReserve(2)
         this.data.setInt16(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 2
     }
 
     ushort(value: number) {
-        this.align(2)
+        this.alignAndReserve(2)
         this.data.setUint16(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 2
     }
 
     long(value: number) {
-        this.align(4)
+        this.alignAndReserve(4)
         this.data.setInt32(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 4
     }
 
     ulong(value: number) {
-        this.align(4)
+        this.alignAndReserve(4)
         this.data.setUint32(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 4
     }
 
     longlong(value: bigint) {
-        this.align(8)
+        this.alignAndReserve(8)
         this.data.setBigInt64(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 8
     }
 
     ulonglong(value: bigint) {
-        this.align(8)
+        this.alignAndReserve(8)
         this.data.setBigUint64(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 8
     }
 
     float(value: number) {
-        this.align(4)
+        this.alignAndReserve(4)
         this.data.setFloat32(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 4
     }
 
     double(value: number) {
-        this.align(8)
+        this.alignAndReserve(8)
         this.data.setFloat64(this.offset, value, GIOPEncoder.littleEndian)
         this.offset += 8
     }
@@ -1614,6 +1653,12 @@ export class GIOPDecoder extends GIOPBase {
             }
         }
         return true
+    }
+
+    align(alignment: number) {
+        const inversePadding = this.offset % alignment
+        if (inversePadding !== 0)
+            this.offset += alignment - inversePadding
     }
 }
 
