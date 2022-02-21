@@ -979,6 +979,10 @@ function op_dcl(): Node | undefined {
     if (t3 === undefined) {
         // throw Error("expected parameter declaration after "+t2.toString())
         lexer.unlex(t2)
+        // FIXME: missing private or public in valuetype caused this. also: we don't use the private/public declarators yet
+        if (t1.child.length != 0) {
+            throw Error("expected parameter declaration after "+t2.toString())
+        }
         lexer.unlex(t1)
         lexer.unlex(t0)
         return undefined

@@ -229,23 +229,22 @@ and deserialize them based on their IDL description:
 For each valuetype the IDL compiler will generate three variants
 
 * _value.ts: the valuetypes as TypeScript interfaces with only the attributes
-* _valuetype.ts: the values types as TypeScript interface with attributes and methods
-* _valueimpl.ts: the value types as classes with constructors, which can be initialized from JSON data
-
-The last one will be used by the ORB to convert the received JSON data
-into an object.
+* _valuetype.ts: the valuestypes as TypeScript interface with attributes and methods
 
 Unlike a pure JSON exchange, corba.js will also instantiate a user specified
 class to represent the transmitted data, so that the object has methods we
 can call.
 
-Ie. the Rectangle class contains a method which needs to be implemented to
-be able to instantiate it:
+Ie. for this the Rectangle class will need a special constructor:
 
 ```javascript
-    export class Rectangle extends valueimpl.Rectangle {
-        constructor(rectangle: Partial<valueimpl.Rectangle>) {
-            super(rectangle)
+    import { GIOPDecoder } from "corba.js"
+    import * as value from "../myapp_value"
+    import * as valuetype from "../myapp_valuetype"
+
+    export class Rectangle implements valuetype.Rectangle {
+        constructor(init?: Partial<value.Rectangle> | GIOPDecoder) {
+            value.initRectangle(this, init)
         }
         contains(p: Point): boolean {
             return this.origin.x <= p.x && p.x <= this.origin.x + this.size.width &&
@@ -254,12 +253,12 @@ be able to instantiate it:
     }
 ```
 
-After the valuetypes have been registered in the ORB on client and server
+After the valuetype implementations have been registered in the ORB on client and server
 side
 
 ```javascript
-    ORB.registerValueType("Point", valueimpl.Point)
-    ORB.registerValueType("Size", valueimpl.Size)
+    ORB.registerValueType("Point", Point)
+    ORB.registerValueType("Size", Size)
     ORB.registerValueType("Rectangle", Rectangle)
 ```
 

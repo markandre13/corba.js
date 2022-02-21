@@ -25,6 +25,7 @@ export class WsProtocol implements Protocol {
     async connect(orb: ORB, host: string, port: number) {
         return new Promise<Connection>((resolve, reject) => {
             const socket = new WebSocket(`ws://${host}:${port}`)
+            socket.binaryType = "arraybuffer"
             const connection = new WsConnection(orb, socket)
             orb.addConnection(connection)
             socket.onopen = () => {
