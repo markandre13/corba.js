@@ -133,14 +133,21 @@ export function typeIDLtoGIOP(type: Node | undefined, arg: string | undefined = 
         case Type.TKN_VALUETYPE:
             return arg === undefined ? `decoder.value("${type.text}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:
-        case Type.TKN_STRUCT:
             name = "object"
+            break
+
+        case Type.TKN_STRUCT:
+            return arg === undefined ?
+                `value.decode${type!.text!}(decoder)` :
+                `value.encode${type!.text!}(encoder,${arg})`
             break
 
         case Type.TKN_NATIVE: {
             const id = type!.child[0]!.text!
             if (id.length > 4 && id.substring(id.length - 4) === "_ptr") {
-                return arg === undefined ? `decoder.value("${id.substring(0, id.length-4)}")` : `encoder.value(${arg})`
+                return arg === undefined ? 
+                    `decoder.value("${id.substring(0, id.length-4)}")` : 
+                    `encoder.value(${arg})`
             } else {
                 return `undefined`
             }

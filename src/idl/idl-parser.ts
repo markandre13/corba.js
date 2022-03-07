@@ -813,7 +813,7 @@ function struct_type(): Node | undefined {
 
     t2.type = t0.type
     t2.text = t1.text
-    scoper.addType(t2.text!, t0)
+    scoper.addType(t2.text!, t2)
 
     return t2
 }

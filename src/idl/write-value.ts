@@ -71,6 +71,61 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
             } break
             case Type.TKN_NATIVE: {
             } break
+            case Type.TKN_STRUCT: {
+                let struct_type = definition!
+                // let value_header = value_dcl.child[0]!
+                // let custom = value_header.child[0]
+                let identifier = struct_type.text
+                // const member_list = struct_type.child[0]!.child[1]!.child!
+
+                writeIndent(out, indent)
+                out.write(`export interface ${identifier} {\n`)
+                // console.log(struct_type.printTree())
+
+                for (let i = 0; i < struct_type.child.length; ++i) {
+                    const member = struct_type.child[i]!
+                    if (member.type === Type.SYN_MEMBER) {
+                        let type = member.child[0]!
+                        let declarators = member.child[1]!
+                        for (let declarator of declarators.child) {
+                            writeIndent(out, indent + 1)
+                            out.write(declarator!.text + ": " + typeIDLtoTS(type, FileType.VALUE) + "\n")
+                            // attributes.push(declarator!.text!)
+                        }
+                    }
+                }
+                writeIndent(out, indent)
+                out.write("}\n")
+
+                out.write(`export function decode${identifier}(decoder: GIOPDecoder): ${identifier} {\n`)
+                out.write(`    return {\n`)
+                for (let i = 0; i < struct_type.child.length; ++i) {
+                    const member = struct_type.child[i]!
+                    if (member.type === Type.SYN_MEMBER) {
+                        let type = member.child[0]!
+                        let declarators = member.child[1]!
+                        for (let declarator of declarators.child) {
+                            writeIndent(out, indent + 2)
+                            out.write(declarator!.text + ": " + typeIDLtoGIOP(type) + ",\n")
+                        }
+                    }
+                }
+                out.write(`    }\n`)
+                out.write(`}\n`)
+                out.write(`export function encode${identifier}(encoder: GIOPEncoder, obj: ${identifier}) {\n`)
+                for (let i = 0; i < struct_type.child.length; ++i) {
+                    const member = struct_type.child[i]!
+                    if (member.type === Type.SYN_MEMBER) {
+                        let type = member.child[0]!
+                        let declarators = member.child[1]!
+                        for (let declarator of declarators.child) {
+                            writeIndent(out, indent + 1)
+                            out.write(typeIDLtoGIOP(type, `obj.${declarator!.text}`) + "\n")
+                        }
+                    }
+                }
+                out.write(`}\n\n`)
+            } break
             case Type.TKN_VALUETYPE: {
                 let value_dcl = definition!
                 let value_header = value_dcl.child[0]!

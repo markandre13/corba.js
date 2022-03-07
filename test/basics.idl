@@ -41,6 +41,11 @@ valuetype FigureModel {
     public sequence<Figure> data;
 };
 
+struct RGBA {
+    octet r, g, b;
+    octet a;
+};
+
 interface Client {
     short methodC(); // return type is to be able to drop 'oneway'
     oneway void setFigureModel(in FigureModel figuremodel);
@@ -51,5 +56,7 @@ interface Server {
     oneway void methodA();
     short methodB(); // return type is to be able to drop 'oneway'
     double answer(in double a, in double b);
+
+    RGBA twistColor(in RGBA color);
 };
 
