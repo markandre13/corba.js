@@ -174,35 +174,49 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                 writeIndent(out, indent)
                 out.write(`export type ${identifier} = ${composite}\n`)
 
+                writeIndent(out, indent)
                 out.write(`export function decode${identifier}(decoder: GIOPDecoder): ${identifier} {\n`)
-                out.write(`    throw Error("not implemented yet")\n`)
-                // out.write(`    return {\n`)
-                // for (let i = 0; i < struct_type.child.length; ++i) {
-                //     const member = struct_type.child[i]!
-                //     if (member.type === Type.SYN_MEMBER) {
-                //         let type = member.child[0]!
-                //         let declarators = member.child[1]!
-                //         for (let declarator of declarators.child) {
-                //             writeIndent(out, indent + 2)
-                //             out.write(declarator!.text + ": " + typeIDLtoGIOP(type) + ",\n")
-                //         }
-                //     }
-                // }
-                // out.write(`    }\n`)
+                writeIndent(out, indent+1)
+                out.write(`switch(decoder.ulong() as ${union_type.child[0]!.text}) {\n`) // FIXME: ulong is only valid for enums
+                switch_body.child.forEach( x => {
+                    const case_label = x!.child[0]!
+                    const type_spec = x!.child[1]!
+                    const declarator = x!.child[2]!
+                    writeIndent(out, indent+2)
+                    out.write(`case ${case_label.typeParent!.text}.${case_label.text}: return {\n`)
+                    writeIndent(out, indent+3)
+                    out.write(`type: ${case_label.typeParent!.text}.${case_label.text},\n`)
+                    writeIndent(out, indent+3)
+                    out.write(`${declarator.text}: ${typeIDLtoGIOP(type_spec, undefined, FileType.INTERFACE)}\n`)
+                    writeIndent(out, indent+2)
+                    out.write(`}\n`)
+                })
+                writeIndent(out, indent+1)
                 out.write(`}\n`)
+                writeIndent(out, indent+1)
+                out.write(`throw Error("invalid union value")\n`)
+                writeIndent(out, indent)
+                out.write(`}\n`)
+
+                writeIndent(out, indent)
                 out.write(`export function encode${identifier}(encoder: GIOPEncoder, obj: ${identifier}) {\n`)
-                out.write(`    throw Error("not implemented yet")\n`)
-                // for (let i = 0; i < struct_type.child.length; ++i) {
-                //     const member = struct_type.child[i]!
-                //     if (member.type === Type.SYN_MEMBER) {
-                //         let type = member.child[0]!
-                //         let declarators = member.child[1]!
-                //         for (let declarator of declarators.child) {
-                //             writeIndent(out, indent + 1)
-                //             out.write(typeIDLtoGIOP(type, `obj.${declarator!.text}`) + "\n")
-                //         }
-                //     }
-                // }
+                writeIndent(out, indent+1)
+                out.write(`encoder.ulong(obj.type)\n`) // FIXME: ulong is only valid for enums
+                writeIndent(out, indent+1)
+                out.write(`switch(obj.type) {\n`)
+                switch_body.child.forEach( x => {
+                    const case_label = x!.child[0]!
+                    const type_spec = x!.child[1]!
+                    const declarator = x!.child[2]!
+                    writeIndent(out, indent+2)
+                    out.write(`case ${case_label.typeParent!.text}.${case_label.text}:\n`)
+                    writeIndent(out, indent+3)
+                    out.write(typeIDLtoGIOP(type_spec, `obj.${declarator!.text}`, FileType.INTERFACE) + "\n")
+                    writeIndent(out, indent+3)
+                    out.write(`break\n`)
+                })
+                writeIndent(out, indent+1)
+                out.write(`}\n`)
                 out.write(`}\n\n`)
             } break
 
