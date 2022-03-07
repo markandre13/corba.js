@@ -749,17 +749,15 @@ export class GIOPEncoder extends GIOPBase {
         }
 
         let prototype = Object.getPrototypeOf(object)
-
         let valueTypeInformation: ValueTypeInformation | undefined
         while (prototype !== null) {
             valueTypeInformation = ORB.valueTypeByPrototype.get(prototype)
             if (valueTypeInformation !== undefined)
                 break
-            prototype = Object.getPrototypeOf(prototype)
+            prototype = Object.getPrototypeOf(prototype) // ???
         }
 
         if (valueTypeInformation === undefined) {
-            console.log(object)
             throw Error(`ORB: can not serialize object of unregistered valuetype ${object.constructor.name}`)
         }
 

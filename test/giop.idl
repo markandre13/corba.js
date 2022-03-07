@@ -45,6 +45,23 @@ valuetype FigureModel {
     public FigureSeq data;
 };
 
+/*
+struct RGBA {
+    octet r, g, b, a;
+};
+enum AttributeType {
+    STROKE_RGBA,
+    FILL_RGBA,
+    STROKE_WIDTH
+};
+union Attribute switch(AttributeType) {
+    case STROKE_RGBA: RGBA strokeRGBA;
+    case FILL_RGBA: RGBA fillRGBA;
+    case STROKE_WIDTH: double strokeWidth;
+};
+typedef sequence<Attribute> AttributeSeq;
+*/
+
 interface GIOPTest {
 
     string peek();

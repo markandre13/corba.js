@@ -41,10 +41,21 @@ valuetype FigureModel {
     public sequence<Figure> data;
 };
 
+enum AttributeType {
+    STROKE_RGBA,
+    FILL_RGBA,
+    STROKE_WIDTH
+};
 struct RGBA {
     octet r, g, b;
     octet a;
 };
+union Attribute switch(AttributeType) {
+    case STROKE_RGBA: RGBA strokeRGBA;
+    case FILL_RGBA: RGBA fillRGBA;
+    case STROKE_WIDTH: double strokeWidth;
+};
+typedef sequence<Attribute> AttributeSeq;
 
 interface Client {
     short methodC(); // return type is to be able to drop 'oneway'

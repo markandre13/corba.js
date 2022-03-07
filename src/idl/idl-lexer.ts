@@ -120,6 +120,20 @@ export class Lexer {
                         case ':':
                             this.state = 7
                             break
+                        // case '0':
+                        //     this.state = ...
+                        //     break
+                        // case '1':
+                        // case '2':
+                        // case '3':
+                        // case '4':
+                        // case '5':
+                        // case '6':
+                        // case '7':
+                        // case '8':
+                        // case '9':
+                        //     this.state = ...
+                        //     break
                         default:
                             if (Lexer.isAlpha(c)) {
                                 this.state = 2

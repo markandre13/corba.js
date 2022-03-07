@@ -414,6 +414,61 @@ function state_member(): Node | undefined {
     return node
 }
 
+// 29
+// function const_exp() {
+//     // return or_expr()
+//     return literal()
+// }
+
+// 30
+// function or_expr() {
+//     let t0 = xor_expr()
+//     if (t0 !== undefined)
+//         return t0
+//     t0 = or_expr()
+//     let t1 = lexer.lex()
+//     if (t1 !== Type.TKN_)
+// }
+
+// 39
+// function literal() {
+//     let t0
+//     t0 = integer_literal()
+//     if (t0)
+//         return t0
+//     t0 = string_literal()
+//     if (t0)
+//         return t0
+//     t0 = wide_string_literal()
+//     if (t0)
+//         return t0
+//     t0 = character_literal()
+//     if (t0)
+//         return t0
+//     t0 = wide_character_literal()
+//     if (t0)
+//         return t0
+//     t0 = fixed_pt_literal()
+//     if (t0)
+//         return t0
+//     t0 = floating_pt_literal()
+//     if (t0)
+//         return t0
+//     return boolean_literal()
+// }
+
+// 40
+// function boolean_literal() {
+//     let t0 = lexer.lex()
+//     if (t0 === undefined)
+//         return undefined
+//     if (t0.type === Type.TKN_TRUE || t0.type === Type.TKN_FALSE) {
+//         return t0
+//     }
+//     lexer.unlex(t0)
+//     return undefined
+// }
+
 // 42
 function type_dcl(): Node | undefined {
 
@@ -437,9 +492,9 @@ function type_dcl(): Node | undefined {
     if (t0 !== undefined)
         return t0
 
-    // t0 = union_type()
-    // if (t0 !== undefined)
-    //     return t0;
+    t0 = union_type()
+    if (t0 !== undefined)
+        return t0;
 
     t0 = enum_type()
     if (t0 !== undefined)
@@ -550,10 +605,8 @@ function template_type_spec(): Node | undefined {
 // 48 constructed type specification
 function constr_type_spec() {
     let t0 = struct_type()
-    /*
     if (t0 === undefined)
         t0 = union_type()
-    */
     if (t0 === undefined)
         t0 = enum_type()
     return t0
@@ -850,6 +903,124 @@ function member(): Node | undefined {
     return node
 }
 
+// 72
+function union_type(): Node | undefined {
+    let t0 = lexer.lex()
+    if (t0 === undefined)
+        return undefined
+    if (t0.type !== Type.TKN_UNION) {
+        lexer.unlex(t0)
+        return undefined
+    }
+
+    let t1 = identifier()
+    if (t1 === undefined)
+        throw Error(`expected identifier after 'union'`)
+    let t2 = lexer.lex()
+    if (t2 === undefined || t2.type !== Type.TKN_SWITCH) {
+        throw Error(`expected 'switch' after union <identifier>`)
+    }
+    expect("(")
+    let t3 = switch_type_spec()
+    if (t3 === undefined) {
+        throw Error(`expected switch type specifier after union <identifier> switch(`)
+    }
+    expect(")")
+    expect("{")
+    let t4 = switch_body()
+    expect("}")
+
+    t0.text = t1.text
+    t0.append(t3)
+    t0.append(t4)
+
+    scoper.addType(t0.text!, t0)
+
+    return t0
+}
+
+// 73
+function switch_type_spec() {
+    let t0 = integer_type()
+    if (t0 !== undefined)
+        throw Error(`integer type is not implemented yet`)
+    t0 = char_type()
+    if (t0 !== undefined)
+        throw Error(`char type is not implemented yet`)
+    t0 = boolean_type()
+    if (t0 !== undefined)
+        throw Error(`boolean type is not implemented yet`)
+    t0 = enum_type()
+    if (t0 !== undefined)
+        return t0
+    return scoped_name()
+}
+
+// 74
+function switch_body() {
+    let t0 = new Node(Type.SYN_SWITCH_BODY)
+    while(true) {
+        const t1 = _case()
+        if (t1 === undefined)
+            break
+        t0.append(t1)
+    }
+    return t0
+}
+
+// 75
+function _case() {
+    let t0 = case_label()
+    if (t0 === undefined)
+        return t0
+    let t1 = element_spec()
+    if (t1 === undefined)
+        throw Error(`expected element specification after '${t0}'`)
+    t0.append(t1)
+    expect(";")
+    return t0
+}
+
+// 76
+function case_label() {
+    let t0 = lexer.lex()
+    if (t0 === undefined)
+        return undefined
+    if (t0.type === Type.TKN_CASE) {
+        // TODO: enum only hack, should use const_exp() instead
+        let t1 = identifier()
+        if (t1 === undefined) {
+            throw Error(`expected enum identifier after 'case'`)
+        }
+        const t = scoper.getType(t1!.text!)
+        if (t?.typeParent?.type === Type.TKN_ENUM) {
+        } else {
+            throw Error(`unsupported value after 'case'`)
+        }
+        expect(":")
+        t0.append(t)
+        return t0
+    }
+    if (t0.type === Type.TKN_DEFAULT) {
+        expect(":")
+        return t0
+    }
+    lexer.unlex(t0)
+    return undefined
+}
+
+// 77
+function element_spec() {
+    let t0 = type_spec()
+    if (t0 === undefined)
+        return undefined
+    let t1 = declarator()
+    if (t1 === undefined)
+        throw Error(`expected declarator after ${t0}`)
+    t0.append(t1)
+    return t0
+}
+
 // 78
 function enum_type(): Node | undefined {
     let t0 = lexer.lex()
@@ -859,7 +1030,7 @@ function enum_type(): Node | undefined {
             throw Error("expected identifier after 'enum'")
         t0.text = t1.text
         expect("{")
-        const set = new Set<string>()
+        const usedNames = new Set<string>()
         while (true) {
             // node.append(t0)
             let t2 = lexer.lex()
@@ -867,11 +1038,15 @@ function enum_type(): Node | undefined {
                 throw Error("unexpected end of file")
             if (t2.type !== Type.TKN_IDENTIFIER)
                 throw Error("expected identifier but got ${t2}")
-            if (set.has(t2.text!)) {
+            if (usedNames.has(t2.text!)) {
                 throw Error(`Declaration of enumerator '${t2.text}' clashes with earlier declaration of enumerator '${t2.text}'`)
             }
-            set.add(t2.text!)
+            usedNames.add(t2.text!)
+
+            scoper.addType(t2.text!, t2)
             t0.append(t2)
+            t2.typeParent = t0
+
             let t3 = lexer.lex()
             if (t3 === undefined)
                 throw Error("unexpected end of file")
