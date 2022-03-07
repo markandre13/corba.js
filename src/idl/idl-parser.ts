@@ -943,13 +943,13 @@ function union_type(): Node | undefined {
 function switch_type_spec() {
     let t0 = integer_type()
     if (t0 !== undefined)
-        throw Error(`integer type is not implemented yet`)
+        return t0
     t0 = char_type()
     if (t0 !== undefined)
-        throw Error(`char type is not implemented yet`)
+        return t0
     t0 = boolean_type()
     if (t0 !== undefined)
-        throw Error(`boolean type is not implemented yet`)
+        return t0
     t0 = enum_type()
     if (t0 !== undefined)
         return t0
