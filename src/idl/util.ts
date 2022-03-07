@@ -69,6 +69,7 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                     break
                 case Type.SYN_INTERFACE:
                 case Type.TKN_ENUM:
+                case Type.TKN_UNION:
                     if (filetype !== FileType.INTERFACE)
                         name = `_interface${absolutePrefix}.${relativeName}`
                     else
@@ -136,10 +137,11 @@ export function typeIDLtoGIOP(type: Node | undefined, arg: string | undefined = 
             name = "object"
             break
 
+        case Type.TKN_UNION:
         case Type.TKN_STRUCT:
             return arg === undefined ?
-                `value.decode${type!.text!}(decoder)` :
-                `value.encode${type!.text!}(encoder,${arg})`
+                `_interface.decode${type!.text!}(decoder)` :
+                `_interface.encode${type!.text!}(encoder,${arg})`
             break
 
         case Type.TKN_NATIVE: {

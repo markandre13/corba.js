@@ -215,6 +215,7 @@ export class Node
             case Type.SYN_DECLARATORS:            return "SYN_DECLARATORS" // 49
             case Type.SYN_MEMBER_LIST:            return "SYN_MEMBER_LIST" // 70
             case Type.SYN_MEMBER:                 return "SYN_MEMBER" // 71
+            case Type.SYN_SWITCH_BODY:            return "SYN_SWITCH_BODY" // 74
             case Type.SYN_OPERATION_DECLARATION:  return "SYN_OPERATION_DECLARATION" // 87
     
             case Type.SYN_PARAMETER_DECLARATIONS: return "SYN_PARAMETER_DECLARATIONS" // 90

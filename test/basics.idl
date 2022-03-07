@@ -69,5 +69,6 @@ interface Server {
     double answer(in double a, in double b);
 
     RGBA twistColor(in RGBA color);
+    void setAttributes(in AttributeSeq attributes);
 };
 

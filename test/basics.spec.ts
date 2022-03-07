@@ -188,6 +188,10 @@ class Server_impl extends skel.Server {
         console.log(`Server_impl.setColor(${color.r},${color.g},${color.b},${color.a})`)
         return {r: color.a, g: color.b, b: color.g, a: color.r}
     }
+
+    async setAttributes(attributes: _interface.Attribute[]): Promise<void> {
+        
+    }
 }
 
 class Client_impl extends skel.Client {
