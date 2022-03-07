@@ -976,7 +976,8 @@ function _case() {
     let t1 = element_spec()
     if (t1 === undefined)
         throw Error(`expected element specification after '${t0}'`)
-    t0.append(t1)
+    t0.append(t1.child[0])
+    t0.append(t1.child[1])
     expect(";")
     return t0
 }
@@ -1017,8 +1018,10 @@ function element_spec() {
     let t1 = declarator()
     if (t1 === undefined)
         throw Error(`expected declarator after ${t0}`)
-    t0.append(t1)
-    return t0
+    let t2 = new Node(Type.NONE)
+    t2.append(t0)
+    t2.append(t1)
+    return t2
 }
 
 // 78

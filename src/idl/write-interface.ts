@@ -150,11 +150,29 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
 
             case Type.TKN_UNION: {
                 const identifier = definition!.text!
+                const union_type = definition!
+                const switch_body = union_type.child[1]!
+                let composite = ""
+                switch_body.child.forEach( x => {
+                    // console.log(x)
+                    const case_label = x!.child[0]!
+                    const type_spec = x!.child[1]!
+                    const declarator = x!.child[2]!
+                    writeIndent(out, indent)
+                    out.write(`export type _${identifier}_${declarator.text} = {\n`)
+                    writeIndent(out, indent+1)
+                    out.write(`type: ${case_label.typeParent!.text}.${case_label.text}\n`)
+                    writeIndent(out, indent+1)
+                    out.write(`${declarator.text}: ${typeIDLtoTS(type_spec, FileType.INTERFACE)}\n`)
+                    writeIndent(out, indent)
+                    out.write(`}\n`)
+                    if (composite.length !== 0)
+                        composite = `${composite} | `
+                    composite = `${composite}_${identifier}_${declarator.text}`
+                })
+
                 writeIndent(out, indent)
-                out.write(`export interface ${identifier} {\n`)
-                // ...
-                writeIndent(out, indent)
-                out.write("}\n\n")
+                out.write(`export type ${identifier} = ${composite}\n`)
 
                 out.write(`export function decode${identifier}(decoder: GIOPDecoder): ${identifier} {\n`)
                 out.write(`    throw Error("not implemented yet")\n`)
