@@ -1266,7 +1266,7 @@ export class GIOPDecoder extends GIOPBase {
                                         ]
                                         let name: string | undefined
                                         for (let x of orbTypeNames) {
-                                            if (x[0] <= orbType && orbType <= x[1]) {
+                                            if ((x[0] as number) <= orbType && orbType <= (x[1] as number)) {
                                                 name = x[2] as string
                                                 break
                                             }
