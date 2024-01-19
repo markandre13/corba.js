@@ -14,13 +14,10 @@
       "corba.js/*": [ "src/*" ],
       "src/*": [ "src/*" ]
     },
-    "plugins": [
-      { "transform": "@zerollup/ts-transform-paths" },
-      {
-        "transform": "@zoltu/typescript-transformer-append-js-extension/output/index.js",
+    "plugins": [{
+        "transform": "./m13-es-transformer.cjs",
         "after": true,
-      }
-    ],
+    }],
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "removeComments": true,

@@ -17,6 +17,7 @@ echo 1000 > intermediate/serial
 echo 1000 > intermediate/crlnumber
 
 passphrase="alice"
+bits=2048
 
 cat<<EOF
 ###########################################################
@@ -26,7 +27,7 @@ EOF
 
 openssl genpkey \
     -algorithm RSA \
-    -pkeyopt rsa_keygen_bits:1024 \
+    -pkeyopt rsa_keygen_bits:$bits \
     -out root/private/root.key.pem \
     -pass "pass:$passphrase" \
     -aes-256-cbc
@@ -63,7 +64,7 @@ EOF
 
 openssl genpkey \
     -algorithm RSA \
-    -pkeyopt rsa_keygen_bits:1024 \
+    -pkeyopt rsa_keygen_bits:$bits \
     -out intermediate/private/intermediate.key.pem \
     -pass "pass:$passphrase" \
     -aes-256-cbc
@@ -126,7 +127,7 @@ EOF
 
 openssl genpkey \
     -algorithm RSA \
-    -pkeyopt rsa_keygen_bits:1024 \
+    -pkeyopt rsa_keygen_bits:$bits \
     -out intermediate/private/server.key.pem \
     -pass "pass:$passphrase" \
     -aes-256-cbc
