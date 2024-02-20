@@ -18,7 +18,8 @@
 
 import * as fs from "fs"
 import { Type, Node } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoGIOP, FileType } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType } from "../util"
+import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
 export function writeTSStub(specification: Node): void {
@@ -128,7 +129,7 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             for (let parameter_dcl of parameter_decls) {
                                 let type = parameter_dcl!.child[1]!
                                 let identifier = parameter_dcl!.child[2]!.text
-                                out.write(`            ${typeIDLtoGIOP(type, identifier)}\n`)
+                                out.write(`            ${typeIDLtoGIOPTS(type, identifier)}\n`)
                             }
                            
                             if (oneway) {
@@ -137,7 +138,7 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 out.write(`        },\n`)
                                 out.write(`        `)
                                 if (returnType.type !== Type.TKN_VOID) {
-                                    out.write(`(decoder) => ${typeIDLtoGIOP(returnType)})\n`)
+                                    out.write(`(decoder) => ${typeIDLtoGIOPTS(returnType)})\n`)
                                 } else {
                                     out.write(`(decoder) => {})\n`)
                                 }

@@ -18,7 +18,8 @@
 
 import * as fs from "fs"
 import { Type, Node } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoGIOP, FileType, writeIndent } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent } from "../util"
+import { typeIDLtoGIOPTS } from "../ts/typeIDLtoGIOPTS"
 import { typeIDLtoCC } from "./typeIDLtoCC"
 
 export function writeCCInterface(specification: Node): void {
@@ -98,7 +99,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                             throw Error("yikes")
                     }
                 }
-                out.write(`    static std::shared_ptr<${identifier}> _narrow(std::shared_ptr<CORBA::Object> pointer);`)
+                out.write(`    static std::shared_ptr<${identifier}> _narrow(std::shared_ptr<CORBA::Object> pointer);\n`)
                 out.write("};\n\n")
             } break
 
@@ -137,7 +138,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                         let declarators = member.child[1]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 2)
-                            out.write(declarator!.text + ": " + typeIDLtoGIOP(type) + ",\n")
+                            out.write(declarator!.text + ": " + typeIDLtoGIOPTS(type) + ",\n")
                         }
                     }
                 }
@@ -151,7 +152,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                         let declarators = member.child[1]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 1)
-                            out.write(typeIDLtoGIOP(type, `obj.${declarator!.text}`) + "\n")
+                            out.write(typeIDLtoGIOPTS(type, `obj.${declarator!.text}`) + "\n")
                         }
                     }
                 }
@@ -197,7 +198,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                     writeIndent(out, indent+3)
                     out.write(`type: ${case_label.typeParent!.text}.${case_label.text},\n`)
                     writeIndent(out, indent+3)
-                    out.write(`${declarator.text}: ${typeIDLtoGIOP(type_spec, undefined, FileType.INTERFACE)}\n`)
+                    out.write(`${declarator.text}: ${typeIDLtoGIOPTS(type_spec, undefined, FileType.INTERFACE)}\n`)
                     writeIndent(out, indent+2)
                     out.write(`}\n`)
                 })
@@ -221,7 +222,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                     writeIndent(out, indent+2)
                     out.write(`case ${case_label.typeParent!.text}.${case_label.text}:\n`)
                     writeIndent(out, indent+3)
-                    out.write(typeIDLtoGIOP(type_spec, `obj.${declarator!.text}`, FileType.INTERFACE) + "\n")
+                    out.write(typeIDLtoGIOPTS(type_spec, `obj.${declarator!.text}`, FileType.INTERFACE) + "\n")
                     writeIndent(out, indent+3)
                     out.write(`break\n`)
                 })

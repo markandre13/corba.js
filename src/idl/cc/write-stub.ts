@@ -18,7 +18,8 @@
 
 import * as fs from "fs"
 import { Type, Node } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoGIOP, FileType } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType } from "../util"
+import { typeIDLtoGIOPCC } from "./typeIDLtoGIOPCC"
 import { typeIDLtoCC } from "./typeIDLtoCC"
 
 export function writeCCStub(specification: Node): void {
@@ -55,12 +56,6 @@ function writeCCStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                 out.write(`public:\n`)
                 out.write(`    ${identifier}_stub(CORBA::ORB *orb, const std::string &objectKey, CORBA::detail::Connection *connection): Stub(orb, objectKey, connection) {}\n`)
                 out.write(`    const char *repository_id() const override { return "IDL:${prefix}${identifier}:1.0"; }\n`)
-
-                // out.write(`    static narrow(object: any): ${prefix}${identifier} {\n`)
-                // out.write(`        if (object instanceof ${prefix}${identifier})\n`)
-                // out.write(`            return object as ${prefix}${identifier}\n`)
-                // out.write(`        throw Error("${prefix}${identifier}.narrow() failed")\n`)
-                // out.write(`    }\n\n`)
 
                 for (let _export of interface_body.child) {
                     switch (_export!.type) {
@@ -101,64 +96,7 @@ function writeCCStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 }
                                 out.write(`${typeIDLtoCC(type, FileType.INTERFACE)} ${identifier}`)
                             }
-                            // if (oneway) {
-
-                            // } else {
-                                // out.write(`): Promise<${typeIDLtoCC(returnType, FileType.STUB)}> {\n`)
-                                out.write(`) override {\n`)
-                            // }
-                            out.write("        ")
-                            if (!oneway) {
-                                out.write("return ")
-                            }
-   
-                            // out.write(`await this.orb.call(this, ${oneway}, "${identifier}", [`)
-                            // comma = false
-                            // for (let parameter_dcl of parameter_decls) {
-                            //     let identifier = parameter_dcl!.child[2]!.text
-                            //     if (!comma) {
-                            //         comma = true
-                            //     } else {
-                            //         out.write(", ")
-                            //     }
-                            //     out.write(identifier)
-                            // }
-                            // out.write("])\n")
-
-                            // out.write("/*\n")
-                            // out.write("        ")
-                            if (oneway) {
-                                out.write(`get_ORB()->onewayCall(this, "${identifier}", `)
-                            } else {
-                                if (returnType.type !== Type.TKN_VOID) {
-                                    out.write(`get_ORB()->twowayCall<${typeIDLtoCC(returnType, FileType.INTERFACE)}>(this, "${identifier}", `)
-                                } else {
-                                    out.write(`get_ORB()->twowayCall(this, "${identifier}", `)
-                                }
-                            }
-
-                            // encode
-                            out.write(`[&](CORBA::GIOPEncoder &encoder) {\n`)
-                            for (let parameter_dcl of parameter_decls) {
-                                let type = parameter_dcl!.child[1]!
-                                let identifier = parameter_dcl!.child[2]!.text
-                                out.write(`            ${typeIDLtoGIOP(type, identifier)};\n`)
-                            }
-                           
-                            if (oneway) {
-                                out.write(`        });\n`)
-                            } else {
-                                if (returnType.type !== Type.TKN_VOID) {
-                                    out.write(`        },\n`)
-                                    out.write(`        `)
-                                    out.write(`[&](CORBA::GIOPDecoder &decoder) { return ${typeIDLtoGIOP(returnType)}; });\n`)
-                                } else {
-                                    out.write(`        });\n`)
-                                }
-                            }
-                            // out.write("*/\n")
-
-                            out.write("    }\n")
+                            out.write(`) override;\n`)
                         } break
                         case Type.TKN_ATTRIBUTE: {
                         } break

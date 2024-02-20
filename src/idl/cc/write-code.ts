@@ -18,7 +18,8 @@
 
 import * as fs from "fs"
 import { Type, Node } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, typeIDLtoGIOP } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType } from "../util"
+import { typeIDLtoGIOPCC } from "./typeIDLtoGIOPCC"
 import { typeIDLtoCC } from "./typeIDLtoCC"
 
 export function writeCCCode(specification: Node): void {
@@ -28,7 +29,7 @@ export function writeCCCode(specification: Node): void {
     out.write(`#include "../src/corba/orb.hh"\n`)
     out.write(`#include "../src/corba/giop.hh"\n`)
     out.write(`#include "../src/corba/coroutine.hh"\n`)
-    out.write(`#include <cstring>`)
+    out.write(`#include <cstring>\n`)
     out.write(`#include <vector>\n`)
     out.write(`#include <map>\n`)
     out.write(`#include <functional>\n`)
@@ -71,12 +72,8 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
 
                             let identifier = op_dcl.child[2]!.text
                             let parameter_decls = op_dcl.child[3]!.child
-                            out.write(`static `)
-                            if (oneway) {
-                                out.write(`void`);
-                            } else {
-                                out.write(`CORBA::task<>`)
-                            }
+                            out.write(`static CORBA::task<>`)
+                    
                             out.write(` _${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
                             switch(type.type) {
                                 case Type.TKN_VOID:
@@ -102,15 +99,93 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(`${typeIDLtoGIOP(type)}`)
+                                out.write(`${typeIDLtoGIOPCC(type)}`)
                             }
                             
                             out.write(`);\n`)
                             if (type.type !== Type.TKN_VOID) {
-                                out.write(`    ${typeIDLtoGIOP(type, "result")};\n`)
+                                out.write(`    ${typeIDLtoGIOPCC(type, "result")};\n`)
+                            } else if (oneway) {
+                                out.write(`    co_return;\n`)
                             }
                             out.write(`}\n`)
                             
+//////////////// START                            
+
+                            // let op_dcl = _export!
+                            // let attribute = op_dcl.child[0]
+                            let returnType = op_dcl.child[1]!
+
+                            // let oneway = false
+                            // if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
+                            //     oneway = true
+                            // if (oneway && returnType.type !== Type.TKN_VOID)
+                            //     console.log("WARNING: corba.js currently requires every oneway function to return void")
+
+                            // let identifier = op_dcl.child[2]!.text
+                            // let parameter_decls = op_dcl.child[3]!.child
+
+                            // out.write("    virtual ")
+                            if (oneway) {
+                                out.write(`${typeIDLtoCC(returnType, FileType.INTERFACE)}`)
+                            } else {
+                                out.write(`CORBA::task<${typeIDLtoCC(returnType, FileType.INTERFACE)}>`)
+                            }
+                            out.write(` ${if_identifier}_stub::${identifier}(`)
+                            comma = false
+                            for (let parameter_dcl of parameter_decls) {
+                                let attribute = parameter_dcl!.child[0]!.type
+                                let type = parameter_dcl!.child[1]
+                                let identifier = parameter_dcl!.child[2]!.text
+                                // TODO: move this check into the parser or attach file, row & col to the parse tree nodes
+                                if (attribute !== Type.TKN_IN) {
+                                    throw Error("corba.js currently only supports 'in' parameters")
+                                }
+                                if (!comma) {
+                                    comma = true
+                                } else {
+                                    out.write(", ")
+                                }
+                                out.write(`${typeIDLtoCC(type, FileType.INTERFACE)} ${identifier}`)
+                            }
+                            out.write(`) {\n`)
+                            out.write("    ")
+                            if (!oneway) {
+                                out.write("return ")
+                            }
+                            if (oneway) {
+                                out.write(`get_ORB()->onewayCall(this, "${identifier}", `)
+                            } else {
+                                if (returnType.type !== Type.TKN_VOID) {
+                                    out.write(`get_ORB()->twowayCall<${typeIDLtoCC(returnType, FileType.INTERFACE)}>(this, "${identifier}", `)
+                                } else {
+                                    out.write(`get_ORB()->twowayCall(this, "${identifier}", `)
+                                }
+                            }
+
+                            // encode
+                            out.write(`[&](CORBA::GIOPEncoder &encoder) {\n`)
+                            for (let parameter_dcl of parameter_decls) {
+                                let type = parameter_dcl!.child[1]!
+                                let identifier = parameter_dcl!.child[2]!.text
+                                out.write(`        ${typeIDLtoGIOPCC(type, identifier)};\n`)
+                            }
+
+                            if (oneway) {
+                                out.write(`    });\n`)
+                            } else {
+                                if (returnType.type !== Type.TKN_VOID) {
+                                    out.write(`    },\n`)
+                                    out.write(`    `)
+                                    out.write(`[&](CORBA::GIOPDecoder &decoder) { return ${typeIDLtoGIOPCC(returnType)}; });\n`)
+                                } else {
+                                    out.write(`    });\n`)
+                                }
+                            }
+                            out.write("}\n")
+
+
+//////////////// END
                         } break
                         case Type.TKN_ATTRIBUTE: {
                         } break
@@ -118,7 +193,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             throw Error("yikes")
                     }
                 }
-                out.write(`std::map<std::string, std::function<CORBA::task<>(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder)>> _operations = {\n`)
+                out.write(`std::map<std::string, std::function<CORBA::task<>(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder)>> _op_${if_identifier} = {\n`)
                 for (let _export of interface_body.child) {
                     switch (_export!.type) {
                         case Type.SYN_OPERATION_DECLARATION: {
@@ -137,8 +212,8 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 out.write("};\n")
 
                 out.write(`CORBA::task<> ${if_identifier}_skel::_call(const std::string &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
-                out.write(`    auto it = _operations.find(operation);\n`)
-                out.write(`    if (it == _operations.end()) {\n`)
+                out.write(`    auto it = _op_${if_identifier}.find(operation);\n`)
+                out.write(`    if (it == _op_${if_identifier}.end()) {\n`)
                 out.write(`        throw CORBA::BAD_OPERATION(0, CORBA::YES);\n`)
                 out.write(`    }\n`)
                 out.write(`    co_await it->second(this, decoder, encoder);\n`)

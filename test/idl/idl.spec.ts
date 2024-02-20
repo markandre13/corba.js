@@ -2,7 +2,7 @@ import { expect } from "chai"
 import { Node, Type } from "corba.js/idl/idl-node"
 import { Lexer } from "corba.js/idl/idl-lexer"
 import { specification } from "corba.js/idl/idl-parser"
-import { typeIDLtoGIOP } from "corba.js/idl/util"
+import { typeIDLtoGIOPTS } from "corba.js/idl/ts/typeIDLtoGIOPTS"
 
 describe("IDL Parser", () => {
     it("SYN_SPECIFICATION", function () {
@@ -119,26 +119,26 @@ describe("IDL Parser", () => {
         // NOTE: here 'short' represents all other elementary types. if the other elementary
         // types are wrong, we'll catch them in the GIOP encoding/decoding tests
         it("decode short", function () {
-            const str = typeIDLtoGIOP(new Node(Type.TKN_SHORT))
+            const str = typeIDLtoGIOPTS(new Node(Type.TKN_SHORT))
             expect(str).to.equal("decoder.short()")
         })
 
         it("encode short", function () {
-            const str = typeIDLtoGIOP(new Node(Type.TKN_SHORT), "a")
+            const str = typeIDLtoGIOPTS(new Node(Type.TKN_SHORT), "a")
             expect(str).to.equal("encoder.short(a)")
         })
 
         it("decode sequence<short>", function () {
             const n0 = new Node(Type.TKN_SEQUENCE)
             n0.append(new Node(Type.TKN_SHORT))
-            const str = typeIDLtoGIOP(n0)
+            const str = typeIDLtoGIOPTS(n0)
             expect(str).to.equal("decoder.sequence(() => decoder.short())")
         })
 
         it("encode sequence<short>", function () {
             const n0 = new Node(Type.TKN_SEQUENCE)
             n0.append(new Node(Type.TKN_SHORT))
-            const str = typeIDLtoGIOP(n0, "a")
+            const str = typeIDLtoGIOPTS(n0, "a")
             expect(str).to.equal("encoder.sequence(a, (item) => encoder.short(item))")
         })
 
@@ -147,21 +147,21 @@ describe("IDL Parser", () => {
             const n1 = new Node(Type.TKN_SEQUENCE)
             n0.append(n1)
             n1.append(new Node(Type.TKN_SHORT))
-            const str = typeIDLtoGIOP(n0, "a")
+            const str = typeIDLtoGIOPTS(n0, "a")
             expect(str).to.equal("encoder.sequence(a, (item) => encoder.sequence(item, (item) => encoder.short(item)))")
         })
 
         it("decode typedef short", function () {
             const n0 = new Node(Type.TKN_IDENTIFIER)
             n0.append(new Node(Type.TKN_SHORT))
-            const str = typeIDLtoGIOP(n0)
+            const str = typeIDLtoGIOPTS(n0)
             expect(str).to.equal("decoder.short()")
         })
 
         it("encode typedef short", function () {
             const n0 = new Node(Type.TKN_IDENTIFIER)
             n0.append(new Node(Type.TKN_SHORT))
-            const str = typeIDLtoGIOP(n0, "a")
+            const str = typeIDLtoGIOPTS(n0, "a")
             expect(str).to.equal("encoder.short(a)")
         })
 
@@ -197,7 +197,7 @@ describe("IDL Parser", () => {
             `)
             // tree?.printTree()
             const vt = tree!.child[0]!
-            const str = typeIDLtoGIOP(vt)
+            const str = typeIDLtoGIOPTS(vt)
             // console.log(str)
         })
     })
