@@ -68,12 +68,14 @@ export class IOR {
         // 7.6.9 Stringified Object References
 
         // Standard stringified IOR format
-        if (ior.substr(0, 4).toUpperCase() != "IOR:")
+        if (ior.substr(0, 4).toUpperCase() != "IOR:") {
             throw Error(`Missing "IOR:" prefix in "${ior}"`)
+        }
 
         // convert to binary
-        if (ior.length & 1)
+        if (ior.length & 1) {
             throw Error(`IOR has a wrong length.`)
+        }
         const buffer = new Array<number>((ior.length - 4) / 2)
         for (let i = 4, j = 0; i < ior.length; i += 2, ++j) {
             buffer[j] = Number.parseInt(ior.substring(i, i+2), 16)
@@ -87,8 +89,9 @@ export class IOR {
         this.oid = ref.oid
         this.objectKey = ref.objectKey
 
-        if (decoder.offset !== bytes.byteLength)
+        if (decoder.offset !== bytes.byteLength) {
             console.log(`note: ${bytes.byteLength-decoder.offset} octets at end of IOR`)
+        }
     }
 }
 

@@ -697,7 +697,7 @@ export class GIOPEncoder extends GIOPBase {
 
         // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
         this.string(reference.host)
-        this.short(reference.port)
+        this.ushort(reference.port)
         this.blob(reference.objectKey)
 
         // IIOP >= 1.1: components
@@ -726,6 +726,8 @@ export class GIOPEncoder extends GIOPBase {
             this.ulong(0)
             return
         }
+
+        console.log(`GIOPEncoder.object(): WRITE OBJECT AT 0x${(this.offset - 4).toString(16)}`)
 
         if (object instanceof Stub) {
             throw Error("ORB: can not serialize Stub yet")

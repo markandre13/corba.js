@@ -138,13 +138,15 @@ export class UrlParser {
     rir_prot_addr() {
         if (this.url.match("rir:")) {
             this.addr.proto = "rir"
+            return true;
         }
         return false
     }
 
     iiop_prot_addr() {
-        if (!this.iiop_id())
+        if (!this.iiop_id()) {
             return false
+        }
         this.iiop_addr()
         return true
     }
@@ -202,6 +204,7 @@ export class UrlParser {
                 throw Error(`missing ] in IPv6 address`)
             this.addr.host = this.url.data.substring(start, end)
             this.url.pos = end + 1
+            return this.addr.host;
         }
 
         do {

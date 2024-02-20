@@ -17,7 +17,7 @@ enum Mode {
 // https://martinfowler.com/bliki/SelfInitializingFake.html
 export class FakeTcpProtocol implements Protocol {
     orb!: ORB
-    tcp = new TcpProtocol()
+    tcp = new TcpProtocol() // cruft ???
     socket!: Socket
     verbose = false
 

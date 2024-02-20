@@ -20,29 +20,35 @@ import * as fs from "fs"
 import { Node } from "./idl-node"
 import { Lexer } from "./idl-lexer"
 import { specification } from "./idl-parser"
-import { writeTSInterface } from "./write-interface"
-import { writeTSSkeleton } from "./write-skeleton"
-import { writeTSStub } from "./write-stub"
-import { writeTSValue } from "./write-value"
-import { writeTSValueType } from "./write-valuetype"
-import { writeTSValueImpl } from "./write-valueimpl"
+
+import { writeTSInterface } from "./ts/write-interface"
+import { writeTSSkeleton } from "./ts/write-skeleton"
+import { writeTSStub } from "./ts/write-stub"
+import { writeTSValue } from "./ts/write-value"
+import { writeTSValueType } from "./ts/write-valuetype"
+import { writeTSValueImpl } from "./ts/write-valueimpl"
+
+import { writeCCInterface } from "./cc/write-interface"
+import { writeCCSkeleton } from "./cc/write-skeleton"
+import { writeCCStub } from "./cc/write-stub"
+
 import { filenamePrefix, filename, setFilename, setFilenamePrefix, setFilenameLocal } from "./util"
 
 function printHelp() {
     console.log(
         `corba.js IDL compiler
-Copyright (C) 2018, 2020, 2021 Mark-André Hopf <mhopf@mark13.org>
+Copyright (C) 2018, 2020, 2021, 2024 Mark-André Hopf <mhopf@mark13.org>
 This is free software; see the source for copying conditions.  There is
 ABSOLUTELY NO WARRANTY; not even for MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE.
 
 Usage: corba-idl [options] file...
 Options:
-  --ts-all        create all TypeScript files
-  --ts-interface  create TypeScript interface file for stub and skeleton
-  --ts-stub       create TypeScript stub file
-  --ts-skeleton   create TypeScript skeleton file
-  --ts-valuetype  create TypeScript valuetype file
+  --(ts|cc)-all        create all TypeScript/C++ files
+  --(ts|cc)-interface  create TypeScript/C++ interface file for stub and skeleton
+  --(ts|cc)-stub       create TypeScript/C++ stub file
+  --(ts|cc)-skeleton   create TypeScript/C++ skeleton file
+  --(ts|cc)-valuetype  create TypeScript/C++ valuetype file
   --verbose|-v    increase verbosity level
   --output-directory|-o <dir>
                   create files in <dir>
@@ -56,7 +62,12 @@ let verbose = 0,
     tsStub = false,
     tsSkeleton = false,
     tsValueType = false,
-    tsValueImpl = false
+    tsValueImpl = false,
+    ccInterface = false,
+    ccStub = false,
+    ccSkeleton = false,
+    ccValueType = false,
+    ccValueImpl = false
 
 function main() {
     let i = parseArguments()
@@ -78,6 +89,7 @@ function parseArguments(): number {
             case "--":
                 ++i
                 break argloop
+
             case "--ts-all":
                 tsInterface = tsStub = tsSkeleton = tsValueType = true
                 break
@@ -96,6 +108,23 @@ function parseArguments(): number {
             // case "--ts-valueimpl":
             //     tsValueImpl = true
             //     break
+
+            case "--cc-all":
+                ccInterface = ccStub = ccSkeleton = ccValueType = true
+                break
+            case "--cc-interface":
+                ccInterface = true
+                break
+            case "--cc-stub":
+                ccStub = true
+                break
+            case "--cc-skeleton":
+                ccSkeleton = true
+                break
+            case "--cc-valuetype":
+                ccValueType = true
+                break
+
             case "--output-directory":
             case "-o":
                 outputDirectory = process.argv[++i]
@@ -201,18 +230,36 @@ function parseIDLFile(): Node {
 
 function createOutputFiles(syntaxTree: Node): void {
     try {
-        if (tsInterface)
+        if (tsInterface) {
             writeTSInterface(syntaxTree!)
-        if (tsSkeleton)
+        }
+        if (tsSkeleton) {
             writeTSSkeleton(syntaxTree!)
-        if (tsStub)
+        }
+        if (tsStub) {
             writeTSStub(syntaxTree!)
+        }
         if (tsValueType) {
             writeTSValue(syntaxTree!)
             writeTSValueType(syntaxTree!)
         }
-        if (tsValueImpl)
+        if (tsValueImpl) {
             writeTSValueImpl(syntaxTree!)
+        }
+
+        if (ccInterface) {
+            writeCCInterface(syntaxTree!)
+        }
+        if (ccSkeleton) {
+            writeCCSkeleton(syntaxTree!)
+        }
+        if (ccStub) {
+            writeCCStub(syntaxTree!)
+        }
+        // if (ccValueType) {
+        //     writeCCValue(syntaxTree!)
+        //     writeCCValueType(syntaxTree!)
+        // }
     }
     catch (error) {
         if (error instanceof Error) {
