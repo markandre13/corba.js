@@ -17,8 +17,9 @@
  */
 
 import * as fs from "fs"
-import { Type, Node } from "./idl-node"
-import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, typeIDLtoTS, typeIDLtoGIOP, FileType, defaultValueIDLtoTS } from "./util"
+import { Type, Node } from "../idl-node"
+import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, typeIDLtoGIOP, FileType, defaultValueIDLtoTS } from "../util"
+import { typeIDLtoTS } from "./typeIDLtoTS"
 
 let initCalls = ""
 export function writeTSValue(specification: Node): void {

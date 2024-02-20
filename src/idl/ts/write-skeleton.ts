@@ -17,8 +17,9 @@
  */
 
 import * as fs from "fs"
-import { Type, Node } from "./idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoTS, typeIDLtoGIOP, FileType } from "./util"
+import { Type, Node } from "../idl-node"
+import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoGIOP, FileType } from "../util"
+import { typeIDLtoTS } from "./typeIDLtoTS"
 
 export function writeTSSkeleton(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + "_skel.ts")

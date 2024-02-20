@@ -134,4 +134,3 @@ class Server_impl extends skel.Server {
         throw Error()
     }
 }
-

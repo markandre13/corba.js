@@ -297,7 +297,7 @@ export class ORB implements EventTarget {
                     console.log(`ORB: Creating new connection to ${host}:${port}, as none found to`)
                 }
                 for (const c of this.connections) {
-                    console.log(`ORB:  active connection ${c.remoteAddress}:${c.remotePort}`)
+                    console.log(`ORB: active connection ${c.remoteAddress}:${c.remotePort}`)
                 }
             }
             return await p.connect(this, host, port)
@@ -467,6 +467,7 @@ export class ORB implements EventTarget {
                     return
                 }
 
+                // authentication
                 for (let i = 0; i < request.serviceContext.length; ++i) {
                     const e = request.serviceContext[i]
                     if (e instanceof EstablishContext) {
@@ -634,7 +635,7 @@ export class ORB implements EventTarget {
                                 case "IDL:omg.org/CORBA/NO_PERMISSION:1.0":
                                     throw new NO_PERMISSION(minorCodeValue, completionStatus)
                                 case "IDL:mark13.org/CORBA/GENERIC:1.0":
-                                    throw new Error(`Remote CORBA exception on ${connection.remoteAddress}:${connection.remotePort}: ${decoder.string()}`)
+                                    throw new Error(`Remote CORBA exception from ${connection.remoteAddress}:${connection.remotePort}: ${decoder.string()}`)
                             }
                             throw new Error(`CORBA System Exception ${exceptionId} from ${connection.remoteAddress}:${connection.remotePort}:${vendor}${explanation} (0x${minorCodeValue.toString(16)}), operation completed: ${CompletionStatus[completionStatus]}`)
                         default:

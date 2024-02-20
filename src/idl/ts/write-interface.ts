@@ -17,8 +17,9 @@
  */
 
 import * as fs from "fs"
-import { Type, Node } from "./idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoTS, typeIDLtoGIOP, FileType, writeIndent } from "./util"
+import { Type, Node } from "../idl-node"
+import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoGIOP, FileType, writeIndent } from "../util"
+import { typeIDLtoTS } from "./typeIDLtoTS"
 
 export function writeTSInterface(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + ".ts")
@@ -86,7 +87,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                         case Type.TKN_ATTRIBUTE: {
                         } break
                         default:
-                            throw Error("fuck")
+                            throw Error("yikes")
                     }
                 }
                 out.write("}\n\n")

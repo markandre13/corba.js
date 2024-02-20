@@ -697,7 +697,7 @@ export class GIOPEncoder extends GIOPBase {
 
         // FIXME: the object should know where it is located, at least, if it's a stub, skeleton is local
         this.string(reference.host)
-        this.short(reference.port)
+        this.ushort(reference.port)
         this.blob(reference.objectKey)
 
         // IIOP >= 1.1: components

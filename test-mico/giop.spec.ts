@@ -22,6 +22,7 @@ import { ORB, IOR, GIOPEncoder, GIOPDecoder } from "corba.js"
 import { connect } from "corba.js/net/socket"
 import * as value from "./mico/test_value"
 import * as stub from "./demux_stub"
+import { expect } from "chai"
 
 describe("CDR/GIOP", () => {
 
@@ -77,13 +78,14 @@ describe("CDR/GIOP", () => {
 //         expect(pointIn.y).to.equal(2.7182)
 //     })
 
-//     it("get host, port and objectKey from IOR", () => {
-//         // Spec: CORBA 3.3, 7.6.2 Interoperable Object References: IORs
-//         const ior = new IOR("IOR:010000000f00000049444c3a5365727665723a312e30000002000000000000002f000000010100000e0000003139322e3136382e312e313035002823130000002f313130312f313632363838383434312f5f30000100000024000000010000000100000001000000140000000100000001000100000000000901010000000000")
-//         expect(ior.host).to.equal("192.168.1.105")
-//         expect(ior.port).to.equal(9000)
-//         expect(ior.objectKey).to.equal("/1101/1626888441/_0")
-//     })
+    it("get host, port, oid and objectKey from IOR", () => {
+        // Spec: CORBA 3.3, 7.6.2 Interoperable Object References: IORs
+        const ior = new IOR("IOR:010000000f00000049444c3a5365727665723a312e30000002000000000000002f000000010100000e0000003139322e3136382e312e313035002823130000002f313130312f313632363838383434312f5f30000100000024000000010000000100000001000000140000000100000001000100000000000901010000000000")
+        expect(ior.host).to.equal("192.168.1.105")
+        expect(ior.port).to.equal(9000)
+        expect(ior.oid).to.equal("IDL:Server:1.0")
+        expect(ior.objectKey).to.equal("/1101/1626888441/_0")
+    })
 
 //     describe("MICO ORB interaction", () => {
 
