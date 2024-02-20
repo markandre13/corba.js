@@ -52,6 +52,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                 let interface_body = interface_dcl.child[1]!
 
                 out.write(`class ${identifier} {\n`)
+                out.write(`public:\n`)
                 for (let _export of interface_body.child) {
                     switch (_export!.type) {
                         case Type.SYN_OPERATION_DECLARATION: {

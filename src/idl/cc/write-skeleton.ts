@@ -18,8 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Node } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoGIOP, FileType } from "../util"
-import { typeIDLtoCC } from "./typeIDLtoCC"
+import { filenamePrefix, filename, filenameLocal, hasValueType } from "../util"
 
 export function writeCCSkeleton(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + "_skel.hh")
@@ -52,87 +51,10 @@ function writeCCSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
 
                 out.write(`class ${identifier}_skel: public CORBA::Skeleton, public ${prefix}${identifier} {\n`)
                 out.write(`public:\n`)
-                out.write(`    ${identifier}_skel(CORBA::ORB *orb) : Skeleton(orb) {}`)
+                out.write(`    ${identifier}_skel(CORBA::ORB *orb) : Skeleton(orb) {}\n`)
                 out.write(`    const char *repository_id() const override { return "IDL:${prefix}${identifier}:1.0"; }\n`)
                 out.write(`private:\n`)
-                out.write(`    CORBA::task<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override;\n`)
-                // for (let _export of interface_body.child) {
-                //     switch (_export!.type) {
-                //         case Type.SYN_OPERATION_DECLARATION: {
-                //             let op_dcl = _export!
-                //             let attribute = op_dcl.child[0]
-                //             let type = op_dcl.child[1]!
-
-                //             let oneway = false
-                //             if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
-                //                 oneway = true
-                //             if (oneway && type.type !== Type.TKN_VOID)
-                //                 throw Error("oneway methods must return void")
-
-                //             let identifier = op_dcl.child[2]!.text
-                //             let parameter_decls = op_dcl.child[3]!.child
-                //             out.write(`    abstract ${identifier}(`)
-                //             let comma = false
-                //             for (let parameter_dcl of parameter_decls) {
-                //                 let attribute = parameter_dcl!.child[0]!.type
-                //                 let type = parameter_dcl!.child[1]
-                //                 let identifier = parameter_dcl!.child[2]!.text
-                //                 if (attribute !== Type.TKN_IN) {
-                //                     throw Error("corba.js currently only supports 'in' parameters")
-                //                 }
-                //                 if (!comma) {
-                //                     comma = true
-                //                 } else {
-                //                     out.write(", ")
-                //                 }
-                //                 out.write(`${identifier}: ${typeIDLtoCC(type, FileType.SKELETON)}`)
-                //             }
-                //             if (oneway)
-                //                 out.write(`): void\n`);
-                //             else
-                //                 out.write(`): Promise<${typeIDLtoCC(type, FileType.SKELETON)}>\n`)
-
-                //             out.write(`    private async _orb_${identifier}(decoder: GIOPDecoder, encoder: GIOPEncoder) {\n`)
-                //             switch(type.type) {
-                //                 case Type.TKN_VOID:
-                //                     if (oneway) {
-                //                         out.write(`        this.${identifier}(`)
-                //                     } else {
-                //                         out.write(`        await this.${identifier}(`)
-                //                     }
-                //                     break
-                //                 default:
-                //                     out.write(`        const result = await this.${identifier}(`)
-                //             }    
-
-                //             comma = false
-                //             for (let parameter_dcl of parameter_decls) {
-                //                 let attribute = parameter_dcl!.child[0]!.type
-                //                 let type = parameter_dcl!.child[1]!
-                //                 if (attribute !== Type.TKN_IN) {
-                //                     throw Error("corba.js currently only supports 'in' parameters")
-                //                 }
-                //                 if (!comma) {
-                //                     comma = true
-                //                 } else {
-                //                     out.write(", ")
-                //                 }
-                //                 out.write(`${typeIDLtoGIOP(type)}`)
-                //             }
-                            
-                //             out.write(`)\n`)
-                //             if (type.type !== Type.TKN_VOID) {
-                //                 out.write(`        ${typeIDLtoGIOP(type, "result")}\n`)
-                //             }
-                //             out.write(`    }\n`)
-                            
-                //         } break
-                //         case Type.TKN_ATTRIBUTE: {
-                //         } break
-                //         default:
-                //             throw Error("yikes")
-                //     }
-                // }
+                out.write(`    CORBA::task<> _call(const std::string &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override;\n`)
                 out.write("};\n\n")
             } break
         }

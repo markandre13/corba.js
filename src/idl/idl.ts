@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018, 2020 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2020, 2014 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published by
@@ -31,8 +31,10 @@ import { writeTSValueImpl } from "./ts/write-valueimpl"
 import { writeCCInterface } from "./cc/write-interface"
 import { writeCCSkeleton } from "./cc/write-skeleton"
 import { writeCCStub } from "./cc/write-stub"
+import { writeCCCode } from "./cc/write-code"
 
 import { filenamePrefix, filename, setFilename, setFilenamePrefix, setFilenameLocal } from "./util"
+
 
 function printHelp() {
     console.log(
@@ -49,6 +51,7 @@ Options:
   --(ts|cc)-stub       create TypeScript/C++ stub file
   --(ts|cc)-skeleton   create TypeScript/C++ skeleton file
   --(ts|cc)-valuetype  create TypeScript/C++ valuetype file
+  --cc-code            create implementation file
   --verbose|-v    increase verbosity level
   --output-directory|-o <dir>
                   create files in <dir>
@@ -67,7 +70,8 @@ let verbose = 0,
     ccStub = false,
     ccSkeleton = false,
     ccValueType = false,
-    ccValueImpl = false
+    ccValueImpl = false,
+    ccCode = false
 
 function main() {
     let i = parseArguments()
@@ -110,7 +114,7 @@ function parseArguments(): number {
             //     break
 
             case "--cc-all":
-                ccInterface = ccStub = ccSkeleton = ccValueType = true
+                ccInterface = ccStub = ccSkeleton = ccValueType = ccCode = true
                 break
             case "--cc-interface":
                 ccInterface = true
@@ -123,6 +127,9 @@ function parseArguments(): number {
                 break
             case "--cc-valuetype":
                 ccValueType = true
+                break
+            case "--cc-code":
+                ccCode = true
                 break
 
             case "--output-directory":
@@ -255,6 +262,9 @@ function createOutputFiles(syntaxTree: Node): void {
         }
         if (ccStub) {
             writeCCStub(syntaxTree!)
+        }
+        if (ccCode) {
+            writeCCCode(syntaxTree!)
         }
         // if (ccValueType) {
         //     writeCCValue(syntaxTree!)
