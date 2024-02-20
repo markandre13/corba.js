@@ -18,7 +18,8 @@
 
 import * as fs from "fs"
 import { Type, Node } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, typeIDLtoGIOP, FileType } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType } from "../util"
+import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
 export function writeTSSkeleton(specification: Node): void {
@@ -112,12 +113,12 @@ function writeTSSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(`${typeIDLtoGIOP(type)}`)
+                                out.write(`${typeIDLtoGIOPTS(type)}`)
                             }
                             
                             out.write(`)\n`)
                             if (type.type !== Type.TKN_VOID) {
-                                out.write(`        ${typeIDLtoGIOP(type, "result")}\n`)
+                                out.write(`        ${typeIDLtoGIOPTS(type, "result")}\n`)
                             }
                             out.write(`    }\n`)
                             

@@ -18,7 +18,8 @@
 
 import * as fs from "fs"
 import { Type, Node } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, typeIDLtoGIOP, FileType, defaultValueIDLtoTS } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, FileType, defaultValueIDLtoTS } from "../util"
+import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
 let initCalls = ""
@@ -154,7 +155,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                         let declarators = state_member.child[2]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent)
-                            out.write(`${typeIDLtoGIOP(type, "obj." + declarator!.text!)}\n`)
+                            out.write(`${typeIDLtoGIOPTS(type, "obj." + declarator!.text!)}\n`)
                         }
                     }
                 }
@@ -188,7 +189,7 @@ function writeTSInitValueFromGIOP(value_dcl: Node, out: fs.WriteStream, indent: 
             for (let declarator of declarators.child) {
                 let decl_identifier = declarator!.text
                 writeIndent(out, indent)
-                out.write(`object.${decl_identifier} = ${typeIDLtoGIOP(type)}\n`)
+                out.write(`object.${decl_identifier} = ${typeIDLtoGIOPTS(type)}\n`)
             }
         }
     }
