@@ -98,6 +98,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                             throw Error("yikes")
                     }
                 }
+                out.write(`    static std::shared_ptr<${identifier}> _narrow(std::shared_ptr<CORBA::Object> pointer);`)
                 out.write("};\n\n")
             } break
 
