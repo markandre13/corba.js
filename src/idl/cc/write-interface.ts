@@ -17,10 +17,11 @@
  */
 
 import * as fs from "fs"
+import { Writable } from "stream"
 import { Type, Node } from "../idl-node"
 import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent } from "../util"
 import { typeIDLtoGIOPTS } from "../ts/typeIDLtoGIOPTS"
-import { typeIDLtoCC } from "./typeIDLtoCC"
+import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
 
 export function writeCCInterface(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + ".hh")
@@ -38,7 +39,7 @@ export function writeCCInterface(specification: Node): void {
     writeCCInterfaceDefinitions(out, specification)
 }
 
-function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, prefix = "", indent = 0): void {
+export function writeCCInterfaceDefinitions(out: Writable, specification: Node, prefix = "", indent = 0): void {
     for (let definition of specification.child) {
         switch (definition!.type) {
             case Type.TKN_MODULE:
@@ -71,9 +72,9 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                             let parameter_decls = op_dcl.child[3]!.child
                             out.write("    virtual ")
                             if (oneway) {
-                                out.write(`${typeIDLtoCC(type, FileType.INTERFACE)}`)
+                                out.write(`${typeIDLtoCC(type, Direction.OUT)}`)
                             } else {
-                                out.write(`CORBA::task<${typeIDLtoCC(type, FileType.INTERFACE)}>`)
+                                out.write(`CORBA::async<${typeIDLtoCC(type, Direction.OUT)}>`)
                             }
                             out.write(` ${identifier}(`)
                             let comma = false
@@ -89,7 +90,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(`${typeIDLtoCC(type, FileType.INTERFACE)} ${identifier}`)
+                                out.write(`${typeIDLtoCC(type, Direction.IN)} ${identifier}`)
                             }
                             out.write(`) = 0;\n`)
                         } break
@@ -121,7 +122,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                         let declarators = member.child[1]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 1)
-                            out.write(declarator!.text + ": " + typeIDLtoCC(type, FileType.VALUE) + "\n")
+                            out.write(declarator!.text + ": " + typeIDLtoCC(type, Direction.IN) + "\n")
                             // attributes.push(declarator!.text!)
                         }
                     }
@@ -174,7 +175,7 @@ function writeCCInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                     writeIndent(out, indent+1)
                     out.write(`type: ${case_label.typeParent!.text}.${case_label.text}\n`)
                     writeIndent(out, indent+1)
-                    out.write(`${declarator.text}: ${typeIDLtoCC(type_spec, FileType.INTERFACE)}\n`)
+                    out.write(`${declarator.text}: ${typeIDLtoCC(type_spec, Direction.IN)}\n`)
                     writeIndent(out, indent)
                     out.write(`}\n`)
                     if (composite.length !== 0)
