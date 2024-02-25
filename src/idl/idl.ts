@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018, 2020, 2014 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2020, 2024 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published by
@@ -52,10 +52,10 @@ Options:
   --(ts|cc)-skeleton   create TypeScript/C++ skeleton file
   --(ts|cc)-valuetype  create TypeScript/C++ valuetype file
   --cc-code            create implementation file
-  --verbose|-v    increase verbosity level
+  --verbose|-v         increase verbosity level
   --output-directory|-o <dir>
-                  create files in <dir>
-  --help|-h       this page
+                       create files in <dir>
+  --help|-h            this page
 `)
 }
 
