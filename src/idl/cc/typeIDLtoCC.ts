@@ -1,8 +1,12 @@
 import { Type, Node } from "../idl-node"
-import { FileType } from "../util"
 
+export enum Direction {
+    IN,
+    OUT
+}
 
-export function typeIDLtoCC(type: Node | undefined, filetype: FileType = FileType.NONE): string {
+// this about how to encode the type
+export function typeIDLtoCC(type: Node | undefined, usetype: Direction): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
     switch (type!.type) {
@@ -30,32 +34,33 @@ export function typeIDLtoCC(type: Node | undefined, filetype: FileType = FileTyp
             let name: string
             switch (identifierType.type) {
                 case Type.TKN_VALUETYPE:
-                    if (filetype !== FileType.VALUETYPE && filetype !== FileType.VALUE)
-                        name = `valuetype${absolutePrefix}.${relativeName}`
-
-                    else
-                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                    throw Error("not implemented yet");
+                    // if (filetype !== FileType.VALUETYPE && filetype !== FileType.VALUE)
+                    //     name = `valuetype${absolutePrefix}.${relativeName}`
+                    // else
+                    //     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                     break
                 case Type.SYN_INTERFACE:
                 case Type.TKN_ENUM:
                 case Type.TKN_UNION:
-                    if (filetype !== FileType.INTERFACE)
-                        name = `_interface${absolutePrefix}.${relativeName}`
-
-                    else
-                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
-                    break
+                    throw Error("not implemented yet");
+                    // if (filetype !== FileType.INTERFACE)
+                    //     name = `_interface${absolutePrefix}.${relativeName}`
+                    // else
+                    //     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                    // break
                 case Type.TKN_STRUCT:
+                    throw Error("not implemented yet");
                     // FIXME: struct uses a wrong identifier node structure
-                    name = type!.text!
-                    if (filetype !== FileType.INTERFACE)
-                        name = `_interface${absolutePrefix}.${name}`
+                    // name = type!.text!
+                    // if (filetype !== FileType.INTERFACE)
+                    //     name = `_interface${absolutePrefix}.${name}`
                     break
                 case Type.TKN_NATIVE:
                     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                     break
                 case Type.TKN_SEQUENCE:
-                    name = typeIDLtoCC(type.child[0], filetype)
+                    name = typeIDLtoCC(type.child[0], usetype)
                     break
                 default:
                     throw Error(`Internal Error in typeIDLtoCC(): type ${identifierType.toString()} is not implemented`)
@@ -71,7 +76,7 @@ export function typeIDLtoCC(type: Node | undefined, filetype: FileType = FileTyp
         case Type.TKN_STRING:
             return "std::string"
         case Type.TKN_OCTET:
-            return "unsigned char"
+            return "uint8_t"
         case Type.TKN_SHORT:
             return "int16_t"
         case Type.TKN_LONG:
@@ -91,7 +96,7 @@ export function typeIDLtoCC(type: Node | undefined, filetype: FileType = FileTyp
         case Type.SYN_LONG_DOUBLE:
             return "long double"
         case Type.TKN_SEQUENCE:
-            return `std::vector<${typeIDLtoCC(type!.child[0], filetype)}>`
+            return `std::vector<${typeIDLtoCC(type!.child[0], usetype)}>`
         default:
             throw Error(`no mapping from IDL type to C++ type for ${type.toString()}`)
     }

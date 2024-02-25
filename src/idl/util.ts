@@ -1,6 +1,7 @@
 import * as fs from "fs"
 import { Type, Node } from "./idl-node"
 import { typeIDLtoTS } from "./ts/typeIDLtoTS"
+import { Writable } from "stream"
 
 export let filename = ""
 export let filenamePrefix = ""
@@ -20,7 +21,7 @@ export function setFilenameLocal(name: string) {
 
 export let classAttributes = new Map<string, Array<string>>()
 
-export function writeIndent(out: fs.WriteStream, indent: number) {
+export function writeIndent(out: Writable, indent: number) {
     for (let i = 0; i < indent; ++i)
         out.write("    ")
 }

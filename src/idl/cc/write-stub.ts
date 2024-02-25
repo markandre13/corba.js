@@ -20,7 +20,7 @@ import * as fs from "fs"
 import { Type, Node } from "../idl-node"
 import { filenamePrefix, filename, filenameLocal, hasValueType, FileType } from "../util"
 import { typeIDLtoGIOPCC } from "./typeIDLtoGIOPCC"
-import { typeIDLtoCC } from "./typeIDLtoCC"
+import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
 
 export function writeCCStub(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + "_stub.hh")
@@ -75,9 +75,9 @@ function writeCCStubDefinitions(out: fs.WriteStream, specification: Node, prefix
 
                             out.write("    virtual ")
                             if (oneway) {
-                                out.write(`${typeIDLtoCC(returnType, FileType.INTERFACE)}`)
+                                out.write(`${typeIDLtoCC(returnType, Direction.OUT)}`)
                             } else {
-                                out.write(`CORBA::task<${typeIDLtoCC(returnType, FileType.INTERFACE)}>`)
+                                out.write(`CORBA::async<${typeIDLtoCC(returnType, Direction.OUT)}>`)
                             }
                             out.write(` ${identifier}(`)
                             let comma = false
@@ -94,7 +94,7 @@ function writeCCStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(`${typeIDLtoCC(type, FileType.INTERFACE)} ${identifier}`)
+                                out.write(`${typeIDLtoCC(type, Direction.IN)} ${identifier}`)
                             }
                             out.write(`) override;\n`)
                         } break

@@ -1,7 +1,7 @@
 import { Type, Node } from "../idl-node"
 import { FileType } from "../util"
 
-
+// this is about how to call the GIOP(Encoder|Decoder)
 export function typeIDLtoGIOPCC(type: Node | undefined, arg: string | undefined = undefined, filetype = FileType.NONE): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")

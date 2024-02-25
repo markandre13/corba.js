@@ -20,7 +20,7 @@ import * as fs from "fs"
 import { Type, Node } from "../idl-node"
 import { filenamePrefix, filename, filenameLocal, hasValueType, FileType } from "../util"
 import { typeIDLtoGIOPCC } from "./typeIDLtoGIOPCC"
-import { typeIDLtoCC } from "./typeIDLtoCC"
+import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
 
 export function writeCCCode(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + ".cc")
@@ -72,7 +72,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
 
                             let identifier = op_dcl.child[2]!.text
                             let parameter_decls = op_dcl.child[3]!.child
-                            out.write(`static CORBA::task<>`)
+                            out.write(`static CORBA::async<>`)
                     
                             out.write(` _${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
                             switch(type.type) {
@@ -127,9 +127,9 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
 
                             // out.write("    virtual ")
                             if (oneway) {
-                                out.write(`${typeIDLtoCC(returnType, FileType.INTERFACE)}`)
+                                out.write(`${typeIDLtoCC(returnType, Direction.OUT)}`)
                             } else {
-                                out.write(`CORBA::task<${typeIDLtoCC(returnType, FileType.INTERFACE)}>`)
+                                out.write(`CORBA::async<${typeIDLtoCC(returnType, Direction.OUT)}>`)
                             }
                             out.write(` ${if_identifier}_stub::${identifier}(`)
                             comma = false
@@ -146,7 +146,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(`${typeIDLtoCC(type, FileType.INTERFACE)} ${identifier}`)
+                                out.write(`${typeIDLtoCC(type, Direction.IN)} ${identifier}`)
                             }
                             out.write(`) {\n`)
                             out.write("    ")
@@ -157,7 +157,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 out.write(`get_ORB()->onewayCall(this, "${identifier}", `)
                             } else {
                                 if (returnType.type !== Type.TKN_VOID) {
-                                    out.write(`get_ORB()->twowayCall<${typeIDLtoCC(returnType, FileType.INTERFACE)}>(this, "${identifier}", `)
+                                    out.write(`get_ORB()->twowayCall<${typeIDLtoCC(returnType, Direction.OUT)}>(this, "${identifier}", `)
                                 } else {
                                     out.write(`get_ORB()->twowayCall(this, "${identifier}", `)
                                 }
@@ -193,7 +193,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             throw Error("yikes")
                     }
                 }
-                out.write(`std::map<std::string, std::function<CORBA::task<>(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder)>> _op_${if_identifier} = {\n`)
+                out.write(`std::map<std::string, std::function<CORBA::async<>(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder)>> _op_${if_identifier} = {\n`)
                 for (let _export of interface_body.child) {
                     switch (_export!.type) {
                         case Type.SYN_OPERATION_DECLARATION: {
@@ -211,7 +211,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 }
                 out.write("};\n")
 
-                out.write(`CORBA::task<> ${if_identifier}_skel::_call(const std::string &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
+                out.write(`CORBA::async<> ${if_identifier}_skel::_call(const std::string &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
                 out.write(`    auto it = _op_${if_identifier}.find(operation);\n`)
                 out.write(`    if (it == _op_${if_identifier}.end()) {\n`)
                 out.write(`        throw CORBA::BAD_OPERATION(0, CORBA::YES);\n`)
