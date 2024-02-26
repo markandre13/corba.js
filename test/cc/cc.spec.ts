@@ -105,7 +105,7 @@ describe("CC IDL", () => {
                         void call(in string value);
                     };
                 `)
-                expect(data).to.contain("virtual CORBA::async<void> call(std::string value) = 0;")
+                expect(data).to.contain("virtual CORBA::async<void> call(std::string_view value) = 0;")
             })
             it("out", async () => {
                 const data = await compileInterface(`
