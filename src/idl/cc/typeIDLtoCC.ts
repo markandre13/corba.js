@@ -6,7 +6,7 @@ export enum Direction {
 }
 
 // this about how to encode the type
-export function typeIDLtoCC(type: Node | undefined, usetype: Direction): string {
+export function typeIDLtoCC(type: Node | undefined, direction: Direction): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
     switch (type!.type) {
@@ -60,7 +60,7 @@ export function typeIDLtoCC(type: Node | undefined, usetype: Direction): string 
                     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                     break
                 case Type.TKN_SEQUENCE:
-                    name = typeIDLtoCC(type.child[0], usetype)
+                    name = typeIDLtoCC(type.child[0], direction)
                     break
                 default:
                     throw Error(`Internal Error in typeIDLtoCC(): type ${identifierType.toString()} is not implemented`)
@@ -74,7 +74,14 @@ export function typeIDLtoCC(type: Node | undefined, usetype: Direction): string 
         case Type.TKN_CHAR:
             return "char"
         case Type.TKN_STRING:
-            return "std::string"
+            switch(direction) {
+                case Direction.IN:
+                    return "std::string_view"
+                case Direction.OUT:
+                    return "std::string"
+                default:
+                    throw Error("yikes")
+            }
         case Type.TKN_OCTET:
             return "uint8_t"
         case Type.TKN_SHORT:
@@ -96,7 +103,7 @@ export function typeIDLtoCC(type: Node | undefined, usetype: Direction): string 
         case Type.SYN_LONG_DOUBLE:
             return "long double"
         case Type.TKN_SEQUENCE:
-            return `std::vector<${typeIDLtoCC(type!.child[0], usetype)}>`
+            return `std::vector<${typeIDLtoCC(type!.child[0], direction)}>`
         default:
             throw Error(`no mapping from IDL type to C++ type for ${type.toString()}`)
     }
