@@ -193,7 +193,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             throw Error("yikes")
                     }
                 }
-                out.write(`std::map<std::string, std::function<CORBA::async<>(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder)>> _op_${if_identifier} = {\n`)
+                out.write(`std::map<std::string_view, std::function<CORBA::async<>(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder)>> _op_${if_identifier} = {\n`)
                 for (let _export of interface_body.child) {
                     switch (_export!.type) {
                         case Type.SYN_OPERATION_DECLARATION: {
@@ -211,7 +211,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 }
                 out.write("};\n")
 
-                out.write(`CORBA::async<> ${if_identifier}_skel::_call(const std::string &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
+                out.write(`CORBA::async<> ${if_identifier}_skel::_call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
                 out.write(`    auto it = _op_${if_identifier}.find(operation);\n`)
                 out.write(`    if (it == _op_${if_identifier}.end()) {\n`)
                 out.write(`        throw CORBA::BAD_OPERATION(0, CORBA::YES);\n`)
