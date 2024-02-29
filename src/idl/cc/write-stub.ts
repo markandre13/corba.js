@@ -54,7 +54,7 @@ function writeCCStubDefinitions(out: fs.WriteStream, specification: Node, prefix
 
                 out.write(`class ${identifier}_stub: public ${prefix}${identifier}, public CORBA::Stub {\n`)
                 out.write(`public:\n`)
-                out.write(`    ${identifier}_stub(CORBA::ORB *orb, const std::string &objectKey, CORBA::detail::Connection *connection): Stub(orb, objectKey, connection) {}\n`)
+                out.write(`    ${identifier}_stub(CORBA::ORB *orb, CORBA::blob_view objectKey, CORBA::detail::Connection *connection): Stub(orb, objectKey, connection) {}\n`)
                 out.write(`    const char *repository_id() const override { return "IDL:${prefix}${identifier}:1.0"; }\n`)
 
                 for (let _export of interface_body.child) {
