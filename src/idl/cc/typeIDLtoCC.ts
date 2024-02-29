@@ -103,6 +103,16 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
         case Type.SYN_LONG_DOUBLE:
             return "long double"
         case Type.TKN_SEQUENCE:
+            if (type?.child[0]?.type === Type.TKN_OCTET) {
+                switch(direction) {
+                    case Direction.IN:
+                        return "const CORBA::blob_view &"
+                    case Direction.OUT:
+                        return "CORBA::blob"
+                    default:
+                        throw Error("yikes")
+                }
+            }
             return `std::vector<${typeIDLtoCC(type!.child[0], direction)}>`
         default:
             throw Error(`no mapping from IDL type to C++ type for ${type.toString()}`)

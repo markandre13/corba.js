@@ -9,6 +9,10 @@ export function typeIDLtoGIOPCC(type: Node | undefined, arg: string | undefined 
     let name: string
     switch (type!.type) {
         case Type.TKN_SEQUENCE:
+            if (type?.child[0]?.type === Type.TKN_OCTET) {
+                name = "blob"
+                break
+            }
             return arg === undefined ?
                 `decoder.sequence(() => ${typeIDLtoGIOPCC(type.child[0], undefined, filetype)})` :
                 `encoder.sequence(${arg}, (item) => ${typeIDLtoGIOPCC(type.child[0], "item", filetype)})`
