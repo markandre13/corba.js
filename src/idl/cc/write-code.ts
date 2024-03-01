@@ -99,12 +99,12 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 } else {
                                     out.write(", ")
                                 }
-                                out.write(`${typeIDLtoGIOPCC(type)}`)
+                                out.write(`${typeIDLtoGIOPCC(type, undefined, Direction.IN)}`)
                             }
                             
                             out.write(`);\n`)
                             if (type.type !== Type.TKN_VOID) {
-                                out.write(`    ${typeIDLtoGIOPCC(type, "result")};\n`)
+                                out.write(`    ${typeIDLtoGIOPCC(type, "result", Direction.IN)};\n`)
                             } else if (oneway) {
                                 out.write(`    co_return;\n`)
                             }
@@ -168,7 +168,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             for (let parameter_dcl of parameter_decls) {
                                 let type = parameter_dcl!.child[1]!
                                 let identifier = parameter_dcl!.child[2]!.text
-                                out.write(`        ${typeIDLtoGIOPCC(type, identifier)};\n`)
+                                out.write(`        ${typeIDLtoGIOPCC(type, identifier, Direction.IN)};\n`)
                             }
 
                             if (oneway) {
@@ -177,7 +177,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 if (returnType.type !== Type.TKN_VOID) {
                                     out.write(`    },\n`)
                                     out.write(`    `)
-                                    out.write(`[&](CORBA::GIOPDecoder &decoder) { return ${typeIDLtoGIOPCC(returnType)}; });\n`)
+                                    out.write(`[&](CORBA::GIOPDecoder &decoder) { return ${typeIDLtoGIOPCC(returnType, undefined, Direction.OUT)}; });\n`)
                                 } else {
                                     out.write(`    });\n`)
                                 }
