@@ -30,6 +30,7 @@ export function writeCCInterface(specification: Node): void {
     out.write(`#include <corba/orb.hh>\n`)
     out.write(`#include <corba/giop.hh>\n`)
     out.write(`#include <corba/coroutine.hh>\n`)
+    out.write(`#include <corba/corba.hh>\n`)
     out.write(`#include <string>\n`)
     out.write(`#include <vector>\n`)
     if (hasValueType(specification)) {
@@ -53,7 +54,8 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                 let identifier = interface_dcl.child[0]!.child[1]!.text
                 let interface_body = interface_dcl.child[1]!
 
-                out.write(`class ${identifier} {\n`)
+                out.write(`class ${identifier}: public virtual CORBA::Object {\n`)
+                out.write(`    static std::string_view _rid;`);
                 out.write(`public:\n`)
                 for (let _export of interface_body.child) {
                     switch (_export!.type) {
@@ -100,6 +102,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                             throw Error("yikes")
                     }
                 }
+                out.write(`    std::string_view repository_id() const override;`)
                 out.write(`    static std::shared_ptr<${identifier}> _narrow(std::shared_ptr<CORBA::Object> pointer);\n`)
                 out.write("};\n\n")
             } break

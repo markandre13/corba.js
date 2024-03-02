@@ -18,9 +18,9 @@ export function typeIDLtoGIOPCC(
         case Type.TKN_VALUETYPE:
             return arg === undefined ? `decoder.value("${type.text}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:
-            name = "object"
+            // name = "object"
+            return arg === undefined ? `${type.text}::_narrow(decoder.object())` : `encoder.object(${arg}.get())`
             break
-
         case Type.TKN_UNION:
         case Type.TKN_STRUCT: {
             throw Error("yikes")

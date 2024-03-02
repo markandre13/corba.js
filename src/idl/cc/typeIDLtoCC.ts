@@ -44,12 +44,13 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
                     case Type.SYN_INTERFACE:
                     case Type.TKN_ENUM:
                     case Type.TKN_UNION:
-                        throw Error("not implemented yet")
-                    // if (filetype !== FileType.INTERFACE)
-                    //     name = `_interface${absolutePrefix}.${relativeName}`
-                    // else
-                    //     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
-                    // break
+                        // throw Error("not implemented yet")
+                        // if (filetype !== FileType.INTERFACE)
+                        //     name = `_interface${absolutePrefix}.${relativeName}`
+                        // else
+                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                        name = `std::shared_ptr<${name}>`
+                        break
                     case Type.TKN_STRUCT:
                         throw Error("not implemented yet")
                         // FIXME: struct uses a wrong identifier node structure
