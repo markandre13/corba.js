@@ -72,9 +72,12 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
 
                             let identifier = op_dcl.child[2]!.text
                             let parameter_decls = op_dcl.child[3]!.child
+
+                            // _call() -> _<operation> OPERATION
+
                             out.write(`static CORBA::async<>`)
                     
-                            out.write(` _${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
+                            out.write(` _${if_identifier}_${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
                             switch(type.type) {
                                 case Type.TKN_VOID:
                                     if (oneway) {
@@ -201,7 +204,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             const attribute = op_dcl.child[0]
                             const type = op_dcl.child[1]!
                             let identifier = op_dcl.child[2]!.text
-                            out.write(`    {"${identifier}", _${identifier}},\n`)
+                            out.write(`    {"${identifier}", _${if_identifier}_${identifier}},\n`)
                         } break
                         case Type.TKN_ATTRIBUTE: {
                         } break
@@ -219,11 +222,14 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 out.write(`    co_await it->second(this, decoder, encoder);\n`)
                 out.write("};\n\n")
 
+                out.write(`std::string_view ${if_identifier}::_rid("IDL:${if_identifier}:1.0");\n`)
+                out.write(`std::string_view ${if_identifier}::repository_id() const { return _rid;}\n\n`)
+
                 out.write(`std::shared_ptr<${if_identifier}> ${if_identifier}::_narrow(std::shared_ptr<CORBA::Object> pointer) {\n`)
                 out.write(`    auto ptr = pointer.get();\n`)
                 out.write(`    auto ref = dynamic_cast<CORBA::ObjectReference *>(ptr);\n`)
                 out.write(`    if (ref) {\n`)
-                out.write(`        if (std::strcmp(ref->repository_id(), "IDL:${if_identifier}:1.0") != 0) {\n`)
+                out.write(`        if (ref->repository_id() != "IDL:${if_identifier}:1.0") {\n`)
                 out.write(`            return std::shared_ptr<${if_identifier}>();\n`)
                 out.write(`        }\n`)
                 out.write(`        CORBA::ORB *orb = ref->get_ORB();\n`)
