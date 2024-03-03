@@ -102,7 +102,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                             throw Error("yikes")
                     }
                 }
-                out.write(`    std::string_view repository_id() const override;`)
+                out.write(`    std::string_view repository_id() const override;\n`)
                 out.write(`    static std::shared_ptr<${identifier}> _narrow(std::shared_ptr<CORBA::Object> pointer);\n`)
                 out.write("};\n\n")
             } break
