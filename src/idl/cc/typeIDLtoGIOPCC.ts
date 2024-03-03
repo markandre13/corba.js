@@ -1,5 +1,4 @@
 import { Type, Node } from "../idl-node"
-import { FileType } from "../util"
 import { Direction } from "./typeIDLtoCC"
 
 // this is about how to call the GIOP(Encoder|Decoder)
@@ -19,7 +18,7 @@ export function typeIDLtoGIOPCC(
             return arg === undefined ? `decoder.value("${type.text}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:
             // name = "object"
-            return arg === undefined ? `${type.text}::_narrow(decoder.object(obj->get_ORB()))` : `encoder.object(${arg}.get())`
+            return arg === undefined ? `${type.text}::_narrow(decoder.readObject(obj->get_ORB()))` : `encoder.writeObject(${arg}.get())`
             break
         case Type.TKN_UNION:
         case Type.TKN_STRUCT: {
@@ -44,59 +43,59 @@ export function typeIDLtoGIOPCC(
             break
 
         case Type.TKN_VOID:
-            name = "void"
+            name = "Void"
             break
         case Type.TKN_BOOLEAN:
-            name = "boolean"
+            name = "Boolean"
             break
         case Type.TKN_CHAR:
-            name = "char"
+            name = "Char"
             break
         case Type.TKN_OCTET:
-            name = "octet"
+            name = "Octet"
             break
         case Type.TKN_SHORT:
-            name = "short"
+            name = "Short"
             break
         case Type.TKN_LONG:
-            name = "long"
+            name = "Long"
             break
         case Type.SYN_LONGLONG:
-            name = "longlong"
+            name = "Longlong"
             break
         case Type.SYN_UNSIGNED_SHORT:
-            name = "ushort"
+            name = "Ushort"
             break
         case Type.SYN_UNSIGNED_LONG:
         case Type.TKN_ENUM:
-            name = "ulong"
+            name = "Ulong"
             break
         case Type.SYN_UNSIGNED_LONGLONG:
-            name = "ulonglong"
+            name = "Ulonglong"
             break
         case Type.TKN_FLOAT:
-            name = "float"
+            name = "Float"
             break
         case Type.TKN_DOUBLE:
-            name = "double"
+            name = "Double"
             break
         case Type.SYN_LONG_DOUBLE:
             throw Error("long double is not supported yet")
         case Type.TKN_STRING:
             switch(direction) {
                 case Direction.IN: // skel/impl: decode incoming argument
-                    return arg === undefined ? `decoder.string_view()` : `encoder.string(${arg})`
+                    return arg === undefined ? `decoder.readStringView()` : `encoder.writeString(${arg})`
                 case Direction.OUT: // stub: decode incoming return value
-                    return arg === undefined ? `decoder.string()` : `encoder.string(${arg})`    
+                    return arg === undefined ? `decoder.readString()` : `encoder.writeString(${arg})`    
             }
             throw Error("yikes")
         case Type.TKN_SEQUENCE:
             if (type?.child[0]?.type === Type.TKN_OCTET) {
                 switch(direction) {
                     case Direction.IN:
-                        return arg === undefined ? `decoder.blob_view()` : `encoder.blob(${arg})`
+                        return arg === undefined ? `decoder.readBlobView()` : `encoder.writeBlob(${arg})`
                     case Direction.OUT:
-                        return arg === undefined ? `decoder.blob()` : `encoder.blob(${arg})`    
+                        return arg === undefined ? `decoder.readBlob()` : `encoder.writeBlob(${arg})`    
                 }
                 throw Error("yikes")
             }
@@ -107,5 +106,5 @@ export function typeIDLtoGIOPCC(
             type.printTree()
             throw Error(`no mapping from IDL type '${type.toString()}' to GIOP encoder/decoder`)
     }
-    return arg === undefined ? `decoder.${name}()` : `encoder.${name}(${arg})`
+    return arg === undefined ? `decoder.read${name}()` : `encoder.write${name}(${arg})`
 }
