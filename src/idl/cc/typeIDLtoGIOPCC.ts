@@ -80,7 +80,8 @@ export function typeIDLtoGIOPCC(
             name = "Double"
             break
         case Type.SYN_LONG_DOUBLE:
-            throw Error("long double is not supported yet")
+            name = "LongDouble"
+            break
         case Type.TKN_STRING:
             switch(direction) {
                 case Direction.IN: // skel/impl: decode incoming argument
