@@ -1,6 +1,6 @@
 # corba.js
 
-Welcome to corba.js, an Object Request Broker (ORB) and Interface Definition
+Welcome to corba.js (and [corba.cc](https://github.com/markandre13/corba.cc)), an Object Request Broker (ORB) and Interface Definition
 Language (IDL) compiler for TypeScript lousily based on the CORBA specification. (ISO/IEC 19500)
 
 _CORBA is a registered trademark by the Object Management Group. http://www.corba.org/_
@@ -44,6 +44,8 @@ Still, stripped to it's core, one finds a fast and lightweight system, which mad
 Around 2004 a group developers previously involed with CORBA and the OMG presented a much improved successor of CORBA, the [Internet Communications Engine](https://zeroc.com/products/ice) (ICE), which is also available for JavaScript/TypeScript under the GNU GPLv2.
 
 Around 2012, CERN switched from CORBA to [0MQ](https://en.wikipedia.org/wiki/ZeroMQ) and a custom serializer.
+
+In 2013 Kenton Varda, tech lead for Protcol Buffers, released [Cap'n Proto](https://capnproto.org/). While the integration into the destination language isn't as seamless as CORBA's, the wireprotocol is more efficent. (E.g. it puts data of variable length at the end.)
 
 ## Interfaces
 
