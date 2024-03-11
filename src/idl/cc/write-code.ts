@@ -30,7 +30,8 @@ export function writeCCCode(specification: Node): void {
     out.write(`#include <corba/giop.hh>\n`)
     out.write(`#include <corba/coroutine.hh>\n`)
     out.write(`#include <cstring>\n`)
-    out.write(`#include <vector>\n`)
+    // out.write(`#include <vector>\n`)
+    // out.write(`#include <span>\n`)
     out.write(`#include <map>\n`)
     out.write(`#include <functional>\n`)
     if (hasValueType(specification)) {

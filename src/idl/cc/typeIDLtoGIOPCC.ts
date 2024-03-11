@@ -91,14 +91,23 @@ export function typeIDLtoGIOPCC(
         case Type.TKN_ENUM:
             return arg === undefined ? `static_cast<${type.text}>(decoder.readUlong())` : `encoder.writeUlong(std::to_underlying(${arg}))`
         case Type.TKN_SEQUENCE:
-            if (type?.child[0]?.type === Type.TKN_OCTET) {
-                switch(direction) {
-                    case Direction.IN:
-                        return arg === undefined ? `decoder.readBlobView()` : `encoder.writeBlob(${arg})`
-                    case Direction.OUT:
-                        return arg === undefined ? `decoder.readBlob()` : `encoder.writeBlob(${arg})`    
+            switch (type!.child[0]!.type) {
+                case Type.TKN_OCTET: {
+                    switch (direction) {
+                        case Direction.IN:
+                            return arg === undefined ? `decoder.readBlobView()` : `encoder.writeBlob(${arg})`
+                        case Direction.OUT:
+                            return arg === undefined ? `decoder.readBlob()` : `encoder.writeBlob(${arg})`
+                    }
                 }
-                throw Error("yikes")
+                case Type.TKN_FLOAT: {
+                    switch (direction) {
+                        case Direction.IN:
+                            return arg === undefined ? `decoder.readSequenceSpanFloat()` : `encoder.writeSequence(${arg})`
+                        case Direction.OUT:
+                            return arg === undefined ? `decoder.readSequenceVectorFloat()` : `encoder.writeSequence(${arg})`
+                    }
+                }
             }
             return arg === undefined
                 ? `decoder.sequence(() => ${typeIDLtoGIOPCC(type.child[0], undefined, direction)})`

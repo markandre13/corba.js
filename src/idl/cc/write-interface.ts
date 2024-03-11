@@ -33,6 +33,7 @@ export function writeCCInterface(specification: Node): void {
     out.write(`#include <corba/corba.hh>\n`)
     out.write(`#include <string>\n`)
     out.write(`#include <vector>\n`)
+    out.write(`#include <span>\n`)
     out.write(`#include <utility>\n`)
     if (hasValueType(specification)) {
         out.write("import * as valuetype from \"./" + filenameLocal + "_valuetype\"\n")
