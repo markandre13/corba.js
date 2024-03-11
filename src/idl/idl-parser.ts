@@ -1034,13 +1034,20 @@ function enum_type(): Node | undefined {
         t0.text = t1.text
         expect("{")
         const usedNames = new Set<string>()
+        let t3: Node | undefined
         while (true) {
             // node.append(t0)
             let t2 = lexer.lex()
-            if (t2 === undefined)
+            if (t2 === undefined) {
                 throw Error("unexpected end of file")
-            if (t2.type !== Type.TKN_IDENTIFIER)
-                throw Error("expected identifier but got ${t2}")
+            }
+            if (t2.type !== Type.TKN_IDENTIFIER) {
+                if (t3) {
+                    throw Error(`expected identifier after ',' but got ${t2})`)
+                } else {
+                    throw Error(`expected identifier but got ${t2})`)
+                }
+            }
             if (usedNames.has(t2.text!)) {
                 throw Error(`Declaration of enumerator '${t2.text}' clashes with earlier declaration of enumerator '${t2.text}'`)
             }
@@ -1050,13 +1057,16 @@ function enum_type(): Node | undefined {
             t0.append(t2)
             t2.typeParent = t0
 
-            let t3 = lexer.lex()
+            t3 = lexer.lex()
             if (t3 === undefined)
                 throw Error("unexpected end of file")
             if (t3.type !== Type.TKN_TEXT)
-                throw Error("expected ',' or '}' but got ${t2}")
+                throw Error(`expected ',' or '}' but got ${t3}`)
             if (t3.text === "}")
-                break              
+                break
+            if (t3.text !== ",") {
+                throw Error(`expected ',' or '}' but got ${t3}`)
+            }
         }
         scoper.addType(t0!.text!, t0)
         return t0
