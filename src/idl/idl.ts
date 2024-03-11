@@ -220,7 +220,7 @@ function parseIDLFile(): Node {
     }
     catch (error) {
         if (error instanceof Error) {
-            console.log(`corba-idl: error: ${error.message} in file '${filename}' at line ${lexer.line}, column ${lexer.column}`)
+            console.log(`${filename}:${lexer.line}:${lexer.column}: error: ${error.message}`)
             if (verbose)
                 console.log(error.stack)
         } else {
