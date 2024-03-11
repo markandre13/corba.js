@@ -1460,6 +1460,30 @@ export class GIOPDecoder extends GIOPBase {
         return array
     }
 
+    // FIXME: make this a global constant
+    isPlatformLittleEndian() {
+        const buffer = new ArrayBuffer(2)
+        new Int16Array(buffer)[0] = 0x1234
+        return new DataView(buffer).getUint8(0) === 0x34
+    }
+
+    sequenceFloat(): Float32Array {
+        const length = this.ulong()
+        // this.align(4); already aligned at 4
+        if (this.littleEndian != this.isPlatformLittleEndian()) {
+            const result = new Float32Array(length)
+            for(let i=0; i<length; ++i) {
+                result[i] = this.data.getFloat32(this.offset, this.littleEndian)
+                this.offset += 4
+            }
+            return result
+        } else {
+            const result = new Float32Array(this.buffer, this.offset, length)
+            this.offset += length * 4;
+            return result;
+        }
+    }
+
     bool() {
         const value = this.data.getUint8(this.offset) !== 0
         ++this.offset
@@ -1655,6 +1679,9 @@ export class GIOPDecoder extends GIOPBase {
         return true
     }
 
+    // TODO: the code in corba.cc is better
+    // TODO: do not align when decoding structures, argument lists and data types
+    //       unless there is an element of variable size in it
     align(alignment: number) {
         const inversePadding = this.offset % alignment
         if (inversePadding !== 0)
