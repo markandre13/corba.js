@@ -42,14 +42,16 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
                         //     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                         break
                     case Type.SYN_INTERFACE:
-                    case Type.TKN_ENUM:
-                    case Type.TKN_UNION:
                         // throw Error("not implemented yet")
                         // if (filetype !== FileType.INTERFACE)
                         //     name = `_interface${absolutePrefix}.${relativeName}`
                         // else
                         name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                         name = `std::shared_ptr<${name}>`
+                        break
+                    case Type.TKN_ENUM:
+                    case Type.TKN_UNION:
+                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                         break
                     case Type.TKN_STRUCT:
                         throw Error("not implemented yet")

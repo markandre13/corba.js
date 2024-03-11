@@ -33,6 +33,7 @@ export function writeCCInterface(specification: Node): void {
     out.write(`#include <corba/corba.hh>\n`)
     out.write(`#include <string>\n`)
     out.write(`#include <vector>\n`)
+    out.write(`#include <utility>\n`)
     if (hasValueType(specification)) {
         out.write("import * as valuetype from \"./" + filenameLocal + "_valuetype\"\n")
     }
@@ -238,10 +239,10 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
             case Type.TKN_ENUM: {
                 const identifier = definition!.text!
                 writeIndent(out, indent)
-                out.write(`enum ${identifier} {\n`)
+                out.write(`enum class ${identifier} {\n`)
                 for (const enumerator of definition!.child) {
                     writeIndent(out, indent + 1)
-                    out.write(`${identifier.toUpperCase()}_${enumerator!.text?.toUpperCase()},\n`)
+                    out.write(`${enumerator!.text},\n`)
                 }
                 writeIndent(out, indent)
                 out.write("};\n\n")

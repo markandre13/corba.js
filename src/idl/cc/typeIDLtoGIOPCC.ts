@@ -28,7 +28,6 @@ export function typeIDLtoGIOPCC(
             //     ? `${prefix}decode${type!.text!}(decoder)`
             //     : `${prefix}encode${type!.text!}(encoder,${arg})`
         }
-
         case Type.TKN_NATIVE:
             {
                 const id = type!.child[0]!.text!
@@ -67,7 +66,6 @@ export function typeIDLtoGIOPCC(
             name = "Ushort"
             break
         case Type.SYN_UNSIGNED_LONG:
-        case Type.TKN_ENUM:
             name = "Ulong"
             break
         case Type.SYN_UNSIGNED_LONGLONG:
@@ -90,6 +88,8 @@ export function typeIDLtoGIOPCC(
                     return arg === undefined ? `decoder.readString()` : `encoder.writeString(${arg})`    
             }
             throw Error("yikes")
+        case Type.TKN_ENUM:
+            return arg === undefined ? `static_cast<${type.text}>(decoder.readUlong())` : `encoder.writeUlong(std::to_underlying(${arg}))`
         case Type.TKN_SEQUENCE:
             if (type?.child[0]?.type === Type.TKN_OCTET) {
                 switch(direction) {
