@@ -82,8 +82,12 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
         case Type.SYN_UNSIGNED_LONGLONG:
             return "bigint"
         case Type.TKN_SEQUENCE:
-            switch(type!.child[0])
-            return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
+            switch(type!.child[0]!.type) {
+                case Type.TKN_FLOAT:
+                    return "Float32Array";
+                default:
+                    return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
+            }
         default:
             throw Error(`no mapping from IDL type to TS type for ${type.toString()}`)
     }

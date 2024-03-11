@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018, 2021 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2021, 2024 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published by
@@ -842,6 +842,11 @@ export class GIOPEncoder extends GIOPBase {
             encodeItem(value)
         })
         // console.log(`GIOPEncoder.sequence(): ENCODED SEQUENCE WITH ${array.length} ENTRIES`)
+    }
+
+    sequenceFloat(value: Float32Array) {
+        this.ulong(value.length)
+        throw Error("not implemented yet")
     }
 
     bool(value: boolean) {
