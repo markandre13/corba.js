@@ -57,7 +57,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                 let interface_body = interface_dcl.child[1]!
 
                 out.write(`class ${identifier}: public virtual CORBA::Object {\n`)
-                out.write(`    static std::string_view _rid;`);
+                out.write(`    static std::string_view _rid;\n`);
                 out.write(`public:\n`)
                 for (let _export of interface_body.child) {
                     switch (_export!.type) {
