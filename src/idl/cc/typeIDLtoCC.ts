@@ -111,24 +111,36 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
                     throw Error("yikes")
             }
         case Type.TKN_SEQUENCE:
-            if (type?.child[0]?.type === Type.TKN_OCTET) {
-                switch (direction) {
-                    case Direction.IN:
-                        return "const CORBA::blob_view &"
-                    case Direction.OUT:
-                        return "CORBA::blob"
-                    default:
-                        throw Error("yikes")
-                }
-            } else {
-                switch (direction) {
-                    case Direction.IN:
-                        return `const std::span<${typeIDLtoCC(type!.child[0], direction)}> &`
-                    case Direction.OUT:
-                        return `std::vector<${typeIDLtoCC(type!.child[0], direction)}>`
-                    default:
-                        throw Error("yikes")
-                }
+            switch(type?.child[0]?.type) {
+                case Type.TKN_OCTET:
+                    switch (direction) {
+                        case Direction.IN:
+                            return "const CORBA::blob_view &"
+                        case Direction.OUT:
+                            return "CORBA::blob"
+                        default:
+                            throw Error("yikes")
+                    }
+                case Type.TKN_STRING:
+                    // virtual CORBA::async<void> callSeqString(const std::vector<std::string_view> & value) = 0;
+                    switch (direction) {
+                        case Direction.IN:
+                            // return `const std::vector<${typeIDLtoCC(type!.child[0], direction)}> &`
+                            return `const std::vector<std::string_view> &`
+                        case Direction.OUT:
+                            return `std::vector<${typeIDLtoCC(type!.child[0], direction)}>`
+                        default:
+                            throw Error("yikes")
+                    }
+                default:
+                    switch (direction) {
+                        case Direction.IN:
+                            return `const std::span<${typeIDLtoCC(type!.child[0], direction)}> &`
+                        case Direction.OUT:
+                            return `std::vector<${typeIDLtoCC(type!.child[0], direction)}>`
+                        default:
+                            throw Error("yikes")
+                    }
             }
         default:
             throw Error(`no mapping from IDL type to C++ type for ${type.toString()}`)

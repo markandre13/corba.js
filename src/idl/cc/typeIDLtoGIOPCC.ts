@@ -108,6 +108,16 @@ export function typeIDLtoGIOPCC(
                             return arg === undefined ? `decoder.readSequenceVectorFloat()` : `encoder.writeSequence(${arg})`
                     }
                 }
+                case Type.TKN_STRING:
+                    // co_await obj->callSeqString(decoder.sequence(() => decoder.readStringView()));
+                    // co_await obj->callSeqString(decoder.readSequenceVector([&] { return decoder.readStringView(); }));
+
+                    // encoder.sequence(value, (item) => encoder.writeString(item));
+                    // encoder.writeSequence<std::string_view>(value, [&](auto item) { encoder.writeString(item);});
+
+                    return arg === undefined
+                        ? `decoder.readSequenceVector<std::string_view>([&] { return decoder.readStringView(); })`
+                        : `encoder.writeSequence<std::string_view>(${arg}, [&](auto item) { encoder.writeString(item);})`
             }
             return arg === undefined
                 ? `decoder.sequence(() => ${typeIDLtoGIOPCC(type.child[0], undefined, direction)})`
