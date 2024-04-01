@@ -83,6 +83,8 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
             return "bigint"
         case Type.TKN_SEQUENCE:
             switch(type!.child[0]!.type) {
+                case Type.TKN_OCTET:
+                    return "Uint8Array";
                 case Type.TKN_FLOAT:
                     return "Float32Array";
                 default:

@@ -31,7 +31,7 @@ export enum MessageType {
     LOCATE_REPLY = 4,
     CLOSE_CONNECTION = 5,
     MESSAGE_ERROR = 6,
-    FRAGMENT = 7
+    FRAGMENT = 7,
 }
 
 // IOR Tag
@@ -144,19 +144,19 @@ export enum ServiceId {
     FIREWALL_PATH_RESP = 21,
 
     // JacORB uses this as the last context to fill to an 8 byte boundary
-    SERVICE_PADDING_CONTEXT = 0x4a414301 // "JAC\01"
+    SERVICE_PADDING_CONTEXT = 0x4a414301, // "JAC\01"
 }
 
-// 10.2.2 SAS context_data Message Body Types 
+// 10.2.2 SAS context_data Message Body Types
 enum SASType {
     EstablishContext,
     CompleteEstablishContext,
     ContextError,
 
     // Not sent by stateless clients. If received by a stateless server, a
-    // ContextError message should be returned, indicating the session does 
+    // ContextError message should be returned, indicating the session does
     // not exist.
-    MessageInContext
+    MessageInContext,
 }
 
 export class AuthorizationToken {
@@ -205,19 +205,19 @@ export class EstablishContext extends SecurityContext {
             // const vendorMinorCodeSetId = type >> 20
             // const typeIdentifier = type & 0xfffff
             const content = decoder.blob()
-            this.authorizationToken.push(
-                new AuthorizationToken(type, content)
-            )
+            this.authorizationToken.push(new AuthorizationToken(type, content))
         }
 
         // if given, use this identity instead of the one from the authentication layer
         const tokenType = decoder.ulong()
         // console.log(`  tokenType=${IdentityTokenType[tokenType]}`)
         switch (tokenType) {
-            case IdentityTokenType.Absent: {
-                const absent = decoder.bool()
-                // console.log(`    Absent = ${absent}`)
-            } break
+            case IdentityTokenType.Absent:
+                {
+                    const absent = decoder.bool()
+                    // console.log(`    Absent = ${absent}`)
+                }
+                break
             default: {
                 // console.log(`Can not authenticate client: CSIv2 tokenType=${IdentityTokenType[tokenType]} not supported.`)
             }
@@ -252,7 +252,7 @@ export class EstablishContext extends SecurityContext {
         // OMG
         //   2.23.130.1.1.1           CORBA Username Password (GSSUP)
 
-        // authentication                          
+        // authentication
         const blobLength = decoder.ulong()
         // console.log(`  authentication length = ${blobLength}`)
 
@@ -264,15 +264,13 @@ export class EstablishContext extends SecurityContext {
         // and the security mechanism (eg. Kerberos, JWT, ...)
         //
         // This GSSToken shall contain an ASN.1 tag followed by a token length, ...
-        if (decoder.asn1expect(ASN1Class.APPLICATION, 0, ASN1Encoding.CONSTRUCTED) === undefined)
-            return
+        if (decoder.asn1expect(ASN1Class.APPLICATION, 0, ASN1Encoding.CONSTRUCTED) === undefined) return
 
         // ... an authentication mechanism identifier, and ...
         // Generic Security Service User Password (GSSUP)
         // {iso-itu-t(2) international-organization(23) omg(130) security(1) authentication(1) gssup-mechanism(1)}
 
-        if (!decoder.asn1expectOID([2, 23, 130, 1, 1, 1]))
-            return
+        if (!decoder.asn1expectOID([2, 23, 130, 1, 1, 1])) return
 
         // ... a CDR encapsulation containing a GSSUP inner context token as defined by the type GSSUP::InitialContextToken
         const cdr = new GIOPDecoder(decoder.buffer.slice(decoder.offset))
@@ -309,7 +307,7 @@ export enum AuthenticationStatus {
     ERROR_UNSPECIFIED = 1, // error, but server doesn't reveal reason
     ERROR_BADPASSWORD,
     ERROR_NOUSER,
-    ERROR_BAD_TARGET
+    ERROR_BAD_TARGET,
 }
 
 enum IdentityTokenType {
@@ -322,13 +320,13 @@ enum IdentityTokenType {
     // Identity token contains an octet stream containing an ASN.1 encoding of a chain of X.509 identity certificates.
     X509CertChain = 4,
     // Identity token contains an octet stream containing an ASN.1 encoding of an X.501 distinguished name.
-    DistinguishedName = 8
+    DistinguishedName = 8,
 }
 
 export enum AddressingDisposition {
     KeyAddr = 0,
     ProfileAddr = 1,
-    ReferenceAddr = 2
+    ReferenceAddr = 2,
 }
 
 export enum ReplyStatus {
@@ -338,7 +336,7 @@ export enum ReplyStatus {
     LOCATION_FORWARD = 3,
     // since GIOP 1.2
     LOCATION_FORWARD_PERM = 4,
-    NEEDS_ADDRESSING_MODE = 5
+    NEEDS_ADDRESSING_MODE = 5,
 }
 
 export class BidirectionalIIOPServiceContext {
@@ -373,7 +371,7 @@ export enum LocateStatusType {
     // GIOP >= 1.2
     OBJECT_FORWARD_PERM = 3,
     LOC_SYSTEM_EXCEPTION = 4,
-    LOC_NEEDS_ADDRESSING_MODE = 5
+    LOC_NEEDS_ADDRESSING_MODE = 5,
 }
 
 class LocateReply {
@@ -392,20 +390,20 @@ export class ObjectReference {
 }
 
 export class GIOPBase {
-    offset = 0;
+    offset = 0
 
     majorVersion = 1
     minorVersion = 2
 
     // TODO: get rid of these, this is the encoding on the wire, let endian() handle it
-    static ENDIAN_BIG = 0;
-    static ENDIAN_LITTLE = 1;
+    static ENDIAN_BIG = 0
+    static ENDIAN_LITTLE = 1
 
-    static FLOAT64_MAX = 1.7976931348623157e+308;
-    static FLOAT64_MIN = 2.2250738585072014e-308;
-    static TWO_TO_20 = 1048576;
-    static TWO_TO_32 = 4294967296;
-    static TWO_TO_52 = 4503599627370496;
+    static FLOAT64_MAX = 1.7976931348623157e308
+    static FLOAT64_MIN = 2.2250738585072014e-308
+    static TWO_TO_20 = 1048576
+    static TWO_TO_32 = 4294967296
+    static TWO_TO_52 = 4503599627370496
 
     connection?: Connection
     constructor(connection?: Connection) {
@@ -414,7 +412,7 @@ export class GIOPBase {
 }
 
 export class GIOPEncoder extends GIOPBase {
-    buffer = new ArrayBuffer(0xFFFF)
+    buffer = new ArrayBuffer(0xffff)
     data = new DataView(this.buffer)
     bytes = new Uint8Array(this.buffer)
 
@@ -454,8 +452,7 @@ export class GIOPEncoder extends GIOPBase {
     fillinSize() {
         const currrentOffset = this.offset
         const savedOffset = this.sizeStack.pop()
-        if (savedOffset === undefined)
-            throw Error(`internal error: fillinSize() misses reserveSize()`)
+        if (savedOffset === undefined) throw Error(`internal error: fillinSize() misses reserveSize()`)
         this.offset = savedOffset - 4
         const size = currrentOffset - savedOffset
         this.ulong(size)
@@ -597,7 +594,6 @@ export class GIOPEncoder extends GIOPBase {
         this.ulong(0x00010109) // wcharset_id: UTF-16
         this.endEncapsulation()
         */
-
     }
 
     // CORBA 3.4 Part 2, page 176
@@ -622,16 +618,15 @@ export class GIOPEncoder extends GIOPBase {
             encoder.asn1tag(ASN1Class.UNIVERSAL, ASN1UniversalTag.OID, ASN1Encoding.PRIMITIVE, (encoder) => {
                 encoder.asn1oid([2, 23, 130, 1, 1, 1])
             })
-            
+
             encoder.endian()
             const te = new TextEncoder()
             encoder.blob(te.encode(initialToken.user))
             encoder.blob(te.encode(initialToken.password))
             encoder.blob(te.encode(initialToken.target_name))
-            
         })
         this.fillinSize()
-        
+
         this.endEncapsulation()
     }
 
@@ -727,7 +722,7 @@ export class GIOPEncoder extends GIOPBase {
             return
         }
 
-        console.log(`GIOPEncoder.object(): WRITE OBJECT AT 0x${(this.offset - 4).toString(16)}`)
+        // console.log(`GIOPEncoder.object(): WRITE OBJECT AT 0x${(this.offset - 4).toString(16)}`)
 
         if (object instanceof Stub) {
             throw Error("ORB: can not serialize Stub yet")
@@ -754,8 +749,9 @@ export class GIOPEncoder extends GIOPBase {
         let valueTypeInformation: ValueTypeInformation | undefined
         while (prototype !== null) {
             valueTypeInformation = ORB.valueTypeByPrototype.get(prototype)
-            if (valueTypeInformation !== undefined)
+            if (valueTypeInformation !== undefined) {
                 break
+            }
             prototype = Object.getPrototypeOf(prototype) // ???
         }
 
@@ -764,7 +760,11 @@ export class GIOPEncoder extends GIOPBase {
         }
 
         if ((valueTypeInformation?.construct as any).name !== object.constructor.name) {
-            throw Error(`ORB: No value type registered for class ${object.constructor.name}. Best match was class ${(valueTypeInformation?.construct as any).name}.`)
+            throw Error(
+                `ORB: No value type registered for class ${object.constructor.name}. Best match was class ${
+                    (valueTypeInformation?.construct as any).name
+                }.`
+            )
         }
 
         this.alignAndReserve(4)
@@ -782,38 +782,61 @@ export class GIOPEncoder extends GIOPBase {
             const bufferNew = new ArrayBuffer(this.buffer.byteLength * 2)
             new Uint8Array(bufferNew).set(new Uint8Array(this.buffer))
             this.buffer = bufferNew
-            this.data = new DataView(this.buffer);
-            this.bytes = new Uint8Array(this.buffer);
+            this.data = new DataView(this.buffer)
+            this.bytes = new Uint8Array(this.buffer)
         }
     }
 
+    /**
+     * Align at to and reserve 'align' octets
+     */
     alignAndReserve(align: number) {
-        const inversePadding = this.offset % align
-        if (inversePadding !== 0)
-            this.offset += align - inversePadding
-        if (this.buffer.byteLength <= this.offset + align) {
-            const bufferNew = new ArrayBuffer(this.buffer.byteLength * 2)
-            new Uint8Array(bufferNew).set(new Uint8Array(this.buffer))
-            this.buffer = bufferNew
-            this.data = new DataView(this.buffer);
-            this.bytes = new Uint8Array(this.buffer);
-        }
+        this.alignAndReserveVarying(align, align)
     }
 
-    alignAndReserveVarying(align: number, room: number) {
-        const inversePadding = this.offset % align
-        if (inversePadding !== 0)
-            this.offset += align - inversePadding
-        if (this.buffer.byteLength <= this.offset + room) {
-            let newLength = this.buffer.byteLength * 2
-            while(newLength <= this.offset + room) {
+    /**
+     * Align to 'align' and reserve 'nbytes' octets
+     */
+    alignAndReserveVarying(align: number, nbytes: number) {
+        // align offset to 'align'
+        // TODO: what we actually want to do is the IDL compiler figuring this out (unless we're after a variable length item)
+        // also: not sure if the bit logic really improves performance in javascript
+        switch (align) {
+            case 1:
+                break
+            case 2:
+                if (this.offset & 0x01) {
+                    ++this.offset
+                }
+                break
+            case 4:
+                if (this.offset & 0x03) {
+                    this.offset |= 0x03
+                    ++this.offset
+                }
+                break
+            case 8:
+                if (this.offset & 0x07) {
+                    this.offset |= 0x07
+                    ++this.offset
+                }
+                break
+            default:
+                throw Error(`alignment to ${align} bytes is not implemented`)
+        }
+
+        if (this.buffer.byteLength <= this.offset + nbytes) {
+            // double buffer size until we have enough room for additional nbytes
+            let newLength = this.buffer.byteLength
+            while (newLength <= this.offset + nbytes) {
                 newLength *= 2
             }
+            // allocate the new buffer size
             const bufferNew = new ArrayBuffer(newLength)
             new Uint8Array(bufferNew).set(new Uint8Array(this.buffer))
             this.buffer = bufferNew
-            this.data = new DataView(this.buffer);
-            this.bytes = new Uint8Array(this.buffer);
+            this.data = new DataView(this.buffer)
+            this.bytes = new Uint8Array(this.buffer)
         }
     }
 
@@ -835,18 +858,28 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     sequence<T>(array: T[], encodeItem: (a: T) => void) {
-        // console.log(`GIOPEncoder.sequence(): ENCODE SEQUENCE WITH ${array.length} ENTRIES AT 0x${this.offset.toString(16)}`)
         this.ulong(array.length)
-        array.forEach((value, index) => {
-            // console.log(`GIOPEncoder.sequence(): ENCODE ITEM ${index} AT 0x${this.offset.toString(16)}`)
+        array.forEach((value) => {
             encodeItem(value)
         })
-        // console.log(`GIOPEncoder.sequence(): ENCODED SEQUENCE WITH ${array.length} ENTRIES`)
+    }
+
+    sequenceOctet(value: Uint8Array) {
+        const nbytes = value.length
+        this.alignAndReserveVarying(4, 4 + nbytes)
+        this.ulong(value.length)
+        const buffer = new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + nbytes))
+        this.bytes.set(buffer, this.offset)
+        this.offset += nbytes
     }
 
     sequenceFloat(value: Float32Array) {
+        const nbytes = value.length * 4
+        this.alignAndReserveVarying(4, 4 + nbytes)
         this.ulong(value.length)
-        throw Error("not implemented yet")
+        const buffer = new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + nbytes))
+        this.bytes.set(buffer, this.offset)
+        this.offset += nbytes
     }
 
     bool(value: boolean) {
@@ -921,12 +954,12 @@ export class GIOPEncoder extends GIOPBase {
     // * length: most significant bit of octet of zero indicates last septet
     asn1number(n: number) {
         let out: number[] = []
-        while (n > 0x7F) {
-            out.push(n & 0x7F)
+        while (n > 0x7f) {
+            out.push(n & 0x7f)
             n >>= 7
         }
         out.push(n)
-        for(let i = out.length - 1; i > 0; --i) {
+        for (let i = out.length - 1; i > 0; --i) {
             this.octet(out[i] | 0x80)
         }
         this.octet(out[0])
@@ -938,21 +971,21 @@ export class GIOPEncoder extends GIOPBase {
     asn1numberE(n: number) {
         let out: number[] = []
         while (n > 0) {
-            out.push(n & 0xFF)
+            out.push(n & 0xff)
             n >>= 8
         }
         this.octet(out.length)
-        for(let i=out.length-1; i>=0; --i) {
+        for (let i = out.length - 1; i >= 0; --i) {
             this.octet(out[i])
         }
     }
 
     asn1tag(tagClass: number, tag: number, encoding: number, sub: ((encoder: GIOPEncoder) => void) | undefined) {
         const c = (tagClass << 6) | (encoding << 5)
-        if (tag < 0x1F) {
+        if (tag < 0x1f) {
             this.octet(c | tag)
         } else {
-            this.octet(c | 0x1F)
+            this.octet(c | 0x1f)
             this.asn1number(tag)
         }
         const subencoder = new GIOPEncoder()
@@ -960,14 +993,14 @@ export class GIOPEncoder extends GIOPBase {
             sub(subencoder)
         }
         this.asn1number(subencoder.offset)
-        for(let i=0; i<subencoder.offset; ++i) {
+        for (let i = 0; i < subencoder.offset; ++i) {
             this.octet(subencoder.bytes[i])
         }
     }
 
     asn1oid(oid: number[]) {
         this.octet(oid[0] * 40 + oid[1])
-        for(let i=2; i<oid.length; ++i) {
+        for (let i = 2; i < oid.length; ++i) {
             this.asn1number(oid[i])
         }
     }
@@ -995,7 +1028,7 @@ export class GIOPDecoder extends GIOPBase {
         // hexdump(this.bytes)
     }
 
-    encapStack: { nextOffset: number, endian: boolean }[] = []
+    encapStack: { nextOffset: number; endian: boolean }[] = []
 
     // CORBA 3.4 Part 2, 9.3.3 Encapsulation
     // Used for ServiceContext, Profile and Component
@@ -1005,7 +1038,7 @@ export class GIOPDecoder extends GIOPBase {
         const nextOffset = this.offset + size
         this.encapStack.push({
             nextOffset,
-            endian: this.littleEndian
+            endian: this.littleEndian,
         })
         this.endian()
         return type
@@ -1153,40 +1186,50 @@ export class GIOPDecoder extends GIOPBase {
             // console.log(`serviceContext[${i}] = ${ServiceId[serviceId]} (0x${serviceId.toString(16)})`)
 
             switch (serviceId) {
-                case ServiceId.BI_DIR_IIOP: {
-                    const ctx = new BidirectionalIIOPServiceContext()
-                    ctx.host = this.string()
-                    ctx.port = this.ushort()
-                    result.push(ctx)
-                    // console.log(`serviceContext[${i}] = BiDirIIOP listenPoint ${host}:${port}`)
-                } break
-                case ServiceId.SecurityAttributeService: {
-                    const type = this.ulong()
-                    // console.log(`serviceContext[${i}] = SecurityAttributeService ${SASType[type]}`)
-                    switch (type) {
-                        case SASType.EstablishContext: {
-                            const context = new EstablishContext()
-                            context.decode(this)
-                            result.push(context)
-                            // console.log(`InitialContextToken(username="${user}", password="${password}", target_name="${target_name}")`)
-                        } break
-                        case SASType.CompleteEstablishContext: {
-                            const context = new CompleteEstablishContext()
-                            context.clientContextId = this.ulonglong()
-                            context.contextStateful = this.bool()
-                            // finalContextToken
-                            result.push(context)
-                        } break
-                        case SASType.ContextError: {
-                            const context = new ContextError()
-                            context.clientContextId = this.ulonglong()
-                            context.majorStatus = this.long()
-                            context.minorStatus = this.long()
-                            // errorToken
-                            result.push(context)
-                        } break
+                case ServiceId.BI_DIR_IIOP:
+                    {
+                        const ctx = new BidirectionalIIOPServiceContext()
+                        ctx.host = this.string()
+                        ctx.port = this.ushort()
+                        result.push(ctx)
+                        // console.log(`serviceContext[${i}] = BiDirIIOP listenPoint ${host}:${port}`)
                     }
-                } break
+                    break
+                case ServiceId.SecurityAttributeService:
+                    {
+                        const type = this.ulong()
+                        // console.log(`serviceContext[${i}] = SecurityAttributeService ${SASType[type]}`)
+                        switch (type) {
+                            case SASType.EstablishContext:
+                                {
+                                    const context = new EstablishContext()
+                                    context.decode(this)
+                                    result.push(context)
+                                    // console.log(`InitialContextToken(username="${user}", password="${password}", target_name="${target_name}")`)
+                                }
+                                break
+                            case SASType.CompleteEstablishContext:
+                                {
+                                    const context = new CompleteEstablishContext()
+                                    context.clientContextId = this.ulonglong()
+                                    context.contextStateful = this.bool()
+                                    // finalContextToken
+                                    result.push(context)
+                                }
+                                break
+                            case SASType.ContextError:
+                                {
+                                    const context = new ContextError()
+                                    context.clientContextId = this.ulonglong()
+                                    context.majorStatus = this.long()
+                                    context.minorStatus = this.long()
+                                    // errorToken
+                                    result.push(context)
+                                }
+                                break
+                        }
+                    }
+                    break
                 default:
                 // console.log(`serviceContext[${i}] = ${ServiceId[serviceId]} (0x${serviceId.toString(16)})`)
             }
@@ -1209,95 +1252,101 @@ export class GIOPDecoder extends GIOPBase {
             const profileId = this.beginEncapsulation()
             switch (profileId) {
                 // CORBA 3.3 Part 2: 9.7.2 IIOP IOR Profiles
-                case IOR.TAG.IOR.INTERNET_IOP: {
-                    // console.log(`Internet IOP Component, length=${profileLength}`)
-                    const iiopMajorVersion = this.octet()
-                    const iiopMinorVersion = this.octet()
-                    // if (iiopMajorVersion !== 1 || iiopMinorVersion > 1) {
-                    //     throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
-                    // }
-                    data.host = this.string()
-                    data.port = this.ushort()
-                    data.objectKey = this.blob()
-                    // console.log(`IOR: IIOP(version: ${iiopMajorVersion}.${iiopMinorVersion}, host: ${data.host}:${data.port}, objectKey: ${data.objectKey})`)
-                    // FIXME: use utility function to compare version!!! better use hex: version >= 0x0101
-                    if (iiopMajorVersion === 1 && iiopMinorVersion !== 0) {
-                        // TaggedComponentSeq
-                        const n = this.ulong()
-                        // console.log(`IOR: ${n} components`)
-                        for (i = 0; i < n; ++i) {
-                            const id = this.ulong()
-                            const length = this.ulong()
-                            const nextOffset = this.offset + length
-                            switch (id) {
-                                case TagType.ORB_TYPE:
-                                    const typeCount = this.ulong()
-                                    for (let j = 0; j < typeCount; ++j) {
-                                        const orbType = this.ulong()
-                                        const orbTypeNames = [
-                                            [0x48500000, 0x4850000f, "Hewlett Packard"],
-                                            [0x49424d00, 0x49424d0f, "IBM"],
-                                            [0x494c5500, 0x494c55ff, "Xerox"],
-                                            [0x49534900, 0x4953490f, "AdNovum Informatik AG"],
-                                            [0x56495300, 0x5649530f, "Borland (VisiBroker)"],
-                                            [0x4f495300, 0x4f4953ff, "Objective Interface Systems"],
-                                            [0x46420000, 0x4642000f, "FloorBoard Software"],
-                                            [0x4E4E4E56, 0x4E4E4E56, "Rogue Wave"],
-                                            [0x4E550000, 0x4E55000f, "Nihon Unisys, Ltd"],
-                                            [0x4A424B52, 0x4A424B52, "SilverStream Software"],
-                                            [0x54414f00, 0x54414f00, "Center for Distributed Object Computing, Washington University"],
-                                            [0x4C434200, 0x4C43420F, "2AB"],
-                                            [0x41505831, 0x41505831, "Informatik 4, Univ. of Erlangen-Nuernberg"],
-                                            [0x4f425400, 0x4f425400, "ORBit"],
-                                            [0x47534900, 0x4753490f, "GemStone Systems, Inc."],
-                                            [0x464a0000, 0x464a000f, "Fujitsu Limited"],
-                                            [0x4E534440, 0x4E53444F, "Compaq Computer"],
-                                            [0x4f425f00, 0x4f425f0f, "TIBCO"],
-                                            [0x4f414b00, 0x4f414b0f, "Camros Corporation"],
-                                            [0x41545400, 0x4154540f, "AT&T Laboratories, Cambridge (OmniORB)"],
-                                            [0x4f4f4300, 0x4f4f430f, "IONA Technologies"],
-                                            [0x4e454300, 0x4e454303, "NEC Corporation"],
-                                            [0x424c5500, 0x424c550f, "Berry Software"],
-                                            [0x56495400, 0x564954ff, "Vitra"],
-                                            [0x444f4700, 0x444f47ff, "Exoffice Technologies"],
-                                            [0xcb0e0000, 0xcb0e00ff, "Chicago Board of Exchange (CBOE)"],
-                                            [0x4A414300, 0x4A41430f, "FU Berlin Institut für Informatik (JAC)"],
-                                            [0x58545240, 0x5854524F, "Xtradyne Technologies AG"],
-                                            [0x54475800, 0x54475803, "Top Graph'X"],
-                                            [0x41646100, 0x41646103, "AdaOS project"],
-                                            [0x4e4f4b00, 0x4e4f4bff, "Nokia"],
-                                            [0x53414E00, 0x53414E0f, "Sankhya Technologies Private Limited, India"],
-                                            [0x414E4400, 0x414E440f, "Androsoft GmbH"],
-                                            [0x42424300, 0x4242430f, "Bionic Buffalo Corporation"],
-                                            [0x4d313300, 0x4d313300, "corba.js"]
-                                        ]
-                                        let name: string | undefined
-                                        for (let x of orbTypeNames) {
-                                            if ((x[0] as number) <= orbType && orbType <= (x[1] as number)) {
-                                                name = x[2] as string
-                                                break
+                case IOR.TAG.IOR.INTERNET_IOP:
+                    {
+                        // console.log(`Internet IOP Component, length=${profileLength}`)
+                        const iiopMajorVersion = this.octet()
+                        const iiopMinorVersion = this.octet()
+                        // if (iiopMajorVersion !== 1 || iiopMinorVersion > 1) {
+                        //     throw Error(`Unsupported IIOP ${iiopMajorVersion}.${iiopMinorVersion}. Currently only IIOP ${GIOPBase.MAJOR_VERSION}.${GIOPBase.MINOR_VERSION} is implemented.`)
+                        // }
+                        data.host = this.string()
+                        data.port = this.ushort()
+                        data.objectKey = this.blob()
+                        // console.log(`IOR: IIOP(version: ${iiopMajorVersion}.${iiopMinorVersion}, host: ${data.host}:${data.port}, objectKey: ${data.objectKey})`)
+                        // FIXME: use utility function to compare version!!! better use hex: version >= 0x0101
+                        if (iiopMajorVersion === 1 && iiopMinorVersion !== 0) {
+                            // TaggedComponentSeq
+                            const n = this.ulong()
+                            // console.log(`IOR: ${n} components`)
+                            for (i = 0; i < n; ++i) {
+                                const id = this.ulong()
+                                const length = this.ulong()
+                                const nextOffset = this.offset + length
+                                switch (id) {
+                                    case TagType.ORB_TYPE:
+                                        const typeCount = this.ulong()
+                                        for (let j = 0; j < typeCount; ++j) {
+                                            const orbType = this.ulong()
+                                            const orbTypeNames = [
+                                                [0x48500000, 0x4850000f, "Hewlett Packard"],
+                                                [0x49424d00, 0x49424d0f, "IBM"],
+                                                [0x494c5500, 0x494c55ff, "Xerox"],
+                                                [0x49534900, 0x4953490f, "AdNovum Informatik AG"],
+                                                [0x56495300, 0x5649530f, "Borland (VisiBroker)"],
+                                                [0x4f495300, 0x4f4953ff, "Objective Interface Systems"],
+                                                [0x46420000, 0x4642000f, "FloorBoard Software"],
+                                                [0x4e4e4e56, 0x4e4e4e56, "Rogue Wave"],
+                                                [0x4e550000, 0x4e55000f, "Nihon Unisys, Ltd"],
+                                                [0x4a424b52, 0x4a424b52, "SilverStream Software"],
+                                                [
+                                                    0x54414f00,
+                                                    0x54414f00,
+                                                    "Center for Distributed Object Computing, Washington University",
+                                                ],
+                                                [0x4c434200, 0x4c43420f, "2AB"],
+                                                [0x41505831, 0x41505831, "Informatik 4, Univ. of Erlangen-Nuernberg"],
+                                                [0x4f425400, 0x4f425400, "ORBit"],
+                                                [0x47534900, 0x4753490f, "GemStone Systems, Inc."],
+                                                [0x464a0000, 0x464a000f, "Fujitsu Limited"],
+                                                [0x4e534440, 0x4e53444f, "Compaq Computer"],
+                                                [0x4f425f00, 0x4f425f0f, "TIBCO"],
+                                                [0x4f414b00, 0x4f414b0f, "Camros Corporation"],
+                                                [0x41545400, 0x4154540f, "AT&T Laboratories, Cambridge (OmniORB)"],
+                                                [0x4f4f4300, 0x4f4f430f, "IONA Technologies"],
+                                                [0x4e454300, 0x4e454303, "NEC Corporation"],
+                                                [0x424c5500, 0x424c550f, "Berry Software"],
+                                                [0x56495400, 0x564954ff, "Vitra"],
+                                                [0x444f4700, 0x444f47ff, "Exoffice Technologies"],
+                                                [0xcb0e0000, 0xcb0e00ff, "Chicago Board of Exchange (CBOE)"],
+                                                [0x4a414300, 0x4a41430f, "FU Berlin Institut für Informatik (JAC)"],
+                                                [0x58545240, 0x5854524f, "Xtradyne Technologies AG"],
+                                                [0x54475800, 0x54475803, "Top Graph'X"],
+                                                [0x41646100, 0x41646103, "AdaOS project"],
+                                                [0x4e4f4b00, 0x4e4f4bff, "Nokia"],
+                                                [0x53414e00, 0x53414e0f, "Sankhya Technologies Private Limited, India"],
+                                                [0x414e4400, 0x414e440f, "Androsoft GmbH"],
+                                                [0x42424300, 0x4242430f, "Bionic Buffalo Corporation"],
+                                                [0x4d313300, 0x4d313300, "corba.js"],
+                                            ]
+                                            let name: string | undefined
+                                            for (let x of orbTypeNames) {
+                                                if ((x[0] as number) <= orbType && orbType <= (x[1] as number)) {
+                                                    name = x[2] as string
+                                                    break
+                                                }
                                             }
+                                            if (name === undefined) {
+                                                name = `0x${orbType.toString(16)}`
+                                            }
+                                            // console.log(`IOR: component[${i}] = ORB_TYPE ${name}`)
                                         }
-                                        if (name === undefined) {
-                                            name = `0x${orbType.toString(16)}`
-                                        }
-                                        // console.log(`IOR: component[${i}] = ORB_TYPE ${name}`)
-                                    }
-                                    break
-                                case TagType.CODE_SETS:
-                                    // Corba 3.4, Part 2, 7.10.2.4 CodeSet Component of IOR Multi-Component Profile
-                                    // console.log(`IOR: component[${i}] = CODE_SETS`)
-                                    break
-                                case TagType.POLICIES:
-                                    // console.log(`IOR: component[${i}] = POLICIES`)
-                                    break
-                                default:
-                                // console.log(`IOR: component[${i}] = ${id} (0x${id.toString(16)})`)
+                                        break
+                                    case TagType.CODE_SETS:
+                                        // Corba 3.4, Part 2, 7.10.2.4 CodeSet Component of IOR Multi-Component Profile
+                                        // console.log(`IOR: component[${i}] = CODE_SETS`)
+                                        break
+                                    case TagType.POLICIES:
+                                        // console.log(`IOR: component[${i}] = POLICIES`)
+                                        break
+                                    default:
+                                    // console.log(`IOR: component[${i}] = ${id} (0x${id.toString(16)})`)
+                                }
+                                this.offset = nextOffset
                             }
-                            this.offset = nextOffset
                         }
                     }
-                } break
+                    break
                 default:
                 // console.log(`IOR: Unhandled profile type=${profileId} (0x${profileId.toString(16)})`)
             }
@@ -1316,8 +1365,9 @@ export class GIOPDecoder extends GIOPBase {
         // const objectOffset = this.offset + 6
 
         const code = this.ulong()
-        if (code === 0)
+        if (code === 0) {
             return undefined
+        }
 
         const objectOffset = this.offset - 4
 
@@ -1363,13 +1413,22 @@ export class GIOPDecoder extends GIOPBase {
                     const nextOffset = this.offset
                     this.offset = offset + indirection
                     if ((this.offset & 0x03) !== 0) {
-                        console.error(`WRONG INDIRECTION: GOT 0x${this.offset.toString(16)}, EXPECTED 0x${(this.offset - (this.offset & 0x03)).toString(16)}`)
+                        console.error(
+                            `WRONG INDIRECTION: GOT 0x${this.offset.toString(16)}, EXPECTED 0x${(
+                                this.offset -
+                                (this.offset & 0x03)
+                            ).toString(16)}`
+                        )
                         this.offset = this.offset - (this.offset & 0x03)
                     }
                     repositoryId = this.string()
                     this.offset = nextOffset
                 }
-                if (repositoryId.length < 8 || repositoryId.substring(0, 4) !== "IDL:" || repositoryId.substring(repositoryId.length - 4) !== ":1.0")
+                if (
+                    repositoryId.length < 8 ||
+                    repositoryId.substring(0, 4) !== "IDL:" ||
+                    repositoryId.substring(repositoryId.length - 4) !== ":1.0"
+                )
                     throw Error(`Unsupported CORBA GIOP Repository ID '${repositoryId}'`)
                 const shortName = repositoryId.substring(4, repositoryId.length - 4)
                 valueTypeConstructor = ORB.lookupValueType(shortName)
@@ -1389,7 +1448,7 @@ export class GIOPDecoder extends GIOPBase {
                 throw Error(`insufficient value type information`)
             }
 
-            const obj = new (valueTypeConstructor)(this)
+            const obj = new valueTypeConstructor(this)
             this.objects.set(objectOffset + 2, obj)
             return obj
         }
@@ -1418,8 +1477,9 @@ export class GIOPDecoder extends GIOPBase {
 
             // TODO: this belongs elsewhere
             let object = this.connection.stubsById.get(reference.objectKey)
-            if (object !== undefined)
+            if (object !== undefined) {
                 return object
+            }
             const shortName = reference.oid.substring(4, reference.oid.length - 4)
             let aStubClass = this.connection.orb.stubsByName.get(shortName)
             if (aStubClass === undefined) {
@@ -1440,16 +1500,18 @@ export class GIOPDecoder extends GIOPBase {
     }
 
     blob(length?: number) {
-        if (length === undefined)
+        if (length === undefined) {
             length = this.ulong()
+        }
         const value = this.bytes.subarray(this.offset, this.offset + length)
         this.offset += length
         return value
     }
 
     string(length?: number) {
-        if (length === undefined)
+        if (length === undefined) {
             length = this.ulong()
+        }
         const rawString = this.bytes.subarray(this.offset, this.offset + length - 1)
         const value = GIOPDecoder.textDecoder.decode(rawString)
         this.offset += length
@@ -1472,20 +1534,27 @@ export class GIOPDecoder extends GIOPBase {
         return new DataView(buffer).getUint8(0) === 0x34
     }
 
+    sequenceOctet(): Uint8Array {
+        const nbytes = this.ulong()
+        const buffer = new Uint8Array(this.buffer, this.offset, nbytes)
+        this.offset += nbytes
+        return buffer
+    }
+
     sequenceFloat(): Float32Array {
         const length = this.ulong()
         // this.align(4); already aligned at 4
         if (this.littleEndian != this.isPlatformLittleEndian()) {
             const result = new Float32Array(length)
-            for(let i=0; i<length; ++i) {
+            for (let i = 0; i < length; ++i) {
                 result[i] = this.data.getFloat32(this.offset, this.littleEndian)
                 this.offset += 4
             }
             return result
         } else {
             const result = new Float32Array(this.buffer, this.offset, length)
-            this.offset += length * 4;
-            return result;
+            this.offset += length * 4
+            return result
         }
     }
 
@@ -1587,10 +1656,10 @@ export class GIOPDecoder extends GIOPBase {
             // console.log(`state ${state}, c=${c.toString(16)}`)
             switch (state) {
                 case 0: // tag
-                    tag.tagClass = (c & 0xC0) >> 6 // 11000000
+                    tag.tagClass = (c & 0xc0) >> 6 // 11000000
                     tag.encoding = (c & 0x20) >> 5 // 00100000
-                    tag.tag = c & 0x1F             // 00011111
-                    if (tag.tag == 0x1F) {
+                    tag.tag = c & 0x1f // 00011111
+                    if (tag.tag == 0x1f) {
                         state = 1
                         tag.tag = 0
                     } else {
@@ -1599,14 +1668,15 @@ export class GIOPDecoder extends GIOPBase {
                     break
                 case 1: // long tag
                     tag.tag <<= 7
-                    tag.tag |= c & 0x7F
-                    if (c & 0x80)
+                    tag.tag |= c & 0x7f
+                    if (c & 0x80) {
                         state = 2
+                    }
                     break
                 case 2: // length
                     tag.length = c
                     if (c & 0x80) {
-                        lenghtOfLength = tag.length & 0x7F
+                        lenghtOfLength = tag.length & 0x7f
                         tag.length = 0
                         state = 3
                     } else {
@@ -1616,8 +1686,9 @@ export class GIOPDecoder extends GIOPBase {
                 case 3: // long length
                     tag.length <<= 8
                     tag.length |= c
-                    if (--lenghtOfLength == 0)
+                    if (--lenghtOfLength == 0) {
                         state = -1
+                    }
                     break
             }
         }
@@ -1638,7 +1709,7 @@ export class GIOPDecoder extends GIOPBase {
                     break
                 case 1:
                     if (c & 0x80) {
-                        akku = c & 0x7F
+                        akku = c & 0x7f
                         state = 2
                     } else {
                         oid.push(c)
@@ -1646,7 +1717,7 @@ export class GIOPDecoder extends GIOPBase {
                     break
                 case 2:
                     akku <<= 7
-                    akku |= (c & 0x7F)
+                    akku |= c & 0x7f
                     if (!(c & 0x80)) {
                         oid.push(akku)
                         state = 1
@@ -1668,8 +1739,9 @@ export class GIOPDecoder extends GIOPBase {
 
     asn1expectOID(oid: number[]): boolean {
         const t1 = this.asn1expect(ASN1Class.UNIVERSAL, ASN1UniversalTag.OID, ASN1Encoding.PRIMITIVE)
-        if (t1 === undefined)
+        if (t1 === undefined) {
             return false
+        }
         const got = this.asn1oid(t1.length)
         if (oid.length !== got.length) {
             console.log(`Can not authenticate client: Wrong OID`)
@@ -1689,8 +1761,9 @@ export class GIOPDecoder extends GIOPBase {
     //       unless there is an element of variable size in it
     align(alignment: number) {
         const inversePadding = this.offset % alignment
-        if (inversePadding !== 0)
+        if (inversePadding !== 0) {
             this.offset += alignment - inversePadding
+        }
     }
 }
 
@@ -1702,10 +1775,11 @@ function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
         line = line.padEnd(4 + 16 * 3 + 1, " ")
         for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
             const b = bytes[j]
-            if (b >= 32 && b < 127)
+            if (b >= 32 && b < 127) {
                 line += String.fromCharCode(b)
-            else
+            } else {
                 line += "."
+            }
         }
         addr += 16
         console.log(line)

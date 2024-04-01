@@ -8,7 +8,6 @@ import { FakeTcpProtocol } from "./fake"
 import { parseHexDump, parseOmniDump } from "./util"
 
 describe("CDR/GIOP", () => {
-
     let orb!: ORB
     let server!: api.GIOPTest
     let myserver!: api.GIOPTest
@@ -61,7 +60,6 @@ describe("CDR/GIOP", () => {
 
     // these cover the encoder
     describe("send values", function () {
-
         it("bool", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendBool(false, true)
@@ -124,13 +122,13 @@ describe("CDR/GIOP", () => {
 
         it("float", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendFloat(1.17549e-38, 3.40282e+38)
+            await server.sendFloat(1.17549e-38, 3.40282e38)
             expect(await server.peek()).to.equal("sendFloat(1.17549e-38,3.40282e+38)")
         })
 
         it("double", async function () {
             fake.expect(this.test!.fullTitle())
-            await server.sendDouble(4.94066e-324, 1.79769e+308)
+            await server.sendDouble(4.94066e-324, 1.79769e308)
             expect(await server.peek()).to.equal("sendDouble(4.94066e-324,1.79769e+308)")
         })
 
@@ -155,7 +153,7 @@ describe("CDR/GIOP", () => {
         it("value (subclassed)", async function () {
             fake.expect(this.test!.fullTitle())
             await server.sendValuePoint(new NamedPoint({ x: 20, y: 30, name: "foo" }))
-            expect(await server.peek()).to.equal("sendValuePoint(NamedPoint(20,30,\"foo\"))")
+            expect(await server.peek()).to.equal('sendValuePoint(NamedPoint(20,30,"foo"))')
         })
 
         it("value (duplicate repository ID)", async function () {
@@ -177,11 +175,13 @@ describe("CDR/GIOP", () => {
             fake.expect(this.test!.fullTitle())
             const m = new FigureModel()
             const r = new Rectangle()
-            r.origin = (undefined as any)
+            r.origin = undefined as any
             r.size = new Size({ width: 10, height: 20 })
             m.data.push(r)
             await server.setFigureModel(m)
-            expect(await server.peek()).to.equal("setFigureModel({data:[Rectangle({origin:null,{width:10,height:20},}),]})")
+            expect(await server.peek()).to.equal(
+                "setFigureModel({data:[Rectangle({origin:null,{width:10,height:20},}),]})"
+            )
         })
 
         // send a local object to the peer and check if he was able to call us
@@ -214,7 +214,6 @@ describe("CDR/GIOP", () => {
 
     // these cover the decoder
     describe("receive values", function () {
-
         it("bool", async function () {
             fake.expect(this.test!.fullTitle())
             await server.call(myserver, api.CallbackType.CB_BOOL)
@@ -308,7 +307,9 @@ describe("CDR/GIOP", () => {
         it("value (with null)", async function () {
             fake.expect(this.test!.fullTitle())
             await server.call(myserver, api.CallbackType.CB_VALUE_WITH_NULL)
-            expect(await myserver.peek()).to.equal("setFigureModel({data:[Rectangle({id:10,origin:null,size:{width:30,height:40}})]})")
+            expect(await myserver.peek()).to.equal(
+                "setFigureModel({data:[Rectangle({id:10,origin:null,size:{width:30,height:40}})]})"
+            )
         })
     })
 
@@ -522,7 +523,8 @@ describe("CDR/GIOP", () => {
                         0100 9c ff ff ff 00 00 00 00 00 00 00 00 00 00 49 40 ..............I@
                         0110 00 00 00 00 00 00 4e 40 02 ff ff 7f ff ff ff ff ......N@........
                         0120 a4 ff ff ff 00 00 00 00 00 00 00 00 00 80 51 40 ..............Q@
-                        0130 00 00 00 00 00 00 54 40                         ......T@`)
+                        0130 00 00 00 00 00 00 54 40                         ......T@`
+                    )
                     const decoder = new GIOPDecoder(data.buffer)
 
                     decoder.scanGIOPHeader()
@@ -581,7 +583,8 @@ describe("CDR/GIOP", () => {
                         acff ffff 0b00 0000 00ff ff7f 0000 0000 ................
                         0000 0000 0000 4940 0000 0000 0000 4e40 ......I@......N@
                         00ff ff7f 0000 0000 0000 0000 0080 5140 ..............Q@
-                        0000 0000 0000 5440                     ......T@`)
+                        0000 0000 0000 5440                     ......T@`
+                    )
                     const decoder = new GIOPDecoder(data.buffer)
 
                     decoder.scanGIOPHeader()
@@ -642,7 +645,8 @@ describe("CDR/GIOP", () => {
                         4944 4c3a 5265 6374 616e 676c 653a 312e IDL:Rectangle:1.
                         3000 0000 0a00 0000 0000 0000 00ff ff7f 0...............
                         0000 0000 0000 3e40 0000 0000 0000 4440 ......>@......D@
-                        `)
+                        `
+                    )
                     const decoder = new GIOPDecoder(data.buffer)
 
                     decoder.scanGIOPHeader()
@@ -682,6 +686,69 @@ describe("CDR/GIOP", () => {
         })
 
         describe("GIOPEncoder", function () {
+            describe("alignAndReserve(...)", function () {
+                it("1", function () {
+                    const encoder = new GIOPEncoder()
+                    encoder.alignAndReserve(1)
+                    expect(encoder.offset).to.equal(0)
+
+                    encoder.offset = 1
+                    encoder.alignAndReserve(1)
+                    expect(encoder.offset).to.equal(1)
+                })
+                it("2", function () {
+                    const encoder = new GIOPEncoder()
+                    for (let i = 0; i <= 3; ++i) {
+                        encoder.offset = i
+                        encoder.alignAndReserve(2)
+                        switch (i) {
+                            case 0:
+                                expect(encoder.offset).to.equal(0)
+                                break
+                            case 3:
+                                expect(encoder.offset).to.equal(4)
+                                break
+                            default:
+                                expect(encoder.offset).to.equal(2)
+                        }
+                    }
+                })
+                it("4", function () {
+                    const encoder = new GIOPEncoder()
+                    for (let i = 0; i <= 5; ++i) {
+                        encoder.offset = i
+                        encoder.alignAndReserve(4)
+                        switch (i) {
+                            case 0:
+                                expect(encoder.offset).to.equal(0)
+                                break
+                            case 5:
+                                expect(encoder.offset).to.equal(8)
+                                break
+                            default:
+                                expect(encoder.offset).to.equal(4)
+                        }
+                    }
+                })
+                it("8", function () {
+                    const encoder = new GIOPEncoder()
+                    for (let i = 0; i <= 9; ++i) {
+                        encoder.offset = i
+                        encoder.alignAndReserve(8)
+                        switch (i) {
+                            case 0:
+                                expect(encoder.offset).to.equal(0)
+                                break
+                            case 9:
+                                expect(encoder.offset).to.equal(16)
+                                break
+                            default:
+                                expect(encoder.offset).to.equal(8)
+                        }
+                    }
+                })
+            })
+
             describe("IIOP 1.2", function () {
                 it("Request", function () {
                     const encoder = new GIOPEncoder()
@@ -736,11 +803,10 @@ describe("CDR/GIOP", () => {
         })
     })
 
-    describe("persistence", function() {
-        it("serialize/deserialize", function() {
-            
+    describe("persistence", function () {
+        it("serialize/deserialize", function () {
             const r = new Rectangle()
-            r.origin = new Point({x: 10, y: 20})
+            r.origin = new Point({ x: 10, y: 20 })
             r.size = new Size({ width: 30, height: 40 })
             const valueIn = new FigureModel()
             valueIn.data.push(r)
@@ -752,7 +818,7 @@ describe("CDR/GIOP", () => {
         })
     })
 
-    it("string() encoding/decoding", function() {
+    it("string() encoding/decoding", function () {
         const textIn = "Von Äpfeln schön überfreßen."
         const encoder = new GIOPEncoder()
         encoder.string(textIn)
@@ -777,7 +843,8 @@ describe("CDR/GIOP", () => {
                 00a0 00 00 00 06 5f 69 73 5f 61 00 00 00 00 00 00 00 ...._is_a.......
                 00b0 00 00 00 2b 49 44 4c 3a 6f 6d 67 2e 6f 72 67 2f ...+IDL:omg.org/
                 00c0 43 6f 73 4e 61 6d 69 6e 67 2f 4e 61 6d 69 6e 67 CosNaming/Naming
-                00d0 43 6f 6e 74 65 78 74 45 78 74 3a 31 2e 30 00    ContextExt:1.0.`)
+                00d0 43 6f 6e 74 65 78 74 45 78 74 3a 31 2e 30 00    ContextExt:1.0.`
+            )
             const decoder = new GIOPDecoder(data.buffer)
             decoder.scanGIOPHeader()
             decoder.scanRequestHeader()
@@ -846,16 +913,16 @@ class GIOPTest_impl extends skel.GIOPTest {
     }
     override async sendSequence(v0: Array<string>, v1: Array<number>) {
         this.msg = `sendSequence([`
-        v0.forEach(v => this.msg += `${v},`)
+        v0.forEach((v) => (this.msg += `${v},`))
         this.msg += `],[`
-        v1.forEach(v => this.msg += `${v},`)
+        v1.forEach((v) => (this.msg += `${v},`))
         this.msg += `])`
     }
     override async sendValuePoint(v0: Point) {
         this.msg = `sendValuePoint(${v0})`
     }
-    override async sendValuePoints(v0: Point, v1: Point) { }
-    override async sendObject(obj: GIOPSmall, msg: string) { }
+    override async sendValuePoints(v0: Point, v1: Point) {}
+    override async sendObject(obj: GIOPSmall, msg: string) {}
     override async getObject(): Promise<GIOPSmall> {
         return new GIOPSmall(this.orb)
     }
@@ -864,7 +931,7 @@ class GIOPTest_impl extends skel.GIOPTest {
     }
     override async setFigureModel(model: value.FigureModel) {
         this.msg = `setFigureModel({data:[`
-        model.data.forEach(e => {
+        model.data.forEach((e) => {
             if (e instanceof Rectangle) {
                 this.msg += `Rectangle({id:${e.id},origin:`
                 if (e.origin === undefined) {

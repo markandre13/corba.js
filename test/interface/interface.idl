@@ -1,8 +1,6 @@
-/*
 interface Peer {
     string callString(in string value);
 };
-*/
 
 interface Interface {
     boolean callBoolean(in boolean value);
@@ -21,12 +19,11 @@ interface Interface {
     double callDouble(in double value);
 
     string callString(in string value);
-/*
+
     sequence<octet> callBlob(in sequence<octet> value);
     sequence<float> callSeqFloat(in sequence<float> value);
     sequence<string> callSeqString(in sequence<string> value);
 
     void setPeer(in Peer peer);
     string callPeer(in string value);
-*/
 };

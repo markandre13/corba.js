@@ -84,6 +84,9 @@ export function typeIDLtoGIOPTS(
             throw Error("long double is not supported yet")
         case Type.TKN_SEQUENCE:
             switch (type.child[0]!.type) {
+                case Type.TKN_OCTET:
+                    name = "sequenceOctet"
+                    break;
                 case Type.TKN_FLOAT:
                     name = "sequenceFloat"
                     break
