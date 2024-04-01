@@ -22,7 +22,7 @@ export function typeIDLtoGIOPCC(
             break
         case Type.TKN_UNION:
         case Type.TKN_STRUCT: {
-            throw Error("yikes")
+            throw Error("union and struct are not implemented yet")
             // const prefix = filetype === FileType.INTERFACE ? "" : "_interface."
             // return arg === undefined
             //     ? `${prefix}decode${type!.text!}(decoder)`
@@ -108,12 +108,15 @@ export function typeIDLtoGIOPCC(
                             return arg === undefined ? `decoder.readSequenceVectorFloat()` : `encoder.writeSequence(${arg})`
                     }
                 }
+                case Type.TKN_DOUBLE: {
+                    switch (direction) {
+                        case Direction.IN:
+                            return arg === undefined ? `decoder.readSequenceSpanDouble()` : `encoder.writeSequence(${arg})`
+                        case Direction.OUT:
+                            return arg === undefined ? `decoder.readSequenceVectorDouble()` : `encoder.writeSequence(${arg})`
+                    }
+                }
                 case Type.TKN_STRING:
-                    // co_await obj->callSeqString(decoder.sequence(() => decoder.readStringView()));
-                    // co_await obj->callSeqString(decoder.readSequenceVector([&] { return decoder.readStringView(); }));
-
-                    // encoder.sequence(value, (item) => encoder.writeString(item));
-                    // encoder.writeSequence<std::string_view>(value, [&](auto item) { encoder.writeString(item);});
                     switch (direction) {
                         case Direction.IN:
                             return arg === undefined
@@ -125,9 +128,10 @@ export function typeIDLtoGIOPCC(
                                 : `encoder.writeSequence<std::string>(${arg}, [&](auto item) { encoder.writeString(item);})`
                     }
             }
-            return arg === undefined
-                ? `decoder.sequence(() => ${typeIDLtoGIOPCC(type.child[0], undefined, direction)})`
-                : `encoder.sequence(${arg}, (item) => ${typeIDLtoGIOPCC(type.child[0], "item", direction)})`
+            throw Error(`this sequence type is not implemented yet`)
+            // return arg === undefined
+            //     ? `decoder.readSequence([&] { return ${typeIDLtoGIOPCC(type.child[0], undefined, direction)} })`
+            //     : `encoder.writeSequence(${arg}, [&](auto item) { ${typeIDLtoGIOPCC(type.child[0], "item", direction)} })`
         default:
             type.printTree()
             throw Error(`no mapping from IDL type '${type.toString()}' to GIOP encoder/decoder`)
