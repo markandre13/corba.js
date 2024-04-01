@@ -202,7 +202,7 @@ export class UrlParser {
             const end = this.url.data.indexOf("]", start)
             if (end === -1)
                 throw Error(`missing ] in IPv6 address`)
-            this.addr.host = this.url.data.substring(start, end)
+            this.addr.host = this.url.data.substring(start, end + 1)
             this.url.pos = end + 1
             return this.addr.host;
         }

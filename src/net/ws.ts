@@ -84,7 +84,7 @@ export abstract class WsProtocolBase<S extends http.Server, O extends http.Serve
                     switch (m.type) {
                         case "binary":
                             const b = m.binaryData
-                            console.log(`WsProtocol.message(): got ${m.type} of ${b.byteLength} bytes`)
+                            // console.log(`WsProtocol.message(): got ${m.type} of ${b.byteLength} bytes`)
                             orb.socketRcvd(connection, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength))
                             break
                         case "utf8":

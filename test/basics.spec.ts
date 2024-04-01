@@ -27,25 +27,6 @@ import { mockConnection, parseHexDump } from "./util"
 import { WsProtocol } from "corba.js/net/ws"
 
 describe("corba.js", function () {
-    it.only("dummy client", async function () {
-        this.timeout(200000)
-        const orb = new ORB()
-        orb.debug = 2;
-        orb.registerStubClass(stub.Server)
-        orb.addProtocol(new WsProtocol())
-        console.log(`# CLIENT: RESOLVE SERVER`)
-        const server = stub.Server.narrow(await orb.stringToObject("corbaname::localhost:9001#Backend"))
-
-        console.log("# CLIENT -> SERVER: SET CLIENT")
-        const clientImpl = new Client_impl(orb)
-        await server.setClient(clientImpl)
-
-        console.log(`# CLIENT -> SERVER -> CLIENT: CALL METHOD WHICH CALLS US BACK`)
-        expect(clientImpl.methodCWasCalled).to.equal(false)
-        const result = await server.methodB()
-        expect(result).to.equal(4711)
-    })
-
     it("corba.cc generated 'NameService'.resolve_str('BackEnd')", function () {
         const data = parseHexDump(
             `0000 47 49 4f 50 01 02 01 00 48 00 00 00 00 00 00 00 GIOP....H.......
