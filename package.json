@@ -1,74 +1,82 @@
 {
-  "name": "corba.js",
-  "version": "0.1.9",
-  "description": "Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
-  "author": "Mark-André Hopf <mhopf@mark13.org>",
-  "license": "AGPL-3.0",
-  "type": "module",
-  "engines": {
-    "npm": ">=10.5.0",
-    "node": ">=21.7.1"
-  },
-  "exports": {
-    ".": {
-      "import": "./lib/src/orb/index.js",
-      "types": "./lib/src/orb/index.d.ts"
+    "name": "corba.js",
+    "version": "0.1.9",
+    "description": "Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
+    "author": "Mark-André Hopf <mhopf@mark13.org>",
+    "license": "AGPL-3.0",
+    "type": "module",
+    "engines": {
+        "npm": ">=10.5.0",
+        "node": ">=21.7.1"
     },
-    "./net/*": {
-      "import": "./lib/src/net/*.js",
-      "types": "./lib/src/net/*/*.d.ts"
+    "exports": {
+        ".": {
+            "import": "./lib/src/orb/index.js",
+            "types": "./lib/src/orb/index.d.ts"
+        },
+        "./net/*": {
+            "import": "./lib/src/net/*.js",
+            "types": "./lib/src/net/*/*.d.ts"
+        }
+    },
+    "files": [
+        "bin",
+        "LICENSE",
+        "lib/idl",
+        "lib/src",
+        "package.json",
+        "README.md"
+    ],
+    "typesVersions": {
+        "*": {
+            "*": [
+                "lib/src/*.d.ts"
+            ]
+        }
+    },
+    "bin": {
+        "corba-idl": "./bin/corba-idl"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/markandre13/corba.js.git"
+    },
+    "scripts": {
+        "build": "npm run build:idl:build && npm run build:idl:compile && npm run build:src:compile",
+        "build:idl:build": "rollup --config rollup.config.js",
+        "build:idl:compile": "bin/corba-idl --ts-all --output-directory test/generated test/*.idl test/*/*.idl",
+        "build:src:compile": "tspc",
+        "test": "npm run build && NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem node --enable-source-maps ./node_modules/.bin/mocha --exit 'lib/test/**/*.spec.js'",
+        "dev:build": "npm run build:idl:build && npm run build:idl:compile && tspc --watch",
+        "dev:test": "export NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem ; if test -z \"$npm_config_file\" ; then node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch 'lib/test/**/*.spec.js' ; else node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch $npm_config_file; fi",
+        "omni:runs": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runs'",
+        "omni:runc": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runc'",
+        "omni:copy": "scp test/peer/omni/* test/giop.idl 192.168.1.105:test-omni/",
+        "mico:runs": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs'",
+        "mico:runc": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runc'",
+        "mico:copy": "scp test/peer/mico/* 192.168.1.105:test-mico/",
+        "update": "npx npm-check-updates -u && npm install"
+    },
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^25.0.7",
+        "@rollup/plugin-node-resolve": "^15.2.3",
+        "@types/chai": "^4.3.14",
+        "@types/chai-as-promised": "^7.1.8",
+        "@types/memorystream": "^0.3.4",
+        "@types/mocha": "^10.0.6",
+        "@types/mocha-each": "^2.0.4",
+        "@types/node": "^20.12.2",
+        "@types/websocket": "^1.0.10",
+        "chai": "^4.4.1",
+        "chai-as-promised": "^7.1.1",
+        "memorystream": "^0.3.1",
+        "mocha": "^10.4.0",
+        "mocha-each": "^2.0.1",
+        "rollup": "^4.13.2",
+        "rollup-plugin-typescript2": "^0.36.0",
+        "ts-node": "^10.9.2",
+        "ts-patch": "^3.1.2",
+        "typescript": "^5.4.3",
+        "websocket": "^1.0.34"
     }
-  },
-  "typesVersions": {
-    "*": {
-      "*": [
-        "lib/src/*.d.ts"
-      ]
-    }
-  },
-  "bin": {
-    "corba-idl": "./bin/corba-idl"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/markandre13/corba.js.git"
-  },
-  "scripts": {
-    "build": "npm run build:idl:build && npm run build:idl:compile && npm run build:src:compile",
-    "build:idl:build": "rollup --config rollup.config.js",
-    "build:idl:compile": "bin/corba-idl --ts-all --output-directory test/generated test/*.idl test/*/*.idl",
-    "build:src:compile": "tspc",
-    "test": "npm run build && NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem node --enable-source-maps ./node_modules/.bin/mocha --exit 'lib/test/**/*.spec.js'",
-    "dev:build": "npm run build:idl:build && npm run build:idl:compile && tspc --watch",
-    "dev:test": "export NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem ; if test -z \"$npm_config_file\" ; then node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch 'lib/test/**/*.spec.js' ; else node --enable-source-maps ./node_modules/.bin/mocha --parallel --watch $npm_config_file; fi",
-    "omni:runs": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runs'",
-    "omni:runc": "npm run omni:copy && ssh 192.168.1.105 'cd test-omni && make runc'",
-    "omni:copy": "scp test/peer/omni/* test/giop.idl 192.168.1.105:test-omni/",
-    "mico:runs": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runs'",
-    "mico:runc": "npm run mico:copy && ssh 192.168.1.105 'cd test-mico && make runc'",
-    "mico:copy": "scp test/peer/mico/* 192.168.1.105:test-mico/",
-    "update": "npx npm-check-updates -u && npm install"
-  },
-  "devDependencies": {
-    "@rollup/plugin-commonjs": "^25.0.7",
-    "@rollup/plugin-node-resolve": "^15.2.3",
-    "@types/chai": "^4.3.14",
-    "@types/chai-as-promised": "^7.1.8",
-    "@types/memorystream": "^0.3.4",
-    "@types/mocha": "^10.0.6",
-    "@types/mocha-each": "^2.0.4",
-    "@types/node": "^20.12.2",
-    "@types/websocket": "^1.0.10",
-    "chai": "^4.4.1",
-    "chai-as-promised": "^7.1.1",
-    "memorystream": "^0.3.1",
-    "mocha": "^10.4.0",
-    "mocha-each": "^2.0.1",
-    "rollup": "^4.13.2",
-    "rollup-plugin-typescript2": "^0.36.0",
-    "ts-node": "^10.9.2",
-    "ts-patch": "^3.1.2",
-    "typescript": "^5.4.3",
-    "websocket": "^1.0.34"
-  }
 }
