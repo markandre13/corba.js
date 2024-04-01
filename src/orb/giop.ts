@@ -865,18 +865,27 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     sequenceOctet(value: Uint8Array) {
-        const nbytes = value.length
-        this.alignAndReserveVarying(4, 4 + nbytes)
         this.ulong(value.length)
+        const nbytes = value.length
+        this.alignAndReserveVarying(4, nbytes)
         const buffer = new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + nbytes))
         this.bytes.set(buffer, this.offset)
         this.offset += nbytes
     }
 
     sequenceFloat(value: Float32Array) {
-        const nbytes = value.length * 4
-        this.alignAndReserveVarying(4, 4 + nbytes)
         this.ulong(value.length)
+        const nbytes = value.length * 4
+        this.alignAndReserveVarying(4, nbytes)
+        const buffer = new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + nbytes))
+        this.bytes.set(buffer, this.offset)
+        this.offset += nbytes
+    }
+
+    sequenceDouble(value: Float64Array) {
+        const nbytes = value.length * 8
+        this.ulong(value.length)
+        this.alignAndReserveVarying(8, nbytes)
         const buffer = new Uint8Array(value.buffer.slice(value.byteOffset, value.byteOffset + nbytes))
         this.bytes.set(buffer, this.offset)
         this.offset += nbytes
@@ -1543,7 +1552,7 @@ export class GIOPDecoder extends GIOPBase {
 
     sequenceFloat(): Float32Array {
         const length = this.ulong()
-        // this.align(4); already aligned at 4
+        // no further alignment needed due to previous ulong() call
         if (this.littleEndian != this.isPlatformLittleEndian()) {
             const result = new Float32Array(length)
             for (let i = 0; i < length; ++i) {
@@ -1554,6 +1563,22 @@ export class GIOPDecoder extends GIOPBase {
         } else {
             const result = new Float32Array(this.buffer, this.offset, length)
             this.offset += length * 4
+            return result
+        }
+    }
+    sequenceDouble(): Float64Array {
+        const length = this.ulong()
+        this.align(8);
+        if (this.littleEndian != this.isPlatformLittleEndian()) {
+            const result = new Float64Array(length)
+            for (let i = 0; i < length; ++i) {
+                result[i] = this.data.getFloat64(this.offset, this.littleEndian)
+                this.offset += 8
+            }
+            return result
+        } else {
+            const result = new Float64Array(this.buffer, this.offset, length)
+            this.offset += length * 8
             return result
         }
     }

@@ -45,6 +45,9 @@ export class Interface_impl extends Interface_skel {
     override async callSeqFloat(value: Float32Array): Promise<Float32Array> {
         return value
     }
+    override async callSeqDouble(value: Float64Array): Promise<Float64Array> {
+        return value
+    }
     override async callSeqString(value: Array<string>): Promise<Array<string>> {
         return value
     }

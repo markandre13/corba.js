@@ -90,6 +90,9 @@ export function typeIDLtoGIOPTS(
                 case Type.TKN_FLOAT:
                     name = "sequenceFloat"
                     break
+                case Type.TKN_DOUBLE:
+                    name = "sequenceDouble"
+                    break
                 default:
                     return arg === undefined
                         ? `decoder.sequence(() => ${typeIDLtoGIOPTS(type.child[0], undefined, filetype)})`

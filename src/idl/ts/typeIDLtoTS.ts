@@ -87,6 +87,8 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                     return "Uint8Array";
                 case Type.TKN_FLOAT:
                     return "Float32Array";
+                case Type.TKN_DOUBLE:
+                    return "Float64Array";
                 default:
                     return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
             }

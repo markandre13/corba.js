@@ -35,10 +35,16 @@ describe("interface", function () {
         expect(await backend.callDouble(4.94066e-324)).to.equal(4.94066e-324)
 
         expect(await backend.callString("hello")).to.equal("hello")
+
         const enc = new TextEncoder()
         expect(await backend.callBlob(enc.encode("hello"))).to.deep.equal(enc.encode("hello"))
+
         const floatArray = new Float32Array([3.1415, 2.7182])
         expect(await backend.callSeqFloat(floatArray)).to.deep.equal(floatArray)
+
+        const doubleArray = new Float64Array([3.1415, 2.7182])
+        expect(await backend.callSeqDouble(doubleArray)).to.deep.equal(doubleArray)
+        
         expect(await backend.callSeqString(["alice", "bob"])).to.deep.equal(["alice", "bob"])
 
         const frontend = new Peer_impl(clientORB)
