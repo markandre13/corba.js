@@ -114,10 +114,16 @@ export function typeIDLtoGIOPCC(
 
                     // encoder.sequence(value, (item) => encoder.writeString(item));
                     // encoder.writeSequence<std::string_view>(value, [&](auto item) { encoder.writeString(item);});
-
-                    return arg === undefined
-                        ? `decoder.readSequenceVector<std::string_view>([&] { return decoder.readStringView(); })`
-                        : `encoder.writeSequence<std::string_view>(${arg}, [&](auto item) { encoder.writeString(item);})`
+                    switch (direction) {
+                        case Direction.IN:
+                            return arg === undefined
+                                ? `decoder.readSequenceVector<std::string_view>([&] { return decoder.readStringView(); })`
+                                : `encoder.writeSequence<std::string_view>(${arg}, [&](auto item) { encoder.writeString(item);})`
+                        case Direction.OUT:
+                            return arg === undefined
+                                ? `decoder.readSequenceVector<std::string>([&] { return decoder.readString(); })`
+                                : `encoder.writeSequence<std::string>(${arg}, [&](auto item) { encoder.writeString(item);})`
+                    }
             }
             return arg === undefined
                 ? `decoder.sequence(() => ${typeIDLtoGIOPCC(type.child[0], undefined, direction)})`

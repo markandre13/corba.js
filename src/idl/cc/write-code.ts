@@ -108,7 +108,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             
                             out.write(`);\n`)
                             if (type.type !== Type.TKN_VOID) {
-                                out.write(`    ${typeIDLtoGIOPCC(type, "result", Direction.IN)};\n`)
+                                out.write(`    ${typeIDLtoGIOPCC(type, "result", Direction.OUT)};\n`)
                             } else if (oneway) {
                                 out.write(`    co_return;\n`)
                             }
