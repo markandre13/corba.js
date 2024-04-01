@@ -1,13 +1,13 @@
 {
   "name": "corba.js",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Object Request Broker (ORB) and Interface Definition Language (IDL) compiler",
   "author": "Mark-André Hopf <mhopf@mark13.org>",
   "license": "AGPL-3.0",
   "type": "module",
   "engines": {
-    "npm": ">=10.2.4",
-    "node": ">=21.6.0"
+    "npm": ">=10.5.0",
+    "node": ">=21.7.1"
   },
   "exports": {
     ".": {
