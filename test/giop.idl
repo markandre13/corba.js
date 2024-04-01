@@ -13,6 +13,7 @@ interface GIOPSmall {
     void call(in string value);
 };
 
+// OmniORB needs typedefs for sequences
 typedef sequence<string> StringSeq;
 typedef sequence<long> LongSeq;
 

@@ -36,7 +36,7 @@
   "scripts": {
     "build": "npm run build:idl:build && npm run build:idl:compile && npm run build:src:compile",
     "build:idl:build": "rollup --config rollup.config.js",
-    "build:idl:compile": "bin/corba-idl --ts-all --output-directory test/generated test/*.idl",
+    "build:idl:compile": "bin/corba-idl --ts-all --output-directory test/generated test/*.idl test/*/*.idl",
     "build:src:compile": "tspc",
     "test": "npm run build && NODE_EXTRA_CA_CERTS=test/x509/root/certs/root.cert.pem node --enable-source-maps ./node_modules/.bin/mocha --exit 'lib/test/**/*.spec.js'",
     "dev:build": "npm run build:idl:build && npm run build:idl:compile && tspc --watch",

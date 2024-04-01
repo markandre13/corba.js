@@ -397,6 +397,7 @@ describe("CDR/GIOP", () => {
                     // aligning it to 8
                 })
 
+                // local reply
                 it("OmniORB, IIOP 1.2, Reply", function () {
                     const data = parseOmniDump(`
                         4749 4f50 0102 0101 0c00 0000 0400 0000 GIOP............

@@ -1,0 +1,32 @@
+/*
+interface Peer {
+    string callString(in string value);
+};
+*/
+
+interface Interface {
+    boolean callBoolean(in boolean value);
+
+    octet callOctet(in octet value);
+
+    unsigned short callUShort(in unsigned short value);
+    unsigned long callUnsignedLong(in unsigned long value);
+    unsigned long long callUnsignedLongLong(in unsigned long long value);
+
+    short callShort(in short value);
+    long callLong(in long value);
+    long long callLongLong(in long long value);
+
+    float callFloat(in float value);
+    double callDouble(in double value);
+
+    string callString(in string value);
+/*
+    sequence<octet> callBlob(in sequence<octet> value);
+    sequence<float> callSeqFloat(in sequence<float> value);
+    sequence<string> callSeqString(in sequence<string> value);
+
+    void setPeer(in Peer peer);
+    string callPeer(in string value);
+*/
+};
