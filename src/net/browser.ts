@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { ORB } from "corba.js"
+import { ORB } from "../orb/orb"
 import { Connection } from "../orb/connection"
 import { Protocol } from "../orb/protocol"
 

@@ -22,7 +22,7 @@
 //  1050 CORBA Management Agent
 //  2809 CORBA LOC
 
-import { ORB } from "corba.js"
+import { ORB } from "../orb/orb"
 import { Socket, Server, createServer } from "net"
 import { Connection } from "../orb/connection"
 import { Protocol } from "../orb/protocol"
