@@ -21,12 +21,14 @@ import { Connection } from "../orb/connection"
 import { Protocol } from "../orb/protocol"
 
 export class WsProtocol implements Protocol {
+    id = crypto.randomUUID()
+
     // called by the ORB
     async connect(orb: ORB, host: string, port: number) {
         return new Promise<Connection>((resolve, reject) => {
             const socket = new WebSocket(`ws://${host}:${port}`)
             socket.binaryType = "arraybuffer"
-            const connection = new WsConnection(orb, socket)
+            const connection = new WsConnection(orb, socket, host, port, this.id)
             orb.addConnection(connection)
             socket.onopen = () => {
                 socket.onmessage = async (msg: MessageEvent) => {
@@ -54,23 +56,29 @@ export class WsProtocol implements Protocol {
 
 class WsConnection extends Connection {
     private socket: WebSocket
+    private host: string
+    private port: number
+    private id: string
 
-    constructor(orb: ORB, socket: WebSocket) {
+    constructor(orb: ORB, socket: WebSocket, host: string, port: number, id: string) {
         super(orb)
         this.socket = socket
+        this.host = host
+        this.port = port
+        this.id = id
     }
 
     get localAddress(): string {
-        return "browser" // FIXME: this is a hack
+        return this.id
     }
     get localPort(): number {
-        return 0
+        return 1234
     }
     get remoteAddress(): string {
-        return this.socket.url
+        return this.host
     }
     get remotePort(): number {
-        return 0
+        return this.port
     }
 
     close() {

@@ -285,7 +285,7 @@ export class ORB implements EventTarget {
         }
 
         for (const c of this.connections) {
-            if (c.remoteAddress == host && c.remotePort == port) {
+            if (c.remoteAddress === host && c.remotePort === port) {
                 return c
             }
         }
