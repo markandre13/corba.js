@@ -31,19 +31,9 @@ export class WsProtocol implements Protocol {
             const connection = new WsConnection(orb, socket, host, port, this.id)
             orb.addConnection(connection)
             socket.onopen = () => {
-                socket.onmessage = async (msg: MessageEvent) => {
-                    if (msg.data instanceof Blob) {
-                        orb.socketRcvd(connection, await msg.data.arrayBuffer())
-                    } else {
-                        orb.socketRcvd(connection, msg.data)
-                    }
-                }
-                socket.onerror = (event: Event) => {
-                    orb.socketError(connection, 
-                        new Error(`WebSocket connection error with ${socket.url}`)
-                    )
-                }
-                socket.onclose = (event: CloseEvent) => orb.socketClosed(connection)   
+                socket.onmessage = connection.onmessage
+                socket.onerror = connection.onerror
+                socket.onclose = connection.onclose
                 resolve(connection)
             }
             socket.onerror = (event: Event) => {
@@ -51,7 +41,7 @@ export class WsProtocol implements Protocol {
             }
         })
     }
-    async close() { }
+    async close() {}
 }
 
 class WsConnection extends Connection {
@@ -66,6 +56,10 @@ class WsConnection extends Connection {
         this.host = host
         this.port = port
         this.id = id
+
+        this.onmessage = this.onmessage.bind(this)
+        this.onerror = this.onerror.bind(this)
+        this.onclose = this.onclose.bind(this)
     }
 
     get localAddress(): string {
@@ -86,5 +80,22 @@ class WsConnection extends Connection {
     }
     send(buffer: ArrayBuffer): void {
         this.socket.send(buffer)
+    }
+
+    onopen(ev: Event) {}
+    async onmessage(msg: MessageEvent) {
+        if (msg.data instanceof Blob) {
+            this.orb.socketRcvd(this, await msg.data.arrayBuffer())
+        } else {
+            this.orb.socketRcvd(this, msg.data)
+        }
+    }
+    onerror(ev: Event) {
+        // close, then either call global exception handler or retry
+        // 1st find out how to implement a retry for the same connection
+        this.orb.socketError(this, new Error(`WebSocket connection error with ${this.socket.url}`))
+    }
+    onclose(ev: CloseEvent) {
+        this.orb.socketClosed(this)
     }
 }
