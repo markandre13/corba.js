@@ -20,6 +20,12 @@ import { ORB } from "../orb/orb"
 import { Connection } from "../orb/connection"
 import { Protocol } from "../orb/protocol"
 
+function sleep(ms: number) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms)
+    })
+}
+
 export class WsProtocol implements Protocol {
     id = crypto.randomUUID()
 
@@ -49,6 +55,7 @@ class WsConnection extends Connection {
     private host: string
     private port: number
     private id: string
+    private retry = 1
 
     constructor(orb: ORB, socket: WebSocket, host: string, port: number, id: string) {
         super(orb)
@@ -82,7 +89,6 @@ class WsConnection extends Connection {
         this.socket.send(buffer)
     }
 
-    onopen(ev: Event) {}
     async onmessage(msg: MessageEvent) {
         if (msg.data instanceof Blob) {
             this.orb.socketRcvd(this, await msg.data.arrayBuffer())
@@ -90,10 +96,26 @@ class WsConnection extends Connection {
             this.orb.socketRcvd(this, msg.data)
         }
     }
-    onerror(ev: Event) {
+    async onerror(ev: Event) {
+        console.log(`error => reconnect to ws://${this.host}:${this.port} in ${this.retry}s`)
+        this.socket.close()
+        await sleep(this.retry * 1000)
+        if (this.retry < 64) {
+            this.retry *= 2
+        }
+
+        this.socket = new WebSocket(`ws://${this.host}:${this.port}`)
+        this.socket.binaryType = "arraybuffer"
+        this.socket.onerror = this.onerror
+        this.socket.onopen = () => {
+            console.log(`reconnected to ws://${this.host}:${this.port}`)
+            this.retry = 1
+            this.socket.onmessage = this.onmessage
+            this.socket.onclose = this.onclose
+        }
         // close, then either call global exception handler or retry
         // 1st find out how to implement a retry for the same connection
-        this.orb.socketError(this, new Error(`WebSocket connection error with ${this.socket.url}`))
+        // this.orb.socketError(this, new Error(`WebSocket connection error with ${this.socket.url}`))
     }
     onclose(ev: CloseEvent) {
         this.orb.socketClosed(this)
