@@ -31,42 +31,49 @@ export class WsProtocol implements Protocol {
 
     // called by the ORB
     async connect(orb: ORB, host: string, port: number) {
-        return new Promise<Connection>((resolve, reject) => {
-            const socket = new WebSocket(`ws://${host}:${port}`)
-            socket.binaryType = "arraybuffer"
-            const connection = new WsConnection(orb, socket, host, port, this.id)
-            orb.addConnection(connection)
-            socket.onopen = () => {
-                socket.onmessage = connection.onmessage
-                socket.onerror = connection.onerror
-                socket.onclose = connection.onclose
-                resolve(connection)
-            }
-            socket.onerror = (event: Event) => {
-                reject(new Error(`Failed to connect to ${socket.url}`))
-            }
-        })
+        const connection = new WsConnection(orb, host, port, this.id)
+        await connection.connect()
+        orb.addConnection(connection)
+        return connection
     }
     async close() {}
 }
 
 class WsConnection extends Connection {
-    private socket: WebSocket
+    private socket?: WebSocket
     private host: string
     private port: number
     private id: string
     private retry = 1
 
-    constructor(orb: ORB, socket: WebSocket, host: string, port: number, id: string) {
+    constructor(orb: ORB, host: string, port: number, id: string) {
         super(orb)
-        this.socket = socket
         this.host = host
         this.port = port
         this.id = id
+    }
 
-        this.onmessage = this.onmessage.bind(this)
-        this.onerror = this.onerror.bind(this)
-        this.onclose = this.onclose.bind(this)
+    async connect() {
+        if (this.socket !== undefined) {
+            return
+        }
+        return new Promise<void>((resolve, reject) => {
+            const socket = new WebSocket(`ws://${this.host}:${this.port}`)
+            socket.binaryType = "arraybuffer"
+            this.socket = socket
+            socket.onopen = () => {
+                socket.onmessage = this.onmessage
+                socket.onerror = this.onerror
+                socket.onclose = this.onclose
+                resolve()
+            }
+            socket.onerror = (event: Event) => {
+                reject(new Error(`Failed to connect to ${socket.url}`))
+            }
+            this.onmessage = this.onmessage.bind(this)
+            this.onerror = this.onerror.bind(this)
+            this.onclose = this.onclose.bind(this)
+        })
     }
 
     get localAddress(): string {
@@ -83,10 +90,10 @@ class WsConnection extends Connection {
     }
 
     close() {
-        this.socket.close()
+        this.socket!.close()
     }
     send(buffer: ArrayBuffer): void {
-        this.socket.send(buffer)
+        this.socket!.send(buffer)
     }
 
     async onmessage(msg: MessageEvent) {
@@ -97,7 +104,7 @@ class WsConnection extends Connection {
         }
     }
     async onerror(ev: Event) {
-        this.socket.close()
+        this.socket!.close()
         ORB.connectionClose(this)
 
         if (false) {
@@ -108,13 +115,13 @@ class WsConnection extends Connection {
             }
 
             this.socket = new WebSocket(`ws://${this.host}:${this.port}`)
-            this.socket.binaryType = "arraybuffer"
-            this.socket.onerror = this.onerror
-            this.socket.onopen = () => {
+            this.socket!.binaryType = "arraybuffer"
+            this.socket!.onerror = this.onerror
+            this.socket!.onopen = () => {
                 console.log(`reconnected to ws://${this.host}:${this.port}`)
                 this.retry = 1
-                this.socket.onmessage = this.onmessage
-                this.socket.onclose = this.onclose
+                this.socket!.onmessage = this.onmessage
+                this.socket!.onclose = this.onclose
             }
             // close, then either call global exception handler or retry
             // 1st find out how to implement a retry for the same connection

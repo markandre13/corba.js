@@ -297,9 +297,10 @@ export class ORB implements EventTarget {
             host = "localhost"
         }
 
-        for (const c of this.connections) {
-            if (c.remoteAddress === host && c.remotePort === port) {
-                return c
+        for (const conn of this.connections) {
+            if (conn.remoteAddress === host && conn.remotePort === port) {
+                await conn.connect()
+                return conn
             }
         }
         for (const p of this.protocols) {

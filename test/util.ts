@@ -76,6 +76,7 @@ class MockConnection extends Connection {
         return this._remotePort
     }
 
+    override async connect() {}
     override close() {}
     override send(buffer: ArrayBuffer): void {
         if (this.verbose) {

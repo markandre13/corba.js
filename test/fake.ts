@@ -210,20 +210,21 @@ class TcpFakeConnection extends Connection {
         }
     }
 
-    get localAddress(): string {
+    override get localAddress(): string {
         return this._localAddress
     }
-    get localPort(): number {
+    override get localPort(): number {
         return this._localPort
     }
-    get remoteAddress(): string {
+    override get remoteAddress(): string {
         return this._remoteAddress
     }
-    get remotePort(): number {
+    override get remotePort(): number {
         return this._remotePort
     }
 
-    async close() {
+    override async connect() {}
+    override async close() {
         this.socket!.destroy()
     }
 

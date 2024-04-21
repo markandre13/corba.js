@@ -50,6 +50,10 @@ export abstract class Connection {
     abstract get remoteAddress(): string
     abstract get remotePort(): number
 
+    /**
+     * if the connection is not connected, connect it to the remote peer
+     */
+    abstract connect(): Promise<void>
     abstract close(): void
     abstract send(buffer: ArrayBuffer): void
 }

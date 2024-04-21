@@ -197,6 +197,7 @@ export class WsConnection extends Connection {
         return this.wsConnection.socket.remotePort!
     }
 
+    async connect() {}
     close() {
         this.wsConnection.close()
     }

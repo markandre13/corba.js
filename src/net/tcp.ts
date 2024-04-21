@@ -107,6 +107,7 @@ class TcpConnection extends Connection {
         return this.socket.remotePort!
     }
 
+    async connect() {}
     close() {
         this.socket.destroy()
     }
