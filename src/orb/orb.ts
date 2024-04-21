@@ -194,6 +194,19 @@ type OutgoingAuthenticator = (connection: Connection) => GSSUPInitialContextToke
 
 // TODO: to have only one ORB instance, split ORB into ORB, Connection (requestIds & ACL) and CrudeObjectAdapter (stubs, servants, valuetypes)
 export class ORB implements EventTarget {
+    private static exceptionHandler = new Map<CORBAObject, ()=>void>()
+    static installSystemExceptionHandler(object: CORBAObject, handler: () => void) {
+        this.exceptionHandler.set(object, handler)
+    }
+    static connectionClose(conn: Connection) {
+        conn.stubsById.forEach( stub => {
+            const handler = this.exceptionHandler.get(stub)
+            if (handler !== undefined) {
+                this.exceptionHandler.delete(stub)
+                handler()
+            }
+        })
+    }
 
     private static nameServiceKey = new Uint8Array(new TextEncoder().encode("NameService"))
     static valueTypeByName = new Map<string, ValueTypeInformation>()
@@ -731,6 +744,10 @@ export class ORB implements EventTarget {
         this.stubsByName.set(aStubClass._idlClassName(), aStubClass)
     }
 
+    releaseObject(object: CORBAObject) {
+        ORB.exceptionHandler.delete(object)
+    }
+
     releaseStub(stub: Stub): void {
         // if (!this.stubsById.has(stub.id)) {
         //     throw Error(`ORB.releaseStub(): the stub with id ${stub.id} is unknown to this ORB`)
@@ -845,6 +862,9 @@ export abstract class CORBAObject {
         this.orb = orb
         this.id = id
     }
+    release(): void {
+        this.orb.releaseObject(this)
+    }
 }
 
 // a skeleton can be called from multiple connections
@@ -857,9 +877,6 @@ export abstract class Skeleton extends CORBAObject {
         this.id = orb.registerServant(this)
         this.acl = new Set<ORB>()
     }
-
-    release(): void {
-    }
 }
 
 // a stub relates to one connection
@@ -871,7 +888,8 @@ export abstract class Stub extends CORBAObject {
         this.connection = connection
     }
 
-    release(): void {
+    override release(): void {
+        super.release()
         this.orb.releaseStub(this)
     }
 }

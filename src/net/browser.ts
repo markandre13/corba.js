@@ -97,25 +97,29 @@ class WsConnection extends Connection {
         }
     }
     async onerror(ev: Event) {
-        console.log(`error => reconnect to ws://${this.host}:${this.port} in ${this.retry}s`)
         this.socket.close()
-        await sleep(this.retry * 1000)
-        if (this.retry < 64) {
-            this.retry *= 2
-        }
+        ORB.connectionClose(this)
 
-        this.socket = new WebSocket(`ws://${this.host}:${this.port}`)
-        this.socket.binaryType = "arraybuffer"
-        this.socket.onerror = this.onerror
-        this.socket.onopen = () => {
-            console.log(`reconnected to ws://${this.host}:${this.port}`)
-            this.retry = 1
-            this.socket.onmessage = this.onmessage
-            this.socket.onclose = this.onclose
+        if (false) {
+            console.log(`error => reconnect to ws://${this.host}:${this.port} in ${this.retry}s`)
+            await sleep(this.retry * 1000)
+            if (this.retry < 64) {
+                this.retry *= 2
+            }
+
+            this.socket = new WebSocket(`ws://${this.host}:${this.port}`)
+            this.socket.binaryType = "arraybuffer"
+            this.socket.onerror = this.onerror
+            this.socket.onopen = () => {
+                console.log(`reconnected to ws://${this.host}:${this.port}`)
+                this.retry = 1
+                this.socket.onmessage = this.onmessage
+                this.socket.onclose = this.onclose
+            }
+            // close, then either call global exception handler or retry
+            // 1st find out how to implement a retry for the same connection
+            // this.orb.socketError(this, new Error(`WebSocket connection error with ${this.socket.url}`))
         }
-        // close, then either call global exception handler or retry
-        // 1st find out how to implement a retry for the same connection
-        // this.orb.socketError(this, new Error(`WebSocket connection error with ${this.socket.url}`))
     }
     onclose(ev: CloseEvent) {
         this.orb.socketClosed(this)
