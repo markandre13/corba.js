@@ -20,7 +20,7 @@ import * as fs from "fs"
 import { Writable } from "stream"
 import { Type, Node } from "../idl-node"
 import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent } from "../util"
-import { typeIDLtoGIOPTS } from "../ts/typeIDLtoGIOPTS"
+import { typeIDLtoGIOPCC } from "./typeIDLtoGIOPCC"
 import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
 
 export function writeCCInterface(specification: Node): void {
@@ -127,7 +127,9 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                         let declarators = member.child[1]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 1)
-                            out.write(declarator!.text + ": " + typeIDLtoCC(type, Direction.IN) + "\n")
+                            out.write(
+                                typeIDLtoCC(type, Direction.IN) + " " + declarator!.text + ";\n"
+                            )
                             // attributes.push(declarator!.text!)
                         }
                     }
@@ -135,7 +137,8 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                 writeIndent(out, indent)
                 out.write("};\n")
 
-                out.write(`export function decode${identifier}(decoder: GIOPDecoder): ${identifier} {\n`)
+                // TODO: these utility messages belong into the .cc file
+                out.write(`inline ${identifier} decode${identifier}(CORBA::GIOPDecoder &decoder) {\n`)
                 out.write(`    return {\n`)
                 for (let i = 0; i < struct_type.child.length; ++i) {
                     const member = struct_type.child[i]!
@@ -144,13 +147,13 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                         let declarators = member.child[1]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 2)
-                            out.write(declarator!.text + ": " + typeIDLtoGIOPTS(type) + ",\n")
+                            out.write("." + declarator!.text + " = " + typeIDLtoGIOPCC(type, undefined, Direction.OUT) + ",\n")
                         }
                     }
                 }
-                out.write(`    }\n`)
+                out.write(`    };\n`)
                 out.write(`}\n`)
-                out.write(`export function encode${identifier}(GIOPEncoder &encoder, obj: ${identifier}) {\n`)
+                out.write(`inline void encode${identifier}(CORBA::GIOPEncoder &encoder, const ${identifier} &obj) {\n`)
                 for (let i = 0; i < struct_type.child.length; ++i) {
                     const member = struct_type.child[i]!
                     if (member.type === Type.SYN_MEMBER) {
@@ -158,7 +161,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                         let declarators = member.child[1]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 1)
-                            out.write(typeIDLtoGIOPTS(type, `obj.${declarator!.text}`) + "\n")
+                            out.write(typeIDLtoGIOPCC(type, `obj.${declarator!.text}`, Direction.OUT) + ";\n")
                         }
                     }
                 }
@@ -204,7 +207,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                     writeIndent(out, indent+3)
                     out.write(`type: ${case_label.typeParent!.text}.${case_label.text},\n`)
                     writeIndent(out, indent+3)
-                    out.write(`${declarator.text}: ${typeIDLtoGIOPTS(type_spec, undefined, FileType.INTERFACE)}\n`)
+                    out.write(`${declarator.text}: ${typeIDLtoGIOPCC(type_spec, undefined, Direction.OUT)}\n`)
                     writeIndent(out, indent+2)
                     out.write(`}\n`)
                 })
@@ -228,7 +231,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                     writeIndent(out, indent+2)
                     out.write(`case ${case_label.typeParent!.text}.${case_label.text}:\n`)
                     writeIndent(out, indent+3)
-                    out.write(typeIDLtoGIOPTS(type_spec, `obj.${declarator!.text}`, FileType.INTERFACE) + "\n")
+                    out.write(typeIDLtoGIOPCC(type_spec, `obj.${declarator!.text}`, Direction.OUT) + "\n")
                     writeIndent(out, indent+3)
                     out.write(`break\n`)
                 })

@@ -4,7 +4,7 @@ import { Direction } from "./typeIDLtoCC"
 // this is about how to call the GIOP(Encoder|Decoder)
 export function typeIDLtoGIOPCC(
     type: Node | undefined,
-    arg: string | undefined = undefined,
+    arg: string | undefined,
     direction: Direction
 ): string {
     if (type === undefined) throw Error("internal error: parser delivered no type information")
