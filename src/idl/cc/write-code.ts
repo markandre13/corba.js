@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Node } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, FileType } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent } from "../util"
 import { typeIDLtoGIOPCC } from "./typeIDLtoGIOPCC"
 import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
 
@@ -245,6 +245,39 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 out.write(`    co_return std::shared_ptr<${if_identifier}>();\n`)
                 out.write(`}\n\n`)
             } break
+            case Type.TKN_STRUCT: {
+                let struct_type = definition!
+                let identifier = struct_type.text
+                // TODO: these utility messages belong into the .cc file
+                out.write(`static ${identifier} decode${identifier}(CORBA::GIOPDecoder &decoder) {\n`)
+                out.write(`    return {\n`)
+                for (let i = 0; i < struct_type.child.length; ++i) {
+                    const member = struct_type.child[i]!
+                    if (member.type === Type.SYN_MEMBER) {
+                        let type = member.child[0]!
+                        let declarators = member.child[1]!
+                        for (let declarator of declarators.child) {
+                            writeIndent(out, indent + 2)
+                            out.write("." + declarator!.text + " = " + typeIDLtoGIOPCC(type, undefined, Direction.OUT) + ",\n")
+                        }
+                    }
+                }
+                out.write(`    };\n`)
+                out.write(`}\n`)
+                out.write(`static void encode${identifier}(CORBA::GIOPEncoder &encoder, const ${identifier} &obj) {\n`)
+                for (let i = 0; i < struct_type.child.length; ++i) {
+                    const member = struct_type.child[i]!
+                    if (member.type === Type.SYN_MEMBER) {
+                        let type = member.child[0]!
+                        let declarators = member.child[1]!
+                        for (let declarator of declarators.child) {
+                            writeIndent(out, indent + 1)
+                            out.write(typeIDLtoGIOPCC(type, `obj.${declarator!.text}`, Direction.OUT) + ";\n")
+                        }
+                    }
+                }
+                out.write(`}\n`)
+            }
         }
     }
 }
