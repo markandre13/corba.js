@@ -249,7 +249,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 let struct_type = definition!
                 let identifier = struct_type.text
                 // TODO: these utility messages belong into the .cc file
-                out.write(`static ${identifier} decode${identifier}(CORBA::GIOPDecoder &decoder) {\n`)
+                out.write(`static ${identifier} _decode${identifier}(CORBA::GIOPDecoder &decoder) {\n`)
                 out.write(`    return {\n`)
                 for (let i = 0; i < struct_type.child.length; ++i) {
                     const member = struct_type.child[i]!
@@ -264,7 +264,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 }
                 out.write(`    };\n`)
                 out.write(`}\n`)
-                out.write(`static void encode${identifier}(CORBA::GIOPEncoder &encoder, const ${identifier} &obj) {\n`)
+                out.write(`static void _encode${identifier}(CORBA::GIOPEncoder &encoder, const ${identifier} &obj) {\n`)
                 for (let i = 0; i < struct_type.child.length; ++i) {
                     const member = struct_type.child[i]!
                     if (member.type === Type.SYN_MEMBER) {

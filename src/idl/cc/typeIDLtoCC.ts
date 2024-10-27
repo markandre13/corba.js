@@ -54,11 +54,10 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
                         name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                         break
                     case Type.TKN_STRUCT:
-                        throw Error("not implemented yet")
-                        // FIXME: struct uses a wrong identifier node structure
-                        // name = type!.text!
-                        // if (filetype !== FileType.INTERFACE)
-                        //     name = `_interface${absolutePrefix}.${name}`
+                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                        if (direction == Direction.IN) {
+                            name = `const ${name}&`
+                        }
                         break
                     case Type.TKN_NATIVE:
                         name =

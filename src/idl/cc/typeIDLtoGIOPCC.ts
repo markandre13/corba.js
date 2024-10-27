@@ -19,14 +19,16 @@ export function typeIDLtoGIOPCC(
         case Type.SYN_INTERFACE:
             // name = "object"
             return arg === undefined ? `co_await ${type.text}::_narrow(decoder.readObject(obj->get_ORB()))` : `encoder.writeObject(${arg}.get())`
-            break
         case Type.TKN_UNION:
+            throw Error("union is not implemented yet")
         case Type.TKN_STRUCT: {
-            throw Error("union and struct are not implemented yet")
             // const prefix = filetype === FileType.INTERFACE ? "" : "_interface."
             // return arg === undefined
             //     ? `${prefix}decode${type!.text!}(decoder)`
             //     : `${prefix}encode${type!.text!}(encoder,${arg})`
+            return arg === undefined
+                 ? `_decode${type.text}(decoder)` 
+                 : `_encode${type.text}(encoder,${arg})`
         }
         case Type.TKN_NATIVE:
             {
