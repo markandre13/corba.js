@@ -19,6 +19,7 @@
 import { ORB } from "../orb/orb"
 import { Connection } from "../orb/connection"
 import { Protocol } from "../orb/protocol"
+import { v4 as uuidv4 } from 'uuid';
 
 function sleep(ms: number) {
     return new Promise((resolve) => {
@@ -27,7 +28,7 @@ function sleep(ms: number) {
 }
 
 export class WsProtocol implements Protocol {
-    id = crypto.randomUUID()
+    id = uuidv4()
 
     // called by the ORB
     async connect(orb: ORB, host: string, port: number) {
