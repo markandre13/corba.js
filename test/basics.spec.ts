@@ -24,7 +24,6 @@ import * as value from "./generated/basics_value"
 import * as skel from "./generated/basics_skel"
 import * as stub from "./generated/basics_stub"
 import { mockConnection, parseHexDump } from "./util"
-import { WsProtocol } from "corba.js/net/ws"
 
 describe("corba.js", function () {
     it("corba.cc generated 'NameService'.resolve_str('BackEnd')", function () {
@@ -41,7 +40,7 @@ describe("corba.js", function () {
         const request = decoder.scanRequestHeader()
         expect(request.objectKey).eqls(new TextEncoder().encode("NameService"))
         expect(request.method).to.equal("resolve_str")
-        console.log(`offset = 0x${decoder.offset.toString(16)}`)
+        // console.log(`offset = 0x${decoder.offset.toString(16)}`)
         const arg0 = decoder.string()
         expect(arg0).to.equal("Backend")
     })
@@ -66,85 +65,85 @@ describe("corba.js", function () {
         expect(arg0).to.equal("TestService")
     })
 
-    // it("a basic test", async function() {
+    it("a basic test", async function() {
 
-    //     let serverORB = new ORB()
-    //     serverORB.name = "serverORB"
-    //     serverORB.debug = 1
-    //     let clientORB = new ORB()
-    //     clientORB.name = "clientORB"
-    //     clientORB.debug = 1
+        let serverORB = new ORB()
+        serverORB.name = "serverORB"
+        serverORB.debug = 1
+        let clientORB = new ORB()
+        clientORB.name = "clientORB"
+        clientORB.debug = 1
 
-    //     const serverImpl = new Server_impl(serverORB)
-    //     serverORB.bind("Server", serverImpl)
+        const serverImpl = new Server_impl(serverORB)
+        serverORB.bind("Server", serverImpl)
 
-    //     serverORB.registerStubClass(stub.Client)
-    //     clientORB.registerStubClass(stub.Server)
+        serverORB.registerStubClass(stub.Client)
+        clientORB.registerStubClass(stub.Server)
 
-    //     ORB.registerValueType("Origin", Origin)
-    //     ORB.registerValueType("Size", Size)
-    //     ORB.registerValueType("Figure", Figure)
-    //     ORB.registerValueType("Rectangle", Rectangle)
-    //     ORB.registerValueType("FigureModel", FigureModel)
+        ORB.registerValueType("Origin", Origin)
+        ORB.registerValueType("Size", Size)
+        ORB.registerValueType("Figure", Figure)
+        ORB.registerValueType("Rectangle", Rectangle)
+        ORB.registerValueType("FigureModel", FigureModel)
 
-    //     mockConnection(serverORB, clientORB)
+        mockConnection(serverORB, clientORB)
 
-    //     console.log(`# CLIENT: RESOLVE SERVER`)
-    //     let serverStub = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
-    //     expect(serverStub).instanceOf(stub.Server)
+        console.log(`# CLIENT: RESOLVE SERVER`)
+        let serverStub = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
+        expect(serverStub).instanceOf(stub.Server)
 
-    //     console.log("# CLIENT -> SERVER: SET CLIENT")
-    //     const clientImpl = new Client_impl(clientORB)
-    //     await serverStub.setClient(clientImpl)
-    //     expect(serverImpl.client).instanceOf(stub.Client)
+        console.log("# CLIENT -> SERVER: SET CLIENT")
+        const clientImpl = new Client_impl(clientORB)
+        await serverStub.setClient(clientImpl)
+        expect(serverImpl.client).instanceOf(stub.Client)
 
-    //     console.log(`# CLIENT -> SERVER: CALL METHOD`)
-    //     expect(serverImpl.methodAWasCalled).to.equal(false)
-    //     await serverStub.methodA()
-    //     expect(serverImpl.methodAWasCalled).to.equal(true)
+        console.log(`# CLIENT -> SERVER: CALL METHOD`)
+        expect(serverImpl.methodAWasCalled).to.equal(false)
+        await serverStub.methodA()
+        expect(serverImpl.methodAWasCalled).to.equal(true)
 
-    //     console.log(`# CLIENT -> SERVER -> CLIENT: CALL METHOD WHICH CALLS US BACK`)
-    //     expect(serverImpl.methodBWasCalled).to.equal(false)
-    //     expect(clientImpl.methodCWasCalled).to.equal(false)
-    //     await serverStub.methodB()
-    //     expect(serverImpl.methodBWasCalled).to.equal(true)
-    //     expect(clientImpl.methodCWasCalled).to.equal(true)
+        console.log(`# CLIENT -> SERVER -> CLIENT: CALL METHOD WHICH CALLS US BACK`)
+        expect(serverImpl.methodBWasCalled).to.equal(false)
+        expect(clientImpl.methodCWasCalled).to.equal(false)
+        await serverStub.methodB()
+        expect(serverImpl.methodBWasCalled).to.equal(true)
+        expect(clientImpl.methodCWasCalled).to.equal(true)
 
-    //     console.log("# CLIENT -> SERVER: CALL METHOD WITH ARGUMENTS AND RETURN RESULT")
-    //     let answer = await serverImpl.answer(6, 7)
-    //     expect(answer).to.equal(42)
+        console.log("# CLIENT -> SERVER: CALL METHOD WITH ARGUMENTS AND RETURN RESULT")
+        let answer = await serverImpl.answer(6, 7)
+        expect(answer).to.equal(42)
 
-    //     console.log("# SERVER -> CLIENT: SEND VALUETYPE")
-    //     expect(clientImpl.figureModelReceivedFromServer).to.equal(undefined)
+        console.log("# SERVER -> CLIENT: SEND VALUETYPE")
+        expect(clientImpl.figureModelReceivedFromServer).to.equal(undefined)
 
-    //     let model = new FigureModel()
-    //     model.data.push(new Rectangle({origin: {x: 10, y: 20}, size: { width: 30, height: 40}}))
-    //     model.data.push(new Rectangle({origin: {x: 50, y: 60}, size: { width: 70, height: 80}}))
+        let model = new FigureModel()
+        model.data.push(new Rectangle({origin: {x: 10, y: 20}, size: { width: 30, height: 40}}))
+        model.data.push(new Rectangle({origin: {x: 50, y: 60}, size: { width: 70, height: 80}}))
 
-    //     console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    //     await serverImpl.client!.setFigureModel(model)
-    //     console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+        console.log(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        await serverImpl.client!.setFigureModel(model)
+        console.log("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
 
-    //     expect(clientImpl.figureModelReceivedFromServer).not.undefined
-    //     expect(clientImpl.figureModelReceivedFromServer!.data).length(2)
-    //     expect(clientImpl.figureModelReceivedFromServer!.data[0]).to.be.an.instanceof(Rectangle)
-    //     expect(clientImpl.figureModelReceivedFromServer!.data[0].toString()).to.equal("Rectangle(10,20,30,40)")
-    //     let rectangle = clientImpl.figureModelReceivedFromServer!.data[0] as Rectangle
-    //     expect(rectangle.origin).to.be.an.instanceof(Origin)
-    //     expect(rectangle.origin.toString()).to.equal("Origin({x:10,y:20})")
-    //     expect(rectangle.size).to.be.an.instanceof(Size)
-    //     expect(rectangle.size.toString()).to.equal("Size({width:30,height:40})")
+        expect(clientImpl.figureModelReceivedFromServer).not.undefined
+        expect(clientImpl.figureModelReceivedFromServer!.data).length(2)
+        expect(clientImpl.figureModelReceivedFromServer!.data[0]).to.be.an.instanceof(Rectangle)
+        expect(clientImpl.figureModelReceivedFromServer!.data[0].toString()).to.equal("Rectangle(10,20,30,40)")
+        let rectangle = clientImpl.figureModelReceivedFromServer!.data[0] as Rectangle
+        expect(rectangle.origin).to.be.an.instanceof(Origin)
+        expect(rectangle.origin.toString()).to.equal("Origin({x:10,y:20})")
+        expect(rectangle.size).to.be.an.instanceof(Size)
+        expect(rectangle.size.toString()).to.equal("Size({width:30,height:40})")
 
-    //     expect(await serverStub.twistColor({r: 1, g: 2, b: 3, a: 4})).to.deep.equal({r: 4, g: 3, b: 2, a: 1})
+        expect(await serverStub.twistColor({r: 1, g: 2, b: 3, a: 4})).to.deep.equal({r: 4, g: 3, b: 2, a: 1})
 
-    //     const attributesIn: _interface.Attribute[] = [
-    //         {type: _interface.AttributeType.STROKE_RGBA, strokeRGBA: {r: 1, g: 2, b: 3, a: 4}},
-    //         {type: _interface.AttributeType.FILL_RGBA, fillRGBA: {r: 5, g: 6, b: 7, a: 8}},
-    //         {type: _interface.AttributeType.STROKE_WIDTH, strokeWidth: 2.71},
-    //     ]
-    //     await serverStub.setAttributes(attributesIn)
-    //     expect(attributesIn).to.deep.equal(serverImpl.attributes)
-    // })
+        const attributesIn: _interface.Attribute[] = [
+            {type: _interface.AttributeType.STROKE_RGBA, strokeRGBA: {r: 1, g: 2, b: 3, a: 4}},
+            {type: _interface.AttributeType.FILL_RGBA, fillRGBA: {r: 5, g: 6, b: 7, a: 8}},
+            {type: _interface.AttributeType.STROKE_WIDTH, strokeWidth: 2.71},
+        ]
+        await serverStub.setAttributes(attributesIn)
+        expect(attributesIn).to.deep.equal(serverImpl.attributes)
+    })
 })
 
 class Origin implements value.Origin {
