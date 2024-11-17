@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018, 2020, 2021 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2020, 2021, 2024 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published by
@@ -148,6 +148,28 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             out.write("    }\n")
                         } break
                         case Type.TKN_ATTRIBUTE: {
+                            const param_type_spec = _export!.child[1]!
+                            const attr_declarator = _export!.child[2]!
+                            for(const n of attr_declarator.child) {
+                                const identifier = n!.text
+                                const type = typeIDLtoTS(param_type_spec, FileType.INTERFACE)
+                                out.write(`    async ${identifier}(value: ${type}): Promise<void>\n`)
+                                out.write(`    async ${identifier}(): Promise<${type}>\n`)
+                                out.write(`    async ${identifier}(value?: ${type}): Promise<void | ${type}> {\n`)
+                                out.write(`        if (value === undefined) {\n`)
+                                out.write(`            return this.orb.twowayCall(this, "_get_message",\n`)
+                                out.write(`                (encoder) => { },\n`)
+                                out.write(`                (decoder) => decoder.string()\n`)
+                                out.write(`            )\n`)
+                                out.write(`        } else {\n`)
+                                out.write(`            return this.orb.twowayCall(this, "_set_message",\n`)
+                                out.write(`                (encoder) => { encoder.string(value) },\n`)
+                                out.write(`                (decoder) => { }\n`)
+                                out.write(`            )\n`)
+                                out.write(`        }\n`)
+                                out.write(`    }\n`)
+                            }
+
                         } break
                         default:
                             throw Error("yikes")

@@ -63,6 +63,7 @@ interface Client {
 };
 
 interface Server {
+    attribute string message;
     oneway void setClient(in Client client);
     oneway void methodA();
     short methodB(); // return type is to be able to drop 'oneway'

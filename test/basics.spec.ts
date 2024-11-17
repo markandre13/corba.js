@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018, 2021 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2021, 2024 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published by
@@ -91,6 +91,11 @@ describe("corba.js", function () {
         console.log(`# CLIENT: RESOLVE SERVER`)
         let serverStub = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
         expect(serverStub).instanceOf(stub.Server)
+       
+        console.log("# CLIENT -> SERVER: GET/SET ATTRIBUTE")
+        expect(await serverStub.message()).to.equal("hello")
+        await serverStub.message("world")
+        expect(await serverStub.message()).to.equal("hello world")
 
         console.log("# CLIENT -> SERVER: SET CLIENT")
         const clientImpl = new Client_impl(clientORB)
@@ -199,6 +204,7 @@ class Rectangle extends Figure implements value.Rectangle {
 class Server_impl extends skel.Server {
     methodAWasCalled = false
     methodBWasCalled = false
+    _message = "hello"
 
     client?: stub.Client
     attributes?: _interface.Attribute[]
@@ -208,17 +214,27 @@ class Server_impl extends skel.Server {
         console.log("Server_impl.constructor()")
     }
 
-    async setClient(client: stub.Client) {
+    async message(value: string): Promise<void>
+    async message(): Promise<string>
+    async message(value?: string): Promise<void | string> {
+        if (value === undefined) {
+            return this._message
+        } else {
+            this._message = `${this._message} ${value}`
+        }
+    }
+
+    override async setClient(client: stub.Client) {
         this.client = client
     }
 
-    async methodA() {
+    override async methodA() {
         console.log("Server_impl.methodA()")
         // expect(this.orb.name).to.equal("acceptedORB")
         this.methodAWasCalled = true
     }
 
-    async methodB() {
+    override async methodB() {
         console.log("Server_impl.methodB()")
         // expect(this.orb.name).to.equal("acceptedORB")
         this.methodBWasCalled = true
@@ -226,17 +242,17 @@ class Server_impl extends skel.Server {
         return 0
     }
 
-    async answer(a: number, b: number) {
+    override async answer(a: number, b: number) {
         console.log("Server_impl.answer()")
         return a * b
     }
 
-    async twistColor(color: _interface.RGBA) {
+    override async twistColor(color: _interface.RGBA) {
         console.log(`Server_impl.setColor(${color.r},${color.g},${color.b},${color.a})`)
         return { r: color.a, g: color.b, b: color.g, a: color.r }
     }
 
-    async setAttributes(attributes: _interface.Attribute[]) {
+    override async setAttributes(attributes: _interface.Attribute[]) {
         this.attributes = attributes
     }
 }
@@ -251,13 +267,13 @@ class Client_impl extends skel.Client {
         console.log("Client_impl.constructor()")
     }
 
-    async methodC() {
+    override async methodC() {
         console.log("Client_impl.methodC()")
         this.methodCWasCalled = true
         return 0
     }
 
-    async setFigureModel(figuremodel: FigureModel) {
+    override async setFigureModel(figuremodel: FigureModel) {
         console.log("Client_impl.setFigureModel()")
         // console.log(figuremodel)
         this.figureModelReceivedFromServer = figuremodel

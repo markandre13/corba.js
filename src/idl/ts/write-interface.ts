@@ -1,6 +1,6 @@
 /*
  *  corba.js Object Request Broker (ORB) and Interface Definition Language (IDL) compiler
- *  Copyright (C) 2018, 2020 Mark-André Hopf <mhopf@mark13.org>
+ *  Copyright (C) 2018, 2020, 2024 Mark-André Hopf <mhopf@mark13.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero General Public License as published by
@@ -86,6 +86,14 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                             }
                         } break
                         case Type.TKN_ATTRIBUTE: {
+                            const param_type_spec = _export!.child[1]!
+                            const attr_declarator = _export!.child[2]!
+                            const type = typeIDLtoTS(param_type_spec, FileType.INTERFACE)
+                            for(const n of attr_declarator.child) {
+                                const identifier = n!.text
+                                out.write(`    ${identifier}(value: ${type}): Promise<void>\n`)
+                                out.write(`    ${identifier}(): Promise<${type}>\n`)
+                            }
                         } break
                         default:
                             throw Error("yikes")
