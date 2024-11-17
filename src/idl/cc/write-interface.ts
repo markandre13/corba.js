@@ -99,12 +99,15 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                             out.write(`) = 0;\n`)
                         } break
                         case Type.TKN_ATTRIBUTE: {
+                            const readonly = _export!.child[0]?.type == Type.TKN_READONLY
                             const param_type_spec = _export!.child[1]!
                             const attr_declarator = _export!.child[2]!
                             for(const n of attr_declarator.child) {
                                 const identifier = n!.text
                                 out.write(`    virtual CORBA::async<${typeIDLtoCC(param_type_spec, Direction.OUT)}> ${identifier}() = 0;\n`)
-                                out.write(`    virtual CORBA::async<void> ${identifier}(${typeIDLtoCC(param_type_spec, Direction.IN)}) = 0;\n`)
+                                if (!readonly) {
+                                    out.write(`    virtual CORBA::async<void> ${identifier}(${typeIDLtoCC(param_type_spec, Direction.IN)}) = 0;\n`)
+                                }
                             }
                         } break
                         default:
