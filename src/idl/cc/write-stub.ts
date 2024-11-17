@@ -98,6 +98,13 @@ function writeCCStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             out.write(`) override;\n`)
                         } break
                         case Type.TKN_ATTRIBUTE: {
+                            const param_type_spec = _export!.child[1]!
+                            const attr_declarator = _export!.child[2]!
+                            for(const n of attr_declarator.child) {
+                                const identifier = n!.text
+                                out.write(`    virtual CORBA::async<${typeIDLtoCC(param_type_spec, Direction.OUT)}> ${identifier}() override;\n`)
+                                out.write(`    virtual CORBA::async<void> ${identifier}(${typeIDLtoCC(param_type_spec, Direction.IN)}) override;\n`)
+                            }
                         } break
                         default:
                             throw Error("yikes")

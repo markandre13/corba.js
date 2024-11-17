@@ -76,6 +76,10 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
 
                             // _call() -> _<operation> OPERATION
 
+                            //
+                            // INCOMING CALL
+                            //
+
                             out.write(`static CORBA::async<>`)
                     
                             out.write(` _${if_identifier}_${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
@@ -113,8 +117,10 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 out.write(`    co_return;\n`)
                             }
                             out.write(`}\n`)
-                            
-//////////////// START                            
+                                             
+                            //
+                            // OUTGOING CALL
+                            //
 
                             // let op_dcl = _export!
                             // let attribute = op_dcl.child[0]
@@ -187,11 +193,45 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 }
                             }
                             out.write("}\n")
-
-
-//////////////// END
                         } break
                         case Type.TKN_ATTRIBUTE: {
+                            const param_type_spec = _export!.child[1]!
+                            const attr_declarator = _export!.child[2]!
+                            for(const n of attr_declarator.child) {
+                                const identifier = n!.text
+
+                                //
+                                // INCOMING CALL SETTER/GETTER
+                                //
+                    
+                                out.write(`static CORBA::async<> _${if_identifier}_set_${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
+                                out.write(`    return obj->${identifier}(${typeIDLtoGIOPCC(param_type_spec, undefined, Direction.IN)});\n`)
+                                out.write(`}\n`)
+
+                                out.write(`static CORBA::async<> _${if_identifier}_get_${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
+                                out.write(`    ${typeIDLtoGIOPCC(param_type_spec, `co_await obj->${identifier}()`, Direction.OUT)};\n`)
+                                out.write(`    co_return;\n`)
+                                out.write(`}\n`)
+
+                                //
+                                // OUTGOING CALL SETTER/GETTER
+                                //
+
+                                out.write(`CORBA::async<void> ${if_identifier}_stub::${identifier}(${typeIDLtoCC(param_type_spec, Direction.IN)} _v) {\n`)
+                                out.write(`    return get_ORB()->twowayCall(\n`)
+                                out.write(`        this, "_set_${identifier}",\n`)
+                                out.write(`        [&](CORBA::GIOPEncoder &encoder) { ${typeIDLtoGIOPCC(param_type_spec, "_v", Direction.IN)}; }\n`)
+                                out.write(`    );\n`)
+                                out.write(`}\n`)
+                                out.write(`CORBA::async<${typeIDLtoCC(param_type_spec, Direction.OUT)}> ${if_identifier}_stub::${identifier}() {\n`)
+
+                                out.write(`    return get_ORB()->twowayCall<${typeIDLtoCC(param_type_spec, Direction.OUT)}>(\n`)
+                                out.write(`        this, "_get_${identifier}",\n`)
+                                out.write(`        [&](CORBA::GIOPEncoder &encoder) { },\n`)
+                                out.write(`        [&](CORBA::GIOPDecoder &decoder) { return ${typeIDLtoGIOPCC(param_type_spec, undefined, Direction.OUT)}; }\n`)
+                                out.write(`    );\n`)
+                                out.write(`}\n`)
+                            }
                         } break
                         default:
                             throw Error("yikes")
@@ -208,6 +248,13 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             out.write(`    {"${identifier}", _${if_identifier}_${identifier}},\n`)
                         } break
                         case Type.TKN_ATTRIBUTE: {
+                            const param_type_spec = _export!.child[1]!
+                            const attr_declarator = _export!.child[2]!
+                            for(const n of attr_declarator.child) {
+                                const identifier = n!.text
+                                out.write(`    {"_set_${identifier}", _${if_identifier}_set_${identifier}},\n`)
+                                out.write(`    {"_get_${identifier}", _${if_identifier}_get_${identifier}},\n`)
+                            }
                         } break
                         default:
                             throw Error("yikes")
