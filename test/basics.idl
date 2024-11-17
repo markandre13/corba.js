@@ -63,6 +63,7 @@ interface Client {
 };
 
 interface Server {
+    readonly attribute string id;
     attribute string message;
     oneway void setClient(in Client client);
     oneway void methodA();

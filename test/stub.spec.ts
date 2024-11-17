@@ -126,7 +126,7 @@ class Server_impl extends skel.Server {
 
     async getData() {
 //console.log("Server_impl.getData()")
-        let data = new Data_impl(this.orb)
+        let data = new Data_impl(this._orb)
 //console.log("Server_impl.getData(): created Data_impl() with id "+data.id)
         return data
     }

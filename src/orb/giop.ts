@@ -674,7 +674,7 @@ export class GIOPEncoder extends GIOPBase {
         reference.host = this.connection!.localAddress
         reference.port = this.connection!.localPort
         reference.oid = `IDL:${className}:1.0`
-        reference.objectKey = object.id
+        reference.objectKey = object._id
 
         // type id
         this.string(reference.oid)

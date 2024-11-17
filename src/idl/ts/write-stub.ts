@@ -103,7 +103,7 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             if (!oneway)
                                 out.write("await ")
  
-                            // out.write(`await this.orb.call(this, ${oneway}, "${identifier}", [`)
+                            // out.write(`await this._orb.call(this, ${oneway}, "${identifier}", [`)
                             // comma = false
                             // for (let parameter_dcl of parameter_decls) {
                             //     let identifier = parameter_dcl!.child[2]!.text
@@ -119,9 +119,9 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             // out.write("/*\n")
                             // out.write("        ")
                             if (oneway) {
-                                out.write(`this.orb.onewayCall(this, "${identifier}", `)
+                                out.write(`this._orb.onewayCall(this, "${identifier}", `)
                             } else {
-                                out.write(`this.orb.twowayCall(this, "${identifier}", `)
+                                out.write(`this._orb.twowayCall(this, "${identifier}", `)
                             }
 
                             // encode
@@ -148,26 +148,36 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             out.write("    }\n")
                         } break
                         case Type.TKN_ATTRIBUTE: {
+                            const readonly = _export!.child[0]?.type == Type.TKN_READONLY
                             const param_type_spec = _export!.child[1]!
                             const attr_declarator = _export!.child[2]!
                             for(const n of attr_declarator.child) {
                                 const identifier = n!.text
                                 const type = typeIDLtoTS(param_type_spec, FileType.INTERFACE)
-                                out.write(`    async ${identifier}(value: ${type}): Promise<void>\n`)
-                                out.write(`    async ${identifier}(): Promise<${type}>\n`)
-                                out.write(`    async ${identifier}(value?: ${type}): Promise<void | ${type}> {\n`)
-                                out.write(`        if (value === undefined) {\n`)
-                                out.write(`            return this.orb.twowayCall(this, "_get_message",\n`)
-                                out.write(`                (encoder) => { },\n`)
-                                out.write(`                (decoder) => decoder.string()\n`)
-                                out.write(`            )\n`)
-                                out.write(`        } else {\n`)
-                                out.write(`            return this.orb.twowayCall(this, "_set_message",\n`)
-                                out.write(`                (encoder) => { encoder.string(value) },\n`)
-                                out.write(`                (decoder) => { }\n`)
-                                out.write(`            )\n`)
-                                out.write(`        }\n`)
-                                out.write(`    }\n`)
+                                if (readonly) {
+                                    out.write(`    async ${identifier}(): Promise<${type}> {\n`)
+                                    out.write(`        return this._orb.twowayCall(this, "_get_${identifier}",\n`)
+                                    out.write(`            (encoder) => { },\n`)
+                                    out.write(`            (decoder) => decoder.string()\n`)
+                                    out.write(`        )\n`)
+                                    out.write(`    }\n`)
+                                } else {
+                                    out.write(`    async ${identifier}(): Promise<${type}>\n`)
+                                    out.write(`    async ${identifier}(value: ${type}): Promise<void>\n`)
+                                    out.write(`    async ${identifier}(value?: ${type}): Promise<void | ${type}> {\n`)
+                                    out.write(`        if (value === undefined) {\n`)
+                                    out.write(`            return this._orb.twowayCall(this, "_get_${identifier}",\n`)
+                                    out.write(`                (encoder) => { },\n`)
+                                    out.write(`                (decoder) => decoder.string()\n`)
+                                    out.write(`            )\n`)
+                                    out.write(`        } else {\n`)
+                                    out.write(`            return this._orb.twowayCall(this, "_set_${identifier}",\n`)
+                                    out.write(`                (encoder) => { encoder.string(value) },\n`)
+                                    out.write(`                (decoder) => { }\n`)
+                                    out.write(`            )\n`)
+                                    out.write(`        }\n`)
+                                    out.write(`    }\n`)
+                                }
                             }
 
                         } break

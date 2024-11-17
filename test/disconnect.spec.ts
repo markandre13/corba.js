@@ -99,7 +99,7 @@ xdescribe("disconnect", function() {
 
 class Server_impl extends skel.Server {
     async getSession(): Promise<skel.Session> {
-        return new Session_impl(this.orb) // FIXME: this.orb is not guaranteed to point to the client connection? could the ORB be set later?
+        return new Session_impl(this._orb) // FIXME: this.orb is not guaranteed to point to the client connection? could the ORB be set later?
     }
 }
 
@@ -122,7 +122,7 @@ class Session_impl extends skel.Session implements EventListenerObject {
         Session_impl.listeners.add(listener)
         
         this.listener = listener
-        this.orb.addEventListener("close", this)
+        this._orb.addEventListener("close", this)
     }
     
     async removeListener(listener: iface.Listener) {
@@ -133,7 +133,7 @@ class Session_impl extends skel.Session implements EventListenerObject {
             return
         Session_impl.listeners.delete(listener)
 
-        this.orb.removeEventListener("close", this)
+        this._orb.removeEventListener("close", this)
         this.listener = undefined
     }
     

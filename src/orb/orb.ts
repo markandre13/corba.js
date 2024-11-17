@@ -393,7 +393,7 @@ export class ORB implements EventTarget {
         encode: (encoder: GIOPEncoder) => void): void {
         const requestId = stub.connection.requestId
         stub.connection.requestId += 2
-        this.callCore(stub.connection, requestId, false, stub.id, method, encode)
+        this.callCore(stub.connection, requestId, false, stub._id, method, encode)
     }
 
     twowayCall<T>(
@@ -412,7 +412,7 @@ export class ORB implements EventTarget {
                         (decoder: GIOPDecoder) => resolve(decode(decoder)),
                         reject)
                 )
-                this.callCore(stub.connection, requestId, true, stub.id, method, encode)
+                this.callCore(stub.connection, requestId, true, stub._id, method, encode)
             } catch (e) {
                 reject(e)
                 // console.log(stub)
@@ -738,7 +738,7 @@ export class ORB implements EventTarget {
     }
 
     unregisterServant(servant: Skeleton) {
-        this.servants.delete(servant.id)
+        this.servants.delete(servant._id)
     }
 
     registerStubClass(aStubClass: any) {
@@ -857,14 +857,14 @@ export class ORB implements EventTarget {
 }
 
 export abstract class CORBAObject {
-    orb: ORB
-    id: Uint8Array
+    _orb: ORB
+    _id: Uint8Array
     constructor(orb: ORB, id: Uint8Array) {
-        this.orb = orb
-        this.id = id
+        this._orb = orb
+        this._id = id
     }
     release(): void {
-        this.orb.releaseObject(this)
+        this._orb.releaseObject(this)
     }
 }
 
@@ -875,7 +875,7 @@ export abstract class Skeleton extends CORBAObject {
 
     constructor(orb: ORB) {
         super(orb, undefined as any)
-        this.id = orb.registerServant(this)
+        this._id = orb.registerServant(this)
         this.acl = new Set<ORB>()
     }
 }
@@ -891,7 +891,7 @@ export abstract class Stub extends CORBAObject {
 
     override release(): void {
         super.release()
-        this.orb.releaseStub(this)
+        this._orb.releaseStub(this)
     }
 }
 
@@ -908,7 +908,7 @@ class NamingContextExtStub extends Stub {
 
     // TODO: the argument doesn't match the one in the IDL but for it's good enough
     async resolve_str(name: string): Promise<ObjectReference> {
-        return await this.orb.twowayCall(this, "resolve_str", (encoder) => {
+        return await this._orb.twowayCall(this, "resolve_str", (encoder) => {
             // encoder.ulong(1)
             encoder.string(name)
             // encoder.string("")
@@ -934,7 +934,7 @@ class NamingContextExtImpl extends Skeleton {
         // console.log(`NamingContextImpl.resolve("${name}")`)
         const servant = this.map.get(name)
         if (servant === undefined) {
-            throw Error(`orb ${this.orb.name}: name '${name}' is not bound to an object`)
+            throw Error(`orb ${this._orb.name}: name '${name}' is not bound to an object`)
         }
         return servant
     }

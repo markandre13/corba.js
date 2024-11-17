@@ -86,12 +86,15 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                             }
                         } break
                         case Type.TKN_ATTRIBUTE: {
+                            const readonly = _export!.child[0]?.type == Type.TKN_READONLY
                             const param_type_spec = _export!.child[1]!
                             const attr_declarator = _export!.child[2]!
                             const type = typeIDLtoTS(param_type_spec, FileType.INTERFACE)
                             for(const n of attr_declarator.child) {
                                 const identifier = n!.text
-                                out.write(`    ${identifier}(value: ${type}): Promise<void>\n`)
+                                if (!readonly) {
+                                    out.write(`    ${identifier}(value: ${type}): Promise<void>\n`)
+                                }
                                 out.write(`    ${identifier}(): Promise<${type}>\n`)
                             }
                         } break

@@ -924,7 +924,7 @@ class GIOPTest_impl extends skel.GIOPTest {
     override async sendValuePoints(v0: Point, v1: Point) {}
     override async sendObject(obj: GIOPSmall, msg: string) {}
     override async getObject(): Promise<GIOPSmall> {
-        return new GIOPSmall(this.orb)
+        return new GIOPSmall(this._orb)
     }
     override async reflectObject(obj: GIOPSmall): Promise<GIOPSmall> {
         return obj

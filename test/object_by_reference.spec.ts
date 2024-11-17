@@ -55,7 +55,7 @@ describe("object by reference", function() {
 
 class Server_impl extends skel.Server {
     async getSession(): Promise<skel.Session> {
-        return new Session_impl(this.orb) // FIXME: this.orb is not guaranteed to point to the client connection? could the ORB be set later?
+        return new Session_impl(this._orb) // FIXME: this.orb is not guaranteed to point to the client connection? could the ORB be set later?
     }
 }
 

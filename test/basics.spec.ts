@@ -93,6 +93,8 @@ describe("corba.js", function () {
         expect(serverStub).instanceOf(stub.Server)
        
         console.log("# CLIENT -> SERVER: GET/SET ATTRIBUTE")
+        expect(await serverStub.id()).to.equal("IT'S ME")
+
         expect(await serverStub.message()).to.equal("hello")
         await serverStub.message("world")
         expect(await serverStub.message()).to.equal("hello world")
@@ -213,6 +215,8 @@ class Server_impl extends skel.Server {
         super(orb)
         console.log("Server_impl.constructor()")
     }
+
+    async id(): Promise<string> { return "IT'S ME" }
 
     async message(value: string): Promise<void>
     async message(): Promise<string>

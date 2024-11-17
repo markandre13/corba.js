@@ -124,17 +124,20 @@ function writeTSSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
                             
                         } break
                         case Type.TKN_ATTRIBUTE: {
+                            const readonly = _export!.child[0]?.type == Type.TKN_READONLY
                             const param_type_spec = _export!.child[1]!
                             const attr_declarator = _export!.child[2]!
                             const type = typeIDLtoTS(param_type_spec, FileType.INTERFACE)
                             for(const n of attr_declarator.child) {
                                 const identifier = n!.text
-                                out.write(`    abstract ${identifier}(value: ${type}): Promise<void>\n`)
                                 out.write(`    abstract ${identifier}(): Promise<${type}>\n`)
-                                out.write(`    abstract ${identifier}(value?: ${type}): Promise<void | ${type}>\n`)
-                                out.write(`    private async _orb__set_${identifier}(decoder: GIOPDecoder, encoder: GIOPEncoder) {\n`)
-                                out.write(`        this.${identifier}(${typeIDLtoGIOPTS(param_type_spec)})\n`)
-                                out.write(`    }\n`)
+                                if (!readonly) {
+                                    out.write(`    abstract ${identifier}(value: ${type}): Promise<void>\n`)
+                                    out.write(`    abstract ${identifier}(value?: ${type}): Promise<void | ${type}>\n`)
+                                    out.write(`    private async _orb__set_${identifier}(decoder: GIOPDecoder, encoder: GIOPEncoder) {\n`)
+                                    out.write(`        this.${identifier}(${typeIDLtoGIOPTS(param_type_spec)})\n`)
+                                    out.write(`    }\n`)
+                                }
                                 out.write(`    private async _orb__get_${identifier}(decoder: GIOPDecoder, encoder: GIOPEncoder) {\n`)
                                 out.write(`        ${typeIDLtoGIOPTS(param_type_spec, `await this.${identifier}()`)}\n`)
                                 out.write(`    }\n`)
