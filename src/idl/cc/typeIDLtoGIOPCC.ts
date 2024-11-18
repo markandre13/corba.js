@@ -1,5 +1,5 @@
 import { Type, Node } from "../idl-node"
-import { Direction } from "./typeIDLtoCC"
+import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
 
 // this is about how to call the GIOP(Encoder|Decoder)
 export function typeIDLtoGIOPCC(
@@ -122,18 +122,18 @@ export function typeIDLtoGIOPCC(
                     switch (direction) {
                         case Direction.IN:
                             return arg === undefined
-                                ? `decoder.readSequenceVector<std::string_view>([&] { return decoder.readStringView(); })`
+                                ? `decoder.readSequence<std::string_view>([&] { return decoder.readStringView(); })`
                                 : `encoder.writeSequence<std::string_view>(${arg}, [&](auto item) { encoder.writeString(item);})`
                         case Direction.OUT:
                             return arg === undefined
-                                ? `decoder.readSequenceVector<std::string>([&] { return decoder.readString(); })`
+                                ? `decoder.readSequence<std::string>([&] { return decoder.readString(); })`
                                 : `encoder.writeSequence<std::string>(${arg}, [&](auto item) { encoder.writeString(item);})`
                     }
+                default:
+                    return arg === undefined
+                        ? `decoder.readSequence<${typeIDLtoCC(type.child[0], Direction.NESTED)}>([&] { return ${typeIDLtoGIOPCC(type.child[0], undefined, direction)}; })`
+                        : `encoder.writeSequence<${typeIDLtoCC(type.child[0], Direction.NESTED)}>(${arg}, [&](auto item) { ${typeIDLtoGIOPCC(type.child[0], "item", direction)}; })`
             }
-            throw Error(`this sequence type is not implemented yet`)
-            // return arg === undefined
-            //     ? `decoder.readSequence([&] { return ${typeIDLtoGIOPCC(type.child[0], undefined, direction)} })`
-            //     : `encoder.writeSequence(${arg}, [&](auto item) { ${typeIDLtoGIOPCC(type.child[0], "item", direction)} })`
         default:
             type.printTree()
             throw Error(`no mapping from IDL type '${type.toString()}' to GIOP encoder/decoder`)

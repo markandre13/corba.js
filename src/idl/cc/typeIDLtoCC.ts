@@ -1,8 +1,19 @@
 import { Type, Node } from "../idl-node"
 
 export enum Direction {
+    /** 
+     * data is to be passed from IIOP to application
+     *
+     * corba.cc will sometimes use std::span instead of std::vector and std::string_view
+     * instead of std::string to avoid copying data
+     */
     IN,
+    /** data is to be passed from application to IIOP */
     OUT,
+    /**
+     * data is passed a part of a sequence
+     */
+    NESTED = OUT
 }
 
 // this about how to encode the type
@@ -131,12 +142,22 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
                         default:
                             throw Error("yikes")
                     }
-                default:
+                case Type.TKN_FLOAT:
+                case Type.TKN_DOUBLE:
                     switch (direction) {
                         case Direction.IN:
                             return `const std::span<${typeIDLtoCC(type!.child[0], direction)}> &`
                         case Direction.OUT:
                             return `std::vector<${typeIDLtoCC(type!.child[0], direction)}>`
+                        default:
+                            throw Error("yikes")
+                    }
+                default:
+                    switch (direction) {
+                        case Direction.IN:
+                            return `const std::vector<${typeIDLtoCC(type!.child[0], Direction.NESTED)}> &`
+                        case Direction.OUT:
+                            return `std::vector<${typeIDLtoCC(type!.child[0], Direction.NESTED)}>`
                         default:
                             throw Error("yikes")
                     }
