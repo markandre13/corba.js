@@ -31,10 +31,11 @@ export function writeCCInterface(specification: Node): void {
     out.write(`#include <corba/giop.hh>\n`)
     out.write(`#include <corba/coroutine.hh>\n`)
     out.write(`#include <corba/corba.hh>\n`)
+    out.write(`#include <memory>\n`)
     out.write(`#include <string>\n`)
+    out.write(`#include <utility>\n`)
     out.write(`#include <vector>\n`)
     out.write(`#include <span>\n`)
-    out.write(`#include <utility>\n`)
     if (hasValueType(specification)) {
         out.write("import * as valuetype from \"./" + filenameLocal + "_valuetype\"\n")
     }
@@ -115,7 +116,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                     }
                 }
                 out.write(`    std::string_view repository_id() const override;\n`)
-                out.write(`    static CORBA::async<std::shared_ptr<${identifier}>> _narrow(std::shared_ptr<CORBA::Object> pointer);\n`)
+                out.write(`    static std::shared_ptr<${identifier}> _narrow(std::shared_ptr<CORBA::Object> pointer);\n`)
                 out.write("};\n\n")
             } break
 

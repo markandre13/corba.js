@@ -18,7 +18,7 @@ export function typeIDLtoGIOPCC(
             return arg === undefined ? `decoder.value("${type.text}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:
             // name = "object"
-            return arg === undefined ? `co_await ${type.text}::_narrow(decoder.readObject(obj->get_ORB()))` : `encoder.writeObject(${arg}.get())`
+            return arg === undefined ? `${type.text}::_narrow(decoder.readObject(obj->get_ORB()))` : `encoder.writeObject(${arg}.get())`
         case Type.TKN_UNION:
             throw Error("union is not implemented yet")
         case Type.TKN_STRUCT: {
