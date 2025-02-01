@@ -17,8 +17,12 @@ export function typeIDLtoGIOPCC(
         case Type.TKN_VALUETYPE:
             return arg === undefined ? `decoder.value("${type.text}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:
-            // name = "object"
-            return arg === undefined ? `${type.text}::_narrow(decoder.readObject(obj->get_ORB()))` : `encoder.writeObject(${arg}.get())`
+            switch(direction) {
+                case Direction.IN: // skel/impl: decode incoming argument
+                    return arg === undefined ? `${type.text}::_narrow(decoder.readObject(obj->get_ORB()))` : `encoder.writeObject(${arg}.get())`
+                case Direction.OUT: // stub: decode incoming return value
+                    return arg === undefined ? `${type.text}::_narrow(decoder.readObject(get_ORB()))` : `encoder.writeObject(${arg}.get())`
+            }
         case Type.TKN_UNION:
             throw Error("union is not implemented yet")
         case Type.TKN_STRUCT: {
