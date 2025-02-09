@@ -58,28 +58,28 @@
         "update": "npx npm-check-updates -u && npm install"
     },
     "devDependencies": {
-        "@rollup/plugin-commonjs": "^28.0.1",
-        "@rollup/plugin-node-resolve": "^15.3.0",
+        "@rollup/plugin-commonjs": "^28.0.2",
+        "@rollup/plugin-node-resolve": "^16.0.0",
         "@types/chai": "^5.0.1",
         "@types/chai-as-promised": "^8.0.1",
         "@types/memorystream": "^0.3.4",
-        "@types/mocha": "^10.0.9",
+        "@types/mocha": "^10.0.10",
         "@types/mocha-each": "^2.0.4",
-        "@types/node": "^22.9.0",
+        "@types/node": "^22.13.1",
         "@types/websocket": "^1.0.10",
         "chai": "^5.1.2",
-        "chai-as-promised": "^8.0.0",
+        "chai-as-promised": "^8.0.1",
         "memorystream": "^0.3.1",
-        "mocha": "^10.8.2",
+        "mocha": "^11.1.0",
         "mocha-each": "^2.0.1",
-        "rollup": "^4.27.2",
+        "rollup": "^4.34.6",
         "rollup-plugin-typescript2": "^0.36.0",
         "ts-node": "^10.9.2",
-        "ts-patch": "^3.2.1",
-        "typescript": "^5.6.3",
+        "ts-patch": "^3.3.0",
+        "typescript": "^5.7.3",
         "websocket": "^1.0.35"
     },
     "dependencies": {
-        "uuid": "^11.0.3"
+        "uuid": "^11.0.5"
     }
 }
