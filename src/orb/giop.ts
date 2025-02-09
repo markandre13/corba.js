@@ -1492,7 +1492,7 @@ export class GIOPDecoder extends GIOPBase {
             const shortName = reference.oid.substring(4, reference.oid.length - 4)
             let aStubClass = this.connection.orb.stubsByName.get(shortName)
             if (aStubClass === undefined) {
-                // throw Error(`ORB: no stub registered for OID '${reference.oid}' (${shortName})`)
+                console.error(`GIOPDecoder.object(${typeInfo}): no stub registered for OID '${reference.oid}' (${shortName})`)
                 throw new OBJECT_ADAPTER(0x4f4d0003, CompletionStatus.NO)
             }
             object = new aStubClass(this.connection.orb, reference.objectKey, this.connection)
