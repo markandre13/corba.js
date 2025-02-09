@@ -101,8 +101,10 @@ describe("corba.js", function () {
 
         console.log("# CLIENT -> SERVER: SET CLIENT")
         const clientImpl = new Client_impl(clientORB)
+        expect(await serverStub.getClients()).to.have.lengthOf(0)
         await serverStub.setClient(clientImpl)
         expect(serverImpl.client).instanceOf(stub.Client)
+        expect(await serverStub.getClients()).to.have.lengthOf(1)
 
         console.log(`# CLIENT -> SERVER: CALL METHOD`)
         expect(serverImpl.methodAWasCalled).to.equal(false)
@@ -230,6 +232,10 @@ class Server_impl extends skel.Server {
 
     override async setClient(client: stub.Client) {
         this.client = client
+    }
+
+    override async getClients(): Promise<Array<_interface.Server>> {
+        return this.client === undefined ? [] : [this]
     }
 
     override async methodA() {

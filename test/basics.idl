@@ -66,6 +66,7 @@ interface Server {
     readonly attribute string id;
     attribute string message;
     oneway void setClient(in Client client);
+    sequence<Server> getClients();
     oneway void methodA();
     short methodB(); // return type is to be able to drop 'oneway'
     double answer(in double a, in double b);
