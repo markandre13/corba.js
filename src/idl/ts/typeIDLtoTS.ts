@@ -30,26 +30,29 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
             let name: string
             switch (identifierType.type) {
                 case Type.TKN_VALUETYPE:
-                    if (filetype !== FileType.VALUETYPE && filetype !== FileType.VALUE)
+                    if (filetype !== FileType.VALUETYPE && filetype !== FileType.VALUE) {
                         name = `valuetype${absolutePrefix}.${relativeName}`
-
-                    else
+                    } else {
                         name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                    }
                     break
                 case Type.SYN_INTERFACE:
                 case Type.TKN_ENUM:
                 case Type.TKN_UNION:
-                    if (filetype !== FileType.INTERFACE)
+                    if (filetype !== FileType.INTERFACE) {
                         name = `_interface${absolutePrefix}.${relativeName}`
-
-                    else
+                    } else {
                         name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                    }
+                    // TODO: interface can be undefined but the following line result in many more changes
+                    // name += ` | undefined`
                     break
                 case Type.TKN_STRUCT:
                     // FIXME: struct uses a wrong identifier node structure
                     name = type!.text!
-                    if (filetype !== FileType.INTERFACE)
+                    if (filetype !== FileType.INTERFACE) {
                         name = `_interface${absolutePrefix}.${name}`
+                    }
                     break
                 case Type.TKN_NATIVE:
                     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`

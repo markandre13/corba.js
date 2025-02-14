@@ -707,6 +707,10 @@ export class GIOPEncoder extends GIOPBase {
     }
 
     value(object: Object | undefined) {
+        if (object === undefined) {
+            this.ulong(0)
+            return
+        }
         this.object(object)
     }
 
@@ -718,7 +722,8 @@ export class GIOPEncoder extends GIOPBase {
         // }
 
         if (object === undefined) {
-            this.ulong(0)
+            this.string("") // OID
+            this.ulong(0)   // profile count
             return
         }
 
@@ -1252,6 +1257,7 @@ export class GIOPDecoder extends GIOPBase {
 
         // struct IOR, field: string type_id ???
         data.oid = this.string(length)
+        // console.log(`GIOPDecoder.reference(length=${length}): oid='${data.oid}'`)
         // console.log(`IOR: oid: '${data.oid}'`)
 
         // struct IOR, field: TaggedProfileSeq profiles ???
@@ -1371,6 +1377,7 @@ export class GIOPDecoder extends GIOPBase {
 
     // TODO: rather 'value' than 'object' as this is for valuetypes?
     object(typeInfo: string | undefined = undefined, isValue: boolean = false): any {
+        // console.log(`GIOPDecoder.object(typeInfo=${typeInfo}, isValue=${isValue})`)
         // const objectOffset = this.offset + 6
 
         const code = this.ulong()
@@ -1476,9 +1483,15 @@ export class GIOPDecoder extends GIOPBase {
 
         // TODO: this looks like a hack... plus: can't the IDL compiler not already use reference instead of object?
         if (code < 0x7fffff00) {
-            if (this.connection === undefined)
-                throw Error("GIOPDecoder has no connection defined. Can not resolve resolve reference to stub object.")
             const reference = this.reference(code)
+            if (reference.oid.length === 0) {
+                // console.log("received null reference")
+                return undefined
+            }
+
+            if (this.connection === undefined) {
+                throw Error("GIOPDecoder has no connection defined. Can not resolve resolve reference to stub object.")
+            }
 
             if (reference.host == this.connection.localAddress && reference.port == this.connection.localPort) {
                 return this.connection.orb.servants.get(reference.objectKey)

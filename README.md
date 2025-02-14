@@ -306,10 +306,10 @@ JSON to be lightweight and efficient with some inspiration from JSON-RPC and EJS
 
 All build stages are setup to run in watch mode for performance reasons.
 
-* I ususally run `npm dev:build` in Visual Studio Code's terminal window to
+* I ususally run `npm run dev:build` in Visual Studio Code's terminal window to
   be able to jump from compiler errors directly into the source code.
 
-* `npm dev:test` runs all tests in watch mode.
+* `npm run dev:test` runs all tests in watch mode.
 
-* `npm dev:test --file=lib/test/valuetype.spec.js` runs a single test file
+* `npm run dev:test --file=lib/test/valuetype.spec.js` runs a single test file
   in watch mode.

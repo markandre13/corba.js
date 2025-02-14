@@ -6,6 +6,8 @@ import * as value from "./generated/giop_value"
 import { expect } from "chai"
 import { FakeTcpProtocol } from "./fake"
 import { parseHexDump, parseOmniDump } from "./util"
+import { Connection } from "corba.js/orb/connection"
+import { Stub, Uint8Map } from "corba.js/index"
 
 describe("CDR/GIOP", () => {
     let orb!: ORB
@@ -683,6 +685,73 @@ describe("CDR/GIOP", () => {
                     expect(h0).to.equal(40)
                 })
             })
+            describe("decode undefined object reference", function () {
+                it("OmniORB: decode sequence<VideoCamera> of [undefined, object]", function () {
+                    const data = parseOmniDump(`
+                        4749 4f50 0102 0101 a800 0000 0400 0000 GIOP............
+                        0000 0000 0000 0000 0200 0000 0100 0000 ................
+                        0000 0000 0000 0000 1400 0000 4944 4c3a ............IDL:
+                        5669 6465 6f43 616d 6572 613a 312e 3000 VideoCamera:1.0.
+                        0100 0000 0000 0000 6800 0000 0101 0200 ........h.......
+                        1000 0000 3139 322e 3136 382e 3137 382e ....192.168.178.
+                        3130 3500 2823 0000 0e00 0000 fed7 fda8 105.(#..........
+                        6700 0026 bd00 0000 0001 0000 0200 0000 g..&............
+                        0000 0000 0800 0000 0100 0000 0054 5441 .............TTA
+                        0100 0000 1c00 0000 0100 0000 0100 0100 ................
+                        0100 0000 0100 0105 0901 0100 0100 0000 ................
+                        0901 0100                               ....`)
+                    const decoder = new GIOPDecoder(data.buffer)
+                    class MyStub {
+                        orb: any
+                        remoteId: any
+                        connection: any
+                        constructor(orb: ORB, remoteID: Uint8Array, connection: Connection) {
+                            this.orb = orb
+                            this.remoteId = remoteID
+                            this.connection = connection
+                        }
+                    }
+                    decoder.connection = {
+                        localAddress: "",
+                        localPort: 12,
+                        stubsById: new Uint8Map<Stub>(),
+                        orb: {
+                            stubsByName: new Map<string, any>([["VideoCamera", MyStub]]),
+                        },
+                    } as any
+
+                    decoder.scanGIOPHeader()
+                    expect(decoder.type).to.equal(MessageType.REPLY)
+                    const reply = decoder.scanReplyHeader()
+
+                    const sequence = decoder.sequence(() => decoder.object())
+                    expect(sequence.length).to.equal(2)
+                    expect(sequence[0]).to.be.undefined
+                    expect(sequence[1]).to.be.instanceOf(MyStub)
+                })
+                it("encode undefined", function () {
+                    const encoder = new GIOPEncoder()
+                    encoder.majorVersion = 1
+                    encoder.minorVersion = 2
+
+                    encoder.encodeRequest(new Uint8Array([1, 2, 3, 4]), "myMethod", 4, true)
+                    encoder.object(undefined)
+                    encoder.setGIOPHeader(MessageType.REQUEST)
+
+                    const length = encoder.offset
+
+                    const decoder = new GIOPDecoder(encoder.buffer.slice(0, length))
+                    decoder.scanGIOPHeader()
+                    decoder.scanRequestHeader()
+
+                    const startOfNull = decoder.offset
+
+                    // OID = ""
+                    expect(decoder.string()).to.equal("")
+                    // profileCount = 0
+                    expect(decoder.ulong()).to.equal(0)
+                })
+            })
         })
 
         describe("GIOPEncoder", function () {
@@ -1039,20 +1108,3 @@ function sleep(ms: number) {
     })
 }
 
-// function hexdump(bytes: Uint8Array, addr = 0, length = bytes.byteLength) {
-//     while (addr < length) {
-//         let line = addr.toString(16).padStart(4, "0")
-//         for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j)
-//             line += " " + bytes[j].toString(16).padStart(2, "0")
-//         line = line.padEnd(4 + 16 * 3 + 1, " ")
-//         for (let i = 0, j = addr; i < 16 && j < bytes.byteLength; ++i, ++j) {
-//             const b = bytes[j]
-//             if (b >= 32 && b < 127)
-//                 line += String.fromCharCode(b)
-//             else
-//                 line += "."
-//         }
-//         addr += 16
-//         console.log(line)
-//     }
-// }
