@@ -27,5 +27,6 @@ interface Interface {
     sequence<string> callSeqString(in sequence<string> value);
 
     void setPeer(in Peer peer);
+    Peer getPeer();
     string callPeer(in string value);
 };

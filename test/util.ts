@@ -27,13 +27,13 @@ export function mockConnection(server: ORB, client: ORB, verbose = false): ORB {
 
     server.name = "server"
     server.addProtocol(proto)
-    const serverConn = new MockConnection(server, proto, 0, 1, verbose)
+    const serverConn = new MockConnection(server, client, proto, 0, 1, verbose)
     proto.connections.push(serverConn)
     server.addConnection(serverConn)
 
     client.name = "client"
     client.addProtocol(proto)
-    const clientConn = new MockConnection(client, proto, 1, 0, verbose)
+    const clientConn = new MockConnection(client, server, proto, 1, 0, verbose)
     proto.connections.push(clientConn)
     client.addConnection(clientConn)
 
@@ -50,13 +50,15 @@ class MockProtocol implements Protocol {
 }
 
 class MockConnection extends Connection {
+    _remoteORB: ORB
     _localPort: number
     _remotePort: number
     protocol: MockProtocol
     verbose: boolean
 
-    constructor(orb: ORB, protocol: MockProtocol, localPort: number, remotePort: number, verbose: boolean) {
+    constructor(orb: ORB, remoteORB: ORB, protocol: MockProtocol, localPort: number, remotePort: number, verbose: boolean) {
         super(orb)
+        this._remoteORB = remoteORB
         this._localPort = localPort
         this._remotePort = remotePort
         this.protocol = protocol
@@ -64,13 +66,13 @@ class MockConnection extends Connection {
     }
 
     override get localAddress(): string {
-        return "mock"
+        return this.orb.name
     }
     override get localPort(): number {
         return this._localPort
     }
     override get remoteAddress(): string {
-        return "mock"
+        return this._remoteORB.name
     }
     override get remotePort(): number {
         return this._remotePort

@@ -56,6 +56,9 @@ export class Interface_impl extends Interface_skel {
     override async setPeer(peer: Peer): Promise<void> {
         this.peer = peer
     }
+    override async getPeer(): Promise<Peer> {
+        return this.peer!
+    }
     override async callPeer(value: string): Promise<string> {
         const s = await this.peer?.callString(value + " to the")
         return s + "."

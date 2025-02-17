@@ -18,7 +18,7 @@ describe("interface", function () {
 
         mockConnection(serverORB, clientORB)
 
-        const object = await clientORB.stringToObject("corbaname::mock:0#Backend")
+        const object = await clientORB.stringToObject("corbaname::server:0#Backend")
         const serverStub = stub.Interface.narrow(object)
 
         expect(await serverStub.callBoolean(true)).to.equal(true)
@@ -53,6 +53,10 @@ describe("interface", function () {
         const frontend = new Peer_impl(clientORB)
         await serverStub.setPeer(frontend)
         expect(serverImpl.peer).to.be.not.undefined
+
+        const frontendReturned = await serverStub.getPeer()
+        expect(frontendReturned).is.equal(frontend)
+
         expect(await serverStub.callPeer("hello")).to.equal("hello to the world.");
 
         await serverStub.setPeer(undefined as any)

@@ -668,11 +668,19 @@ export class GIOPEncoder extends GIOPBase {
 
     // Interoperable Object Reference (IOR)
     reference(object: CORBAObject) {
+        if (this.connection === undefined) {
+            throw Error("GIOPEncoder.object(): Can not serialize object as GIOPEncoder has no connection defined.")
+        }
         const className = (object.constructor as any)._idlClassName()
 
         const reference = new ObjectReference()
-        reference.host = this.connection!.localAddress
-        reference.port = this.connection!.localPort
+        if (object instanceof Stub) {
+            reference.host = this.connection!.remoteAddress
+            reference.port = this.connection!.remotePort
+        } else {
+            reference.host = this.connection!.localAddress
+            reference.port = this.connection!.localPort
+        }
         reference.oid = `IDL:${className}:1.0`
         reference.objectKey = object._id
 
@@ -730,15 +738,13 @@ export class GIOPEncoder extends GIOPBase {
         // console.log(`GIOPEncoder.object(): WRITE OBJECT AT 0x${(this.offset - 4).toString(16)}`)
 
         if (object instanceof Stub) {
-            throw Error("ORB: can not serialize Stub yet")
+            this.reference(object)
+            return
         }
 
         if (object instanceof Skeleton) {
-            if (this.connection === undefined) {
-                throw Error("GIOPEncoder has no connection defined. Can not add object to ACL.")
-            }
-            this.connection.orb.aclAdd(object)
             this.reference(object)
+            this.connection!.orb.aclAdd(object)
             return
         }
 
@@ -1493,15 +1499,22 @@ export class GIOPDecoder extends GIOPBase {
                 throw Error("GIOPDecoder has no connection defined. Can not resolve resolve reference to stub object.")
             }
 
+            // EXISTING LOCAL IMPLEMENTATION
+            // FIXME: the host:port check should apply to all objects?
+            // FIXME: check all connections
             if (reference.host == this.connection.localAddress && reference.port == this.connection.localPort) {
-                return this.connection.orb.servants.get(reference.objectKey)
+                const object = this.connection.orb.servants.get(reference.objectKey)
+                if (object !== undefined) {
+                    return object
+                }
             }
 
-            // TODO: this belongs elsewhere
+            // EXISTING STUB
             let object = this.connection.stubsById.get(reference.objectKey)
             if (object !== undefined) {
                 return object
             }
+
             const shortName = reference.oid.substring(4, reference.oid.length - 4)
             let aStubClass = this.connection.orb.stubsByName.get(shortName)
             if (aStubClass === undefined) {

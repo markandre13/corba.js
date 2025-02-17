@@ -293,11 +293,14 @@ export class ORB implements EventTarget {
     }
 
     async getConnection(host: string, port: number) {
+        // console.log(`ORB(${this.name}): getConnection('${host}', ${port})`)
         if (host === "::1") {
             host = "localhost"
         }
 
+        // console.log(`  ORB ${this.name} has ${this.connections.length} connections`)
         for (const conn of this.connections) {
+            // console.log(`  * ${conn.localAddress}:${conn.localPort} to ${conn.remoteAddress}:${conn.remotePort}`)
             if (conn.remoteAddress === host && conn.remotePort === port) {
                 await conn.connect()
                 return conn
