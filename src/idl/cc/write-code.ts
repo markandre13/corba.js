@@ -280,6 +280,15 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 out.write(`            return std::shared_ptr<${if_identifier}>();\n`)
                 out.write(`        }\n`)
                 out.write(`        std::shared_ptr<CORBA::ORB> orb = ref->get_ORB();\n`)
+
+                out.write(`        auto servant = orb->_narrow_servant(ref);\n`)
+                out.write(`        if (servant) {\n`)
+                out.write(`            auto impl = std::dynamic_pointer_cast<${if_identifier}>(servant);\n`)
+                out.write(`            if (impl) {\n`)
+                out.write(`                return impl;\n`)
+                out.write(`            }\n`)
+                out.write(`        }\n`)
+
                 out.write(`        auto conn = orb->getConnection(ref->host, ref->port);\n`)
                 out.write(`        auto stub = std::make_shared<${if_identifier}_stub>(orb, CORBA::blob_view(ref->objectKey), conn);\n`)
                 out.write(`        return std::dynamic_pointer_cast<${if_identifier}>(stub);\n`)
