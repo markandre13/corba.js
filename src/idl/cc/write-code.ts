@@ -202,8 +202,8 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 const identifier = n!.text
                                 // GETTER
                                 out.write(`static CORBA::async<> _${if_identifier}_get_${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
-                                out.write(`    ${typeIDLtoGIOPCC(param_type_spec, `co_await obj->${identifier}()`, Direction.OUT)};\n`)
-                                out.write(`    co_return;\n`)
+                                out.write(`    auto result = co_await obj->${identifier}();\n`)
+                                out.write(`    ${typeIDLtoGIOPCC(param_type_spec, "result", Direction.OUT)};\n`)
                                 out.write(`}\n`)
 
                                 out.write(`CORBA::async<${typeIDLtoCC(param_type_spec, Direction.OUT)}> ${if_identifier}_stub::${identifier}() {\n`)    
