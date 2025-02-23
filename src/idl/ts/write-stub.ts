@@ -153,12 +153,12 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                             const attr_declarator = _export!.child[2]!
                             for(const n of attr_declarator.child) {
                                 const identifier = n!.text
-                                const type = typeIDLtoTS(param_type_spec, FileType.INTERFACE)
+                                const type = typeIDLtoTS(param_type_spec, FileType.STUB)
                                 if (readonly) {
                                     out.write(`    async ${identifier}(): Promise<${type}> {\n`)
                                     out.write(`        return this._orb.twowayCall(this, "_get_${identifier}",\n`)
                                     out.write(`            (encoder) => { },\n`)
-                                    out.write(`            (decoder) => decoder.string()\n`)
+                                    out.write(`            (decoder) => ${typeIDLtoGIOPTS(param_type_spec)}\n`)
                                     out.write(`        )\n`)
                                     out.write(`    }\n`)
                                 } else {
@@ -168,11 +168,11 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
                                     out.write(`        if (value === undefined) {\n`)
                                     out.write(`            return this._orb.twowayCall(this, "_get_${identifier}",\n`)
                                     out.write(`                (encoder) => { },\n`)
-                                    out.write(`                (decoder) => decoder.string()\n`)
+                                    out.write(`                (decoder) => ${typeIDLtoGIOPTS(param_type_spec)}\n`)
                                     out.write(`            )\n`)
                                     out.write(`        } else {\n`)
                                     out.write(`            return this._orb.twowayCall(this, "_set_${identifier}",\n`)
-                                    out.write(`                (encoder) => { encoder.string(value) },\n`)
+                                    out.write(`                (encoder) => {${typeIDLtoGIOPTS(param_type_spec, "value")} },\n`)
                                     out.write(`                (decoder) => { }\n`)
                                     out.write(`            )\n`)
                                     out.write(`        }\n`)
