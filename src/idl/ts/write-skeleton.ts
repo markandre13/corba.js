@@ -127,7 +127,7 @@ function writeTSSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
                             const readonly = _export!.child[0]?.type == Type.TKN_READONLY
                             const param_type_spec = _export!.child[1]!
                             const attr_declarator = _export!.child[2]!
-                            const type = typeIDLtoTS(param_type_spec, FileType.INTERFACE)
+                            const type = typeIDLtoTS(param_type_spec, FileType.SKELETON)
                             for(const n of attr_declarator.child) {
                                 const identifier = n!.text
                                 out.write(`    abstract ${identifier}(): Promise<${type}>\n`)
