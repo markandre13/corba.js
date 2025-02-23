@@ -65,14 +65,14 @@
         "@types/memorystream": "^0.3.4",
         "@types/mocha": "^10.0.10",
         "@types/mocha-each": "^2.0.4",
-        "@types/node": "^22.13.1",
+        "@types/node": "^22.13.5",
         "@types/websocket": "^1.0.10",
-        "chai": "^5.1.2",
+        "chai": "^5.2.0",
         "chai-as-promised": "^8.0.1",
         "memorystream": "^0.3.1",
         "mocha": "^11.1.0",
         "mocha-each": "^2.0.1",
-        "rollup": "^4.34.6",
+        "rollup": "^4.34.8",
         "rollup-plugin-typescript2": "^0.36.0",
         "ts-node": "^10.9.2",
         "ts-patch": "^3.3.0",
@@ -80,6 +80,6 @@
         "websocket": "^1.0.35"
     },
     "dependencies": {
-        "uuid": "^11.0.5"
+        "uuid": "^11.1.0"
     }
 }
