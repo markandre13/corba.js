@@ -139,7 +139,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 1)
                             out.write(
-                                typeIDLtoCC(type, Direction.IN) + " " + declarator!.text + ";\n"
+                                typeIDLtoCC(type, Direction.OUT) + " " + declarator!.text + ";\n"
                             )
                             // attributes.push(declarator!.text!)
                         }
