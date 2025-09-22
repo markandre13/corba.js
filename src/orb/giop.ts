@@ -1027,7 +1027,7 @@ export class GIOPEncoder extends GIOPBase {
 }
 
 export class GIOPDecoder extends GIOPBase {
-    buffer: ArrayBuffer
+    buffer: ArrayBufferLike
     data: DataView
     bytes: Uint8Array
 
@@ -1040,7 +1040,7 @@ export class GIOPDecoder extends GIOPBase {
 
     protected static textDecoder = new TextDecoder()
 
-    constructor(buffer: ArrayBuffer, connection?: Connection) {
+    constructor(buffer: ArrayBufferLike, connection?: Connection) {
         super(connection)
         this.buffer = buffer
         this.data = new DataView(buffer)

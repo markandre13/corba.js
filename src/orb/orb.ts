@@ -445,7 +445,7 @@ export class ORB implements EventTarget {
     // Network IN
     //
 
-    socketRcvd(connection: Connection, buffer: ArrayBuffer): void {
+    socketRcvd(connection: Connection, buffer: ArrayBufferLike): void {
         // TODO: split this method up
         // FIXME: buffer may contain multiple or incomplete messages
         const decoder = new GIOPDecoder(buffer, connection)

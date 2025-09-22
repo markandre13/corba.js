@@ -58,28 +58,28 @@
         "update": "npx npm-check-updates -u && npm install"
     },
     "devDependencies": {
-        "@rollup/plugin-commonjs": "^28.0.2",
-        "@rollup/plugin-node-resolve": "^16.0.0",
-        "@types/chai": "^5.0.1",
-        "@types/chai-as-promised": "^8.0.1",
+        "@rollup/plugin-commonjs": "^28.0.6",
+        "@rollup/plugin-node-resolve": "^16.0.1",
+        "@types/chai": "^5.2.2",
+        "@types/chai-as-promised": "^8.0.2",
         "@types/memorystream": "^0.3.4",
         "@types/mocha": "^10.0.10",
         "@types/mocha-each": "^2.0.4",
-        "@types/node": "^22.13.5",
+        "@types/node": "^24.5.2",
         "@types/websocket": "^1.0.10",
-        "chai": "^5.2.0",
-        "chai-as-promised": "^8.0.1",
+        "chai": "^6.0.1",
+        "chai-as-promised": "^8.0.2",
         "memorystream": "^0.3.1",
-        "mocha": "^11.1.0",
+        "mocha": "^11.7.2",
         "mocha-each": "^2.0.1",
-        "rollup": "^4.34.8",
+        "rollup": "^4.52.0",
         "rollup-plugin-typescript2": "^0.36.0",
         "ts-node": "^10.9.2",
         "ts-patch": "^3.3.0",
-        "typescript": "^5.7.3",
+        "typescript": "^5.9.2",
         "websocket": "^1.0.35"
     },
     "dependencies": {
-        "uuid": "^11.1.0"
+        "uuid": "^13.0.0"
     }
 }
