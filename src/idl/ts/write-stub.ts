@@ -45,15 +45,16 @@ function writeTSStubDefinitions(out: fs.WriteStream, specification: Node, prefix
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
+                let inheritance_spec = interface_dcl.child[0]!.child[2]?.text
                 let interface_body = interface_dcl.child[1]!
 
-                out.write(`export class ${identifier} extends Stub implements _interface.${prefix}${identifier} {\n`)
+                out.write(`export class ${identifier} extends ${inheritance_spec?inheritance_spec:"Stub"} implements _interface.${prefix}${identifier} {\n`)
 
-                out.write(`    static _idlClassName(): string {\n`)
+                out.write(`    static ${inheritance_spec ? "override " : ""}_idlClassName(): string {\n`)
                 out.write(`        return "${prefix}${identifier}"\n`)
                 out.write(`    }\n\n`)
 
-                out.write(`    static narrow(object: any): ${prefix}${identifier} {\n`)
+                out.write(`    static ${inheritance_spec ? "override " : ""}narrow(object: any): ${prefix}${identifier} {\n`)
                 out.write(`        if (object instanceof ${prefix}${identifier})\n`)
                 out.write(`            return object as ${prefix}${identifier}\n`)
                 out.write(`        throw Error("${prefix}${identifier}.narrow() failed")\n`)

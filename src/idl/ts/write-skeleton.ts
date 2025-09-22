@@ -44,11 +44,12 @@ function writeTSSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
+                let inheritance_spec = interface_dcl.child[0]!.child[2]?.text
                 let interface_body = interface_dcl.child[1]!
 
-                out.write(`export abstract class ${identifier} extends Skeleton implements _interface.${prefix}${identifier} {\n`)
+                out.write(`export abstract class ${identifier} extends ${inheritance_spec ? inheritance_spec : "Skeleton"} implements _interface.${prefix}${identifier} {\n`)
                 out.write(`    constructor(orb: ORB) { super(orb) }\n`)
-                out.write("    static _idlClassName(): string {\n")
+                out.write(`    static ${inheritance_spec ? "override " : ""}_idlClassName(): string {\n`)
                 out.write(`        return "${prefix}${identifier}"\n`)
                 out.write("    }\n\n")
 
@@ -84,12 +85,12 @@ function writeTSSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
                                 out.write(`${identifier}: ${typeIDLtoTS(type, FileType.SKELETON)}`)
                             }
                             if (oneway)
-                                out.write(`): void\n`);
+                                out.write(`): void\n`)
                             else
                                 out.write(`): Promise<${typeIDLtoTS(type, FileType.SKELETON)}>\n`)
 
                             out.write(`    private async _orb_${identifier}(decoder: GIOPDecoder, encoder: GIOPEncoder) {\n`)
-                            switch(type.type) {
+                            switch (type.type) {
                                 case Type.TKN_VOID:
                                     if (oneway) {
                                         out.write(`        this.${identifier}(`)
@@ -99,7 +100,7 @@ function writeTSSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
                                     break
                                 default:
                                     out.write(`        const result = await this.${identifier}(`)
-                            }    
+                            }
 
                             comma = false
                             for (let parameter_dcl of parameter_decls) {
@@ -115,20 +116,20 @@ function writeTSSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
                                 }
                                 out.write(`${typeIDLtoGIOPTS(type)}`)
                             }
-                            
+
                             out.write(`)\n`)
                             if (type.type !== Type.TKN_VOID) {
                                 out.write(`        ${typeIDLtoGIOPTS(type, "result")}\n`)
                             }
                             out.write(`    }\n`)
-                            
+
                         } break
                         case Type.TKN_ATTRIBUTE: {
                             const readonly = _export!.child[0]?.type == Type.TKN_READONLY
                             const param_type_spec = _export!.child[1]!
                             const attr_declarator = _export!.child[2]!
                             const type = typeIDLtoTS(param_type_spec, FileType.SKELETON)
-                            for(const n of attr_declarator.child) {
+                            for (const n of attr_declarator.child) {
                                 const identifier = n!.text
                                 out.write(`    abstract ${identifier}(): Promise<${type}>\n`)
                                 if (!readonly) {

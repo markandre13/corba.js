@@ -135,8 +135,9 @@ function interface_dcl(): Node | undefined {
 // 7
 function interface_header(): Node | undefined {
     let t0 = lexer.lex()
-    if (t0 === undefined)
+    if (t0 === undefined) {
         return undefined
+    }
     let t1
     if (t0.type !== Type.TKN_ABSTRACT && t0.type !== Type.TKN_LOCAL) {
         t1 = t0
@@ -155,14 +156,16 @@ function interface_header(): Node | undefined {
     }
 
     let t2 = identifier()
-    if (t2 === undefined)
+    if (t2 === undefined) {
         throw Error("expected identifier after 'interface'")
+    }
 
-    // let t3 = interface_inheritance_spec()
+    let t3 = interface_inheritance_spec()
+
     let header = new Node(Type.SYN_INTERFACE_HEADER)
     header.append(t0)
     header.append(t2)
-    header.append(undefined)
+    header.append(t3)
     return header
 }
 
@@ -188,13 +191,39 @@ function _export(): Node | undefined {
     return t0
 }
 
+// 10
+function interface_inheritance_spec(): Node | undefined {
+    let token = lexer.lex()
+    if (token === undefined) {
+        return undefined
+    }
+    if (token.type !== Type.TKN_TEXT || token.text !== ':') {
+        lexer.unlex(token)
+        return undefined
+    }
+
+    const id = identifier()
+    if (id === undefined) {
+        throw Error("expected identifier naming the super class after ':'")
+    }
+
+    token = lexer.lex()
+    if (token !== undefined && token.type === Type.TKN_TEXT && token.text === ",") {
+        throw Error("multiple inheritance is not implemented in corba.js")
+    }
+    lexer.unlex(token)
+
+    return id
+}
+
 // 12
 function scoped_name(): Node | undefined {
     let globalNamespaceToken = undefined
     let identifierToken = lexer.lex()
 
-    if (identifierToken === undefined)
+    if (identifierToken === undefined) {
         return undefined
+    }
 
     if (identifierToken.type === Type.TKN_COLON_COLON) {
         globalNamespaceToken = identifierToken
@@ -1417,15 +1446,17 @@ function attr_declarator(): Node | undefined {
             return node
         }
         t0 = simple_declarator()
-        if (t0 === undefined)
+        if (t0 === undefined) {
             throw Error("expected another declarator after ','")
+        }
     }
 }
 
 function identifier(): Node | undefined {
     let t0 = lexer.lex()
-    if (t0 !== undefined && t0.type === Type.TKN_IDENTIFIER)
+    if (t0 !== undefined && t0.type === Type.TKN_IDENTIFIER) {
         return t0
+    }
     lexer.unlex(t0)
     return undefined
 }
@@ -1433,13 +1464,15 @@ function identifier(): Node | undefined {
 function expect(text: string, customMessage?: string): void {
     let t0 = lexer.lex()
     let errorMessage
-    if (customMessage === undefined)
+    if (customMessage === undefined) {
         errorMessage = `expected '${text}' but got '${t0?.toString()}'`
-    else
+    } else {
         errorMessage = customMessage
+    }
 
-    if (t0 === undefined)
+    if (t0 === undefined) {
         throw Error(errorMessage + " but found end of file")
+    }
     if (t0.type !== Type.TKN_TEXT || t0.text !== text) {
         throw Error(errorMessage)
     }

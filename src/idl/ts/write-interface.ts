@@ -44,9 +44,14 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
+                let inheritance_spec = interface_dcl.child[0]!.child[2]?.text
                 let interface_body = interface_dcl.child[1]!
 
-                out.write(`export interface ${identifier} {\n`)
+                out.write(`export interface ${identifier}`)
+                if (inheritance_spec) {
+                    out.write(` extends ${inheritance_spec}`)
+                }
+                out.write(` {\n`)
                 for (let _export of interface_body.child) {
                     switch (_export!.type) {
                         case Type.SYN_OPERATION_DECLARATION: {
@@ -90,7 +95,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                             const param_type_spec = _export!.child[1]!
                             const attr_declarator = _export!.child[2]!
                             const type = typeIDLtoTS(param_type_spec, FileType.INTERFACE)
-                            for(const n of attr_declarator.child) {
+                            for (const n of attr_declarator.child) {
                                 const identifier = n!.text
                                 if (!readonly) {
                                     out.write(`    ${identifier}(value: ${type}): Promise<void>\n`)
@@ -166,16 +171,16 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                 const union_type = definition!
                 const switch_body = union_type.child[1]!
                 let composite = ""
-                switch_body.child.forEach( x => {
+                switch_body.child.forEach(x => {
                     // console.log(x)
                     const case_label = x!.child[0]!
                     const type_spec = x!.child[1]!
                     const declarator = x!.child[2]!
                     writeIndent(out, indent)
                     out.write(`export type _${identifier}_${declarator.text} = {\n`)
-                    writeIndent(out, indent+1)
+                    writeIndent(out, indent + 1)
                     out.write(`type: ${case_label.typeParent!.text}.${case_label.text}\n`)
-                    writeIndent(out, indent+1)
+                    writeIndent(out, indent + 1)
                     out.write(`${declarator.text}: ${typeIDLtoTS(type_spec, FileType.INTERFACE)}\n`)
                     writeIndent(out, indent)
                     out.write(`}\n`)
@@ -189,46 +194,46 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
 
                 writeIndent(out, indent)
                 out.write(`export function decode${identifier}(decoder: GIOPDecoder): ${identifier} {\n`)
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`switch(decoder.ulong() as ${union_type.child[0]!.text}) {\n`) // FIXME: ulong is only valid for enums
-                switch_body.child.forEach( x => {
+                switch_body.child.forEach(x => {
                     const case_label = x!.child[0]!
                     const type_spec = x!.child[1]!
                     const declarator = x!.child[2]!
-                    writeIndent(out, indent+2)
+                    writeIndent(out, indent + 2)
                     out.write(`case ${case_label.typeParent!.text}.${case_label.text}: return {\n`)
-                    writeIndent(out, indent+3)
+                    writeIndent(out, indent + 3)
                     out.write(`type: ${case_label.typeParent!.text}.${case_label.text},\n`)
-                    writeIndent(out, indent+3)
+                    writeIndent(out, indent + 3)
                     out.write(`${declarator.text}: ${typeIDLtoGIOPTS(type_spec, undefined, FileType.INTERFACE)}\n`)
-                    writeIndent(out, indent+2)
+                    writeIndent(out, indent + 2)
                     out.write(`}\n`)
                 })
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`}\n`)
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`throw Error("invalid union value")\n`)
                 writeIndent(out, indent)
                 out.write(`}\n`)
 
                 writeIndent(out, indent)
                 out.write(`export function encode${identifier}(encoder: GIOPEncoder, obj: ${identifier}) {\n`)
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`encoder.ulong(obj.type)\n`) // FIXME: ulong is only valid for enums
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`switch(obj.type) {\n`)
-                switch_body.child.forEach( x => {
+                switch_body.child.forEach(x => {
                     const case_label = x!.child[0]!
                     const type_spec = x!.child[1]!
                     const declarator = x!.child[2]!
-                    writeIndent(out, indent+2)
+                    writeIndent(out, indent + 2)
                     out.write(`case ${case_label.typeParent!.text}.${case_label.text}:\n`)
-                    writeIndent(out, indent+3)
+                    writeIndent(out, indent + 3)
                     out.write(typeIDLtoGIOPTS(type_spec, `obj.${declarator!.text}`, FileType.INTERFACE) + "\n")
-                    writeIndent(out, indent+3)
+                    writeIndent(out, indent + 3)
                     out.write(`break\n`)
                 })
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`}\n`)
                 out.write(`}\n\n`)
             } break

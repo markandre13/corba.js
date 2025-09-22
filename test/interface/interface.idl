@@ -2,6 +2,10 @@ interface Peer {
     string callString(in string value);
 };
 
+interface PeerSub: Peer {
+    attribute string name;
+};
+
 interface Interface {
     boolean callBoolean(in boolean value);
 

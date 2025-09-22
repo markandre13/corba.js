@@ -1,5 +1,5 @@
 import { Peer } from "../generated/interface"
-import { Interface as Interface_skel, Peer as Peer_skel } from "../generated/interface_skel"
+import { Interface as Interface_skel, Peer as Peer_skel, PeerSub as PeerSub_skel } from "../generated/interface_skel"
 
 export class Interface_impl extends Interface_skel {
     override async callBoolean(value: boolean): Promise<boolean> {
@@ -66,6 +66,23 @@ export class Interface_impl extends Interface_skel {
 }
 
 export class Peer_impl extends Peer_skel {
+    override async callString(value: string): Promise<string> {
+        return value + " world"
+    }
+}
+
+export class PeerSub_impl extends PeerSub_skel {
+    private _name = ""
+    override async name(): Promise<string>
+    override async name(value: string): Promise<void>
+    override async name(value?: string): Promise<void | string> {
+        if (value === undefined) {
+            return this._name
+        } else {
+            this._name = value
+        }
+    }
+    // TODO: find a way to re-use Peer_impl.callString()
     override async callString(value: string): Promise<string> {
         return value + " world"
     }
