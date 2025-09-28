@@ -269,8 +269,11 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 out.write(`    co_await it->second(this, decoder, encoder);\n`)
                 out.write("};\n\n")
 
-                out.write(`std::string_view ${if_identifier}::_rid("IDL:${if_identifier}:1.0");\n`)
-                out.write(`std::string_view ${if_identifier}::repository_id() const { return _rid;}\n\n`)
+                
+                out.write(`std::string_view ${if_identifier}::repository_id() const {\n`)
+                out.write(`    static std::string_view rid("IDL:${if_identifier}:1.0");\n`)
+                out.write(`    return rid;\n`)
+                out.write(`}\n\n`)
 
                 out.write(`std::shared_ptr<${if_identifier}> ${if_identifier}::_narrow(std::shared_ptr<CORBA::Object> pointer) {\n`)
                 out.write(`    auto ptr = pointer.get();\n`)
@@ -291,7 +294,8 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 out.write(`        auto conn = orb->getConnection(ref->host, ref->port);\n`)
                 out.write(`        auto stub = conn->stubsById[ref->objectKey];\n`)
                 out.write(`        if (!stub) {\n`)
-                out.write(`            stub = std::make_shared<${if_identifier}_stub>(orb, CORBA::blob_view(ref->objectKey), conn);\n`)
+                out.write(`            stub = std::make_shared<${if_identifier}_stub>();\n`)
+                out.write(`            stub->initStub(orb, CORBA::blob_view(ref->objectKey), conn);\n`)
                 out.write(`            conn->stubsById[ref->objectKey] = stub;\n`)
                 out.write(`        }\n`)
                 out.write(`        return std::dynamic_pointer_cast<${if_identifier}>(stub);\n`)

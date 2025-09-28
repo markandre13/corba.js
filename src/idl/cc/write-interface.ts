@@ -55,66 +55,12 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
+                let inheritance_spec = interface_dcl.child[0]!.child[2]?.text
                 let interface_body = interface_dcl.child[1]!
 
-                out.write(`class ${identifier}: public virtual CORBA::Object {\n`)
-                out.write(`    static std::string_view _rid;\n`);
+                out.write(`class ${identifier}: public virtual ${inheritance_spec?inheritance_spec:"CORBA::Object"} {\n`)
                 out.write(`public:\n`)
-                for (let _export of interface_body.child) {
-                    switch (_export!.type) {
-                        case Type.SYN_OPERATION_DECLARATION: {
-                            let op_dcl = _export!
-                            let attribute = op_dcl.child[0]
-                            let type = op_dcl.child[1]!
-
-                            let oneway = false
-                            if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
-                                oneway = true
-                            if (oneway && type.type !== Type.TKN_VOID)
-                                throw Error("oneway methods must return void")
-
-                            let identifier = op_dcl.child[2]!.text
-                            let parameter_decls = op_dcl.child[3]!.child
-                            out.write("    virtual ")
-                            if (oneway) {
-                                out.write(`${typeIDLtoCC(type, Direction.OUT)}`)
-                            } else {
-                                out.write(`CORBA::async<${typeIDLtoCC(type, Direction.OUT)}>`)
-                            }
-                            out.write(` ${identifier}(`)
-                            let comma = false
-                            for (let parameter_dcl of parameter_decls) {
-                                let attribute = parameter_dcl!.child[0]!.type
-                                let type = parameter_dcl!.child[1]
-                                let identifier = parameter_dcl!.child[2]!.text
-                                if (attribute !== Type.TKN_IN) {
-                                    throw Error("corba.js currently only supports 'in' parameters")
-                                }
-                                if (!comma) {
-                                    comma = true
-                                } else {
-                                    out.write(", ")
-                                }
-                                out.write(`${typeIDLtoCC(type, Direction.IN)} ${identifier}`)
-                            }
-                            out.write(`) = 0;\n`)
-                        } break
-                        case Type.TKN_ATTRIBUTE: {
-                            const readonly = _export!.child[0]?.type == Type.TKN_READONLY
-                            const param_type_spec = _export!.child[1]!
-                            const attr_declarator = _export!.child[2]!
-                            for(const n of attr_declarator.child) {
-                                const identifier = n!.text
-                                out.write(`    virtual CORBA::async<${typeIDLtoCC(param_type_spec, Direction.OUT)}> ${identifier}() = 0;\n`)
-                                if (!readonly) {
-                                    out.write(`    virtual CORBA::async<void> ${identifier}(${typeIDLtoCC(param_type_spec, Direction.IN)}) = 0;\n`)
-                                }
-                            }
-                        } break
-                        default:
-                            throw Error("yikes")
-                    }
-                }
+                writeCCInterfaceBody(out, interface_body)
                 out.write(`    std::string_view repository_id() const override;\n`)
                 out.write(`    static std::shared_ptr<${identifier}> _narrow(std::shared_ptr<CORBA::Object> pointer);\n`)
                 out.write("};\n\n")
@@ -154,16 +100,16 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                 const union_type = definition!
                 const switch_body = union_type.child[1]!
                 let composite = ""
-                switch_body.child.forEach( x => {
+                switch_body.child.forEach(x => {
                     // console.log(x)
                     const case_label = x!.child[0]!
                     const type_spec = x!.child[1]!
                     const declarator = x!.child[2]!
                     writeIndent(out, indent)
                     out.write(`export type _${identifier}_${declarator.text} = {\n`)
-                    writeIndent(out, indent+1)
+                    writeIndent(out, indent + 1)
                     out.write(`type: ${case_label.typeParent!.text}.${case_label.text}\n`)
-                    writeIndent(out, indent+1)
+                    writeIndent(out, indent + 1)
                     out.write(`${declarator.text}: ${typeIDLtoCC(type_spec, Direction.IN)}\n`)
                     writeIndent(out, indent)
                     out.write(`}\n`)
@@ -177,46 +123,46 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
 
                 writeIndent(out, indent)
                 out.write(`export function decode${identifier}(decoder: GIOPDecoder): ${identifier} {\n`)
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`switch(decoder.ulong() as ${union_type.child[0]!.text}) {\n`) // FIXME: ulong is only valid for enums
-                switch_body.child.forEach( x => {
+                switch_body.child.forEach(x => {
                     const case_label = x!.child[0]!
                     const type_spec = x!.child[1]!
                     const declarator = x!.child[2]!
-                    writeIndent(out, indent+2)
+                    writeIndent(out, indent + 2)
                     out.write(`case ${case_label.typeParent!.text}.${case_label.text}: return {\n`)
-                    writeIndent(out, indent+3)
+                    writeIndent(out, indent + 3)
                     out.write(`type: ${case_label.typeParent!.text}.${case_label.text},\n`)
-                    writeIndent(out, indent+3)
+                    writeIndent(out, indent + 3)
                     out.write(`${declarator.text}: ${typeIDLtoGIOPCC(type_spec, undefined, Direction.OUT)}\n`)
-                    writeIndent(out, indent+2)
+                    writeIndent(out, indent + 2)
                     out.write(`}\n`)
                 })
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`}\n`)
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`throw Error("invalid union value")\n`)
                 writeIndent(out, indent)
                 out.write(`}\n`)
 
                 writeIndent(out, indent)
                 out.write(`export function encode${identifier}(encoder: GIOPEncoder, obj: ${identifier}) {\n`)
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`encoder.ulong(obj.type)\n`) // FIXME: ulong is only valid for enums
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`switch(obj.type) {\n`)
-                switch_body.child.forEach( x => {
+                switch_body.child.forEach(x => {
                     const case_label = x!.child[0]!
                     const type_spec = x!.child[1]!
                     const declarator = x!.child[2]!
-                    writeIndent(out, indent+2)
+                    writeIndent(out, indent + 2)
                     out.write(`case ${case_label.typeParent!.text}.${case_label.text}:\n`)
-                    writeIndent(out, indent+3)
+                    writeIndent(out, indent + 3)
                     out.write(typeIDLtoGIOPCC(type_spec, `obj.${declarator!.text}`, Direction.OUT) + "\n")
-                    writeIndent(out, indent+3)
+                    writeIndent(out, indent + 3)
                     out.write(`break\n`)
                 })
-                writeIndent(out, indent+1)
+                writeIndent(out, indent + 1)
                 out.write(`}\n`)
                 out.write(`}\n\n`)
             } break
@@ -232,6 +178,64 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                 writeIndent(out, indent)
                 out.write("};\n\n")
             } break
+        }
+    }
+}
+
+export function writeCCInterfaceBody(out: Writable, interface_body: Node) {
+    for (let _export of interface_body.child) {
+        switch (_export!.type) {
+            case Type.SYN_OPERATION_DECLARATION: {
+                let op_dcl = _export!
+                let attribute = op_dcl.child[0]
+                let type = op_dcl.child[1]!
+
+                let oneway = false
+                if (attribute !== undefined && attribute.type === Type.TKN_ONEWAY)
+                    oneway = true
+                if (oneway && type.type !== Type.TKN_VOID)
+                    throw Error("oneway methods must return void")
+
+                let identifier = op_dcl.child[2]!.text
+                let parameter_decls = op_dcl.child[3]!.child
+                out.write("    virtual ")
+                if (oneway) {
+                    out.write(`${typeIDLtoCC(type, Direction.OUT)}`)
+                } else {
+                    out.write(`CORBA::async<${typeIDLtoCC(type, Direction.OUT)}>`)
+                }
+                out.write(` ${identifier}(`)
+                let comma = false
+                for (let parameter_dcl of parameter_decls) {
+                    let attribute = parameter_dcl!.child[0]!.type
+                    let type = parameter_dcl!.child[1]
+                    let identifier = parameter_dcl!.child[2]!.text
+                    if (attribute !== Type.TKN_IN) {
+                        throw Error("corba.js currently only supports 'in' parameters")
+                    }
+                    if (!comma) {
+                        comma = true
+                    } else {
+                        out.write(", ")
+                    }
+                    out.write(`${typeIDLtoCC(type, Direction.IN)} ${identifier}`)
+                }
+                out.write(`) = 0;\n`)
+            } break
+            case Type.TKN_ATTRIBUTE: {
+                const readonly = _export!.child[0]?.type == Type.TKN_READONLY
+                const param_type_spec = _export!.child[1]!
+                const attr_declarator = _export!.child[2]!
+                for (const n of attr_declarator.child) {
+                    const identifier = n!.text
+                    out.write(`    virtual CORBA::async<${typeIDLtoCC(param_type_spec, Direction.OUT)}> ${identifier}() = 0;\n`)
+                    if (!readonly) {
+                        out.write(`    virtual CORBA::async<void> ${identifier}(${typeIDLtoCC(param_type_spec, Direction.IN)}) = 0;\n`)
+                    }
+                }
+            } break
+            default:
+                throw Error("yikes")
         }
     }
 }

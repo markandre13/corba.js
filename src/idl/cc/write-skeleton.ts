@@ -19,6 +19,7 @@
 import * as fs from "fs"
 import { Type, Node } from "../idl-node"
 import { filenamePrefix, filename, filenameLocal, hasValueType } from "../util"
+import { writeCCInterfaceBody } from "./write-interface"
 
 export function writeCCSkeleton(specification: Node): void {
     let out = fs.createWriteStream(filenamePrefix + "_skel.hh")
@@ -47,9 +48,9 @@ function writeCCSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
-                let interface_body = interface_dcl.child[1]!
+                let inheritance_spec = interface_dcl.child[0]!.child[2]?.text
 
-                out.write(`class ${identifier}_skel: public CORBA::Skeleton, public ${prefix}${identifier} {\n`)
+                out.write(`class ${identifier}_skel: public virtual ${prefix}${identifier}, public virtual ${inheritance_spec?inheritance_spec+"_skel":"CORBA::Skeleton"} {\n`)
                 out.write(`public:\n`)
                 out.write(`    ${identifier}_skel() : Skeleton() {}\n`)
                 out.write(`private:\n`)

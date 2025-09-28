@@ -50,11 +50,13 @@ function writeCCStubDefinitions(out: fs.WriteStream, specification: Node, prefix
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition!
                 let identifier = interface_dcl.child[0]!.child[1]!.text
+                let inheritance_spec = interface_dcl.child[0]!.child[2]?.text
                 let interface_body = interface_dcl.child[1]!
 
-                out.write(`class ${identifier}_stub: public ${prefix}${identifier}, public CORBA::Stub {\n`)
+                out.write(`class ${identifier}_stub: public virtual ${prefix}${identifier}, public virtual ${inheritance_spec?inheritance_spec+"_stub":"CORBA::Stub"} {\n`)
+                // out.write(`class ${identifier}_stub: public virtual ${prefix}${identifier}, public CORBA::Stub {\n`)
                 out.write(`public:\n`)
-                out.write(`    ${identifier}_stub(std::shared_ptr<CORBA::ORB> orb, CORBA::blob_view objectKey, std::shared_ptr<CORBA::detail::Connection> connection): Stub(orb, objectKey, connection) {}\n`)
+                // out.write(`    ${identifier}_stub(std::shared_ptr<CORBA::ORB> orb, CORBA::blob_view objectKey, std::shared_ptr<CORBA::detail::Connection> connection): ${inheritance_spec?inheritance_spec+"_stub":"Stub"}(orb, objectKey, connection) {}\n`)
 
                 for (let _export of interface_body.child) {
                     switch (_export!.type) {
