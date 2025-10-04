@@ -213,6 +213,12 @@ function interface_inheritance_spec(): Node | undefined {
     }
     lexer.unlex(token)
 
+    const n = scoper.getType(id.text!)
+    if (n === undefined) {
+        throw Error(`undefined interface ${id.text}`)
+    }
+    id.append(n)
+
     return id
 }
 

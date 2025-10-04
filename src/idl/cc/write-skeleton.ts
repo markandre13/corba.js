@@ -54,7 +54,7 @@ function writeCCSkeletonDefinitions(out: fs.WriteStream, specification: Node, pr
                 out.write(`public:\n`)
                 out.write(`    ${identifier}_skel() : Skeleton() {}\n`)
                 out.write(`private:\n`)
-                out.write(`    CORBA::async<> _call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override;\n`)
+                out.write(`    CORBA::async<> _dispatch(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) override;\n`)
                 out.write("};\n\n")
             } break
         }

@@ -62,6 +62,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Node, 
                 out.write(`public:\n`)
                 writeCCInterfaceBody(out, interface_body)
                 out.write(`    std::string_view repository_id() const override;\n`)
+                out.write(`    bool _is_a(const std::string_view &repository_id) const override;\n`);
                 out.write(`    static std::shared_ptr<${identifier}> _narrow(std::shared_ptr<CORBA::Object> pointer);\n`)
                 out.write("};\n\n")
             } break

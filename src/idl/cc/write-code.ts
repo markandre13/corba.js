@@ -53,7 +53,9 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 break
             case Type.SYN_INTERFACE: {
                 const interface_dcl = definition!
-                const if_identifier = interface_dcl.child[0]!.child[1]!.text
+                const if_identifier = interface_dcl.child[0]!.child[1]!.text!
+                let inheritance_spec_raw = interface_dcl.child[0]!.child[2]
+                let inheritance_spec = interface_dcl.child[0]!.child[2]?.text
                 const interface_body = interface_dcl.child[1]!
 
                 for (let _export of interface_body.child) {
@@ -74,16 +76,12 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             let identifier = op_dcl.child[2]!.text
                             let parameter_decls = op_dcl.child[3]!.child
 
-                            // _call() -> _<operation> OPERATION
-
                             //
                             // INCOMING CALL
                             //
 
-                            out.write(`static CORBA::async<>`)
-                    
-                            out.write(` _${if_identifier}_${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
-                            switch(type.type) {
+                            out.write(`static CORBA::async<> _${if_identifier}_${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
+                            switch (type.type) {
                                 case Type.TKN_VOID:
                                     if (oneway) {
                                         out.write(`    obj->${identifier}(`)
@@ -93,7 +91,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                     break
                                 default:
                                     out.write(`    auto result = co_await obj->${identifier}(`)
-                            }    
+                            }
 
                             let comma = false
                             for (let parameter_dcl of parameter_decls) {
@@ -109,7 +107,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 }
                                 out.write(`${typeIDLtoGIOPCC(type, undefined, Direction.IN)}`)
                             }
-                            
+
                             out.write(`);\n`)
                             if (type.type !== Type.TKN_VOID) {
                                 out.write(`    ${typeIDLtoGIOPCC(type, "result", Direction.OUT)};\n`)
@@ -117,7 +115,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 out.write(`    co_return;\n`)
                             }
                             out.write(`}\n`)
-                                             
+
                             //
                             // OUTGOING CALL
                             //
@@ -198,7 +196,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             const readonly = _export!.child[0]?.type == Type.TKN_READONLY
                             const param_type_spec = _export!.child[1]!
                             const attr_declarator = _export!.child[2]!
-                            for(const n of attr_declarator.child) {
+                            for (const n of attr_declarator.child) {
                                 const identifier = n!.text
                                 // GETTER
                                 out.write(`static CORBA::async<> _${if_identifier}_get_${identifier}(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
@@ -206,7 +204,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                                 out.write(`    ${typeIDLtoGIOPCC(param_type_spec, "result", Direction.OUT)};\n`)
                                 out.write(`}\n`)
 
-                                out.write(`CORBA::async<${typeIDLtoCC(param_type_spec, Direction.OUT)}> ${if_identifier}_stub::${identifier}() {\n`)    
+                                out.write(`CORBA::async<${typeIDLtoCC(param_type_spec, Direction.OUT)}> ${if_identifier}_stub::${identifier}() {\n`)
                                 out.write(`    return get_ORB()->twowayCall<${typeIDLtoCC(param_type_spec, Direction.OUT)}>(\n`)
                                 out.write(`        this, "_get_${identifier}",\n`)
                                 out.write(`        [&](CORBA::GIOPEncoder &encoder) { },\n`)
@@ -233,35 +231,28 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                             throw Error("yikes")
                     }
                 }
+
+                // INCOMING CALL DISPATCH MAP
                 out.write(`std::map<std::string_view, std::function<CORBA::async<>(${if_identifier} *obj, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder)>> _op_${if_identifier} = {\n`)
-                for (let _export of interface_body.child) {
-                    switch (_export!.type) {
-                        case Type.SYN_OPERATION_DECLARATION: {
-                            const op_dcl = _export!
-                            const attribute = op_dcl.child[0]
-                            const type = op_dcl.child[1]!
-                            let identifier = op_dcl.child[2]!.text
-                            out.write(`    {"${identifier}", _${if_identifier}_${identifier}},\n`)
-                        } break
-                        case Type.TKN_ATTRIBUTE: {
-                            const readonly = _export!.child[0]?.type == Type.TKN_READONLY
-                            const param_type_spec = _export!.child[1]!
-                            const attr_declarator = _export!.child[2]!
-                            for(const n of attr_declarator.child) {
-                                const identifier = n!.text
-                                if (!readonly) {
-                                    out.write(`    {"_set_${identifier}", _${if_identifier}_set_${identifier}},\n`)
-                                }
-                                out.write(`    {"_get_${identifier}", _${if_identifier}_get_${identifier}},\n`)
-                            }
-                        } break
-                        default:
-                            throw Error("yikes")
-                    }
+                const operationsWritten = new Set<string>()
+                
+                writeDispatchBody(out, operationsWritten, if_identifier, interface_body)
+
+                let inheritance_spec_iterator = inheritance_spec_raw
+                while (inheritance_spec_iterator) {
+                    const interface_dcl = inheritance_spec_iterator.child[0]!
+                    const if_identifier = interface_dcl.child[0]!.child[1]!.text!
+                    let inheritance_spec_raw = interface_dcl.child[0]!.child[2]
+                    const interface_body = interface_dcl.child[1]!
+
+                    writeDispatchBody(out, operationsWritten, if_identifier, interface_body)
+
+                    inheritance_spec_iterator = inheritance_spec_raw
                 }
                 out.write("};\n")
 
-                out.write(`CORBA::async<> ${if_identifier}_skel::_call(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
+                // INCOMING CALL DISPATCH METHOD
+                out.write(`CORBA::async<> ${if_identifier}_skel::_dispatch(const std::string_view &operation, CORBA::GIOPDecoder &decoder, CORBA::GIOPEncoder &encoder) {\n`)
                 out.write(`    auto it = _op_${if_identifier}.find(operation);\n`)
                 out.write(`    if (it == _op_${if_identifier}.end()) {\n`)
                 out.write(`        throw CORBA::BAD_OPERATION(0, CORBA::YES);\n`)
@@ -269,18 +260,31 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 out.write(`    co_await it->second(this, decoder, encoder);\n`)
                 out.write("};\n\n")
 
-                
                 out.write(`std::string_view ${if_identifier}::repository_id() const {\n`)
                 out.write(`    static std::string_view rid("IDL:${if_identifier}:1.0");\n`)
                 out.write(`    return rid;\n`)
+                out.write(`}\n\n`)
+
+                out.write(`bool ${if_identifier}::_is_a(const std::string_view &logical_type_id) const {\n`)
+                out.write(`    static std::string_view rid("IDL:${if_identifier}:1.0");\n`)
+                out.write(`    if (logical_type_id == rid) {\n`)
+                out.write(`        return true;\n`)
+                out.write(`    }\n`)
+                out.write(`    return ${inheritance_spec ? inheritance_spec : "Object"}::_is_a(logical_type_id);\n`)
                 out.write(`}\n\n`)
 
                 out.write(`std::shared_ptr<${if_identifier}> ${if_identifier}::_narrow(std::shared_ptr<CORBA::Object> pointer) {\n`)
                 out.write(`    auto ptr = pointer.get();\n`)
                 out.write(`    auto ref = dynamic_cast<CORBA::IOR *>(ptr);\n`)
                 out.write(`    if (ref) {\n`)
-                out.write(`        if (ref->repository_id() != "IDL:${if_identifier}:1.0") {\n`)
+
+                out.write(`        if (ref->repository_id().empty()) {\n`)
                 out.write(`            return std::shared_ptr<${if_identifier}>();\n`)
+                out.write(`        }\n`)
+
+                out.write(`        if (ref->repository_id() != "IDL:${if_identifier}:1.0") {\n`)
+                // out.write(`            return std::shared_ptr<${if_identifier}>();\n`)
+                out.write(`             std::println("TODO: CHECK INHERITANCE FOR ${if_identifier}::_narrow(...): '{}' != '{}'", ref->repository_id(), "IDL:${if_identifier}:1.0");\n`)
                 out.write(`        }\n`)
                 out.write(`        std::shared_ptr<CORBA::ORB> orb = ref->get_ORB();\n`)
 
@@ -340,6 +344,40 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 }
                 out.write(`}\n`)
             }
+        }
+    }
+}
+
+function writeDispatchBody(out: fs.WriteStream, operationsWritten: Set<string>, if_identifier: string, interface_body: Node) {
+    for (let _export of interface_body.child) {
+        switch (_export!.type) {
+            case Type.SYN_OPERATION_DECLARATION: {
+                const op_dcl = _export!
+                const attribute = op_dcl.child[0]
+                const type = op_dcl.child[1]!
+                let identifier = op_dcl.child[2]!.text!
+                if (!operationsWritten.has(identifier)) {
+                    operationsWritten.add(identifier)
+                    out.write(`    {"${identifier}", _${if_identifier}_${identifier}},\n`)
+                }
+            } break
+            case Type.TKN_ATTRIBUTE: {
+                const readonly = _export!.child[0]?.type == Type.TKN_READONLY
+                const param_type_spec = _export!.child[1]!
+                const attr_declarator = _export!.child[2]!
+                for (const n of attr_declarator.child) {
+                    const identifier = n!.text!
+                    if (!operationsWritten.has(`_get_${identifier}`)) {
+                        operationsWritten.add(`_get_${identifier}`)
+                        if (!readonly) {
+                            out.write(`    {"_set_${identifier}", _${if_identifier}_set_${identifier}},\n`)
+                        }
+                        out.write(`    {"_get_${identifier}", _${if_identifier}_get_${identifier}},\n`)
+                    }
+                }
+            } break
+            default:
+                throw Error("yikes")
         }
     }
 }
