@@ -75,3 +75,8 @@ interface Server {
     void setAttributes(in AttributeSeq attributes);
 };
 
+struct Struct {
+    string s;
+    Client o;
+    AttributeType e;
+};

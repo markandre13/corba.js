@@ -128,7 +128,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, specification: Node, p
                         let declarators = member.child[1]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 1)
-                            out.write(declarator!.text + ": " + typeIDLtoTS(type, FileType.VALUE) + "\n")
+                            out.write(declarator!.text + ": " + typeIDLtoTS(type, FileType.INTERFACE) + "\n")
                             // attributes.push(declarator!.text!)
                         }
                     }
