@@ -315,7 +315,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                 let struct_type = definition!
                 let identifier = struct_type.text
                 // TODO: these utility messages belong into the .cc file
-                out.write(`static ${identifier} _decode${identifier}(CORBA::GIOPDecoder &decoder) {\n`)
+                out.write(`static ${identifier} _decode${identifier}(std::shared_ptr<CORBA::ORB> orb, CORBA::GIOPDecoder &decoder) {\n`)
                 out.write(`    return {\n`)
                 for (let i = 0; i < struct_type.child.length; ++i) {
                     const member = struct_type.child[i]!
@@ -324,7 +324,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Node, prefix
                         let declarators = member.child[1]!
                         for (let declarator of declarators.child) {
                             writeIndent(out, indent + 2)
-                            out.write("." + declarator!.text + " = " + typeIDLtoGIOPCC(type, undefined, Direction.OUT) + ",\n")
+                            out.write("." + declarator!.text + " = " + typeIDLtoGIOPCC(type, undefined, Direction.OUT, true) + ",\n")
                         }
                     }
                 }

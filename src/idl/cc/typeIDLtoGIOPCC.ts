@@ -5,7 +5,8 @@ import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
 export function typeIDLtoGIOPCC(
     type: Node | undefined,
     arg: string | undefined,
-    direction: Direction
+    direction: Direction,
+    struct = false
 ): string {
     if (type === undefined) throw Error("internal error: parser delivered no type information")
     // console.log(`typeIDLtoGIOP(${type.toString()}, ${arg})`)
@@ -13,7 +14,7 @@ export function typeIDLtoGIOPCC(
     switch (type!.type) {
         case Type.TKN_IDENTIFIER:
         case Type.TKN_MODULE:
-            return typeIDLtoGIOPCC(type.child[0], arg, direction)
+            return typeIDLtoGIOPCC(type.child[0], arg, direction, struct)
         case Type.TKN_VALUETYPE:
             return arg === undefined ? `decoder.value("${type.text}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:
@@ -21,7 +22,7 @@ export function typeIDLtoGIOPCC(
                 case Direction.IN: // skel/impl: decode incoming argument
                     return arg === undefined ? `${type.text}::_narrow(decoder.readObject(obj->get_ORB()))` : `encoder.writeObject(${arg}.get())`
                 case Direction.OUT: // stub: decode incoming return value
-                    return arg === undefined ? `${type.text}::_narrow(decoder.readObject(get_ORB()))` : `encoder.writeObject(${arg}.get())`
+                    return arg === undefined ? `${type.text}::_narrow(decoder.readObject(${struct?"orb":"get_ORB()"}))` : `encoder.writeObject(${arg}.get())`
             }
         case Type.TKN_UNION:
             throw Error("union is not implemented yet")
@@ -31,7 +32,7 @@ export function typeIDLtoGIOPCC(
             //     ? `${prefix}decode${type!.text!}(decoder)`
             //     : `${prefix}encode${type!.text!}(encoder,${arg})`
             return arg === undefined
-                 ? `_decode${type.text}(decoder)` 
+                 ? `_decode${type.text}(get_ORB(), decoder)` 
                  : `_encode${type.text}(encoder,${arg})`
         }
         case Type.TKN_NATIVE:
@@ -135,8 +136,8 @@ export function typeIDLtoGIOPCC(
                     }
                 default:
                     return arg === undefined
-                        ? `decoder.readSequence<${typeIDLtoCC(type.child[0], Direction.NESTED)}>([&] { return ${typeIDLtoGIOPCC(type.child[0], undefined, direction)}; })`
-                        : `encoder.writeSequence<${typeIDLtoCC(type.child[0], Direction.NESTED)}>(${arg}, [&](auto item) { ${typeIDLtoGIOPCC(type.child[0], "item", direction)}; })`
+                        ? `decoder.readSequence<${typeIDLtoCC(type.child[0], Direction.NESTED)}>([&] { return ${typeIDLtoGIOPCC(type.child[0], undefined, direction, struct)}; })`
+                        : `encoder.writeSequence<${typeIDLtoCC(type.child[0], Direction.NESTED)}>(${arg}, [&](auto item) { ${typeIDLtoGIOPCC(type.child[0], "item", direction, struct)}; })`
             }
         default:
             type.printTree()
