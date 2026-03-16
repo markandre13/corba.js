@@ -192,18 +192,56 @@ export class PromiseHandler {
 type IncomingAuthenticator = (connection: Connection, context: EstablishContext) => AuthenticationStatus
 type OutgoingAuthenticator = (connection: Connection) => GSSUPInitialContextToken | undefined
 
+// OmniORB has these additional methods:
+// class omniORB {
+// public:
+// CORBA::TRANSIENT
+// typedef CORBA::Boolean (*transientExceptionHandler_t)(void* cookie, CORBA::ULong n_retries, const CORBA::TRANSIENT& ex);
+// static void installTransientExceptionHandler(void* cookie, transientExceptionHandler_t fn);
+// static void installTransientExceptionHandler(CORBA::Object_ptr obj, void* cookie, transientExceptionHandler_t fn);
+//
+// static CORBA::ULong defaultTransientRetryDelayIncrement;
+// static CORBA::ULong defaultTransientRetryDelayMaximum;
+//
+// CORBA::COMM_FAILURE
+// typedef CORBA::Boolean (*commFailureExceptionHandler_t)(void* cookie, CORBA::ULong n_retries, const CORBA::COMM_FAILURE& ex);
+// static void installCommFailureExceptionHandler(void* cookie, commFailureExceptionHandler_t fn);
+// static void installCommFailureExceptionHandler(CORBA::Object_ptr obj, void* cookie, commFailureExceptionHandler_t fn);
+//
+// System Exceptions
+// typedef CORBA::Boolean (*systemExceptionHandler_t)(void* cookie, CORBA::ULong n_retries, const CORBA::SystemException& ex);
+// static void installSystemExceptionHandler(void* cookie, systemExceptionHandler_t fn);
+// static void installSystemExceptionHandler(CORBA::Object_ptr obj, void* cookie, systemExceptionHandler_t fn);
+// }
+//
+// the installSystemExceptionHandler() implemented here for now is called when a stubs connection is lost
+
 // TODO: to have only one ORB instance, split ORB into ORB, Connection (requestIds & ACL) and CrudeObjectAdapter (stubs, servants, valuetypes)
+export type ExceptionHandler = () => void
+
 export class ORB implements EventTarget {
-    private static exceptionHandler = new Map<CORBAObject, ()=>void>()
-    static installSystemExceptionHandler(object: CORBAObject, handler: () => void) {
-        this.exceptionHandler.set(object, handler)
+    private static exceptionHandler = new WeakMap<CORBAObject, ExceptionHandler[]>()
+    /**
+     * 
+     * @param object 
+     * @param handler 
+     */
+    static installSystemExceptionHandler(object: CORBAObject, handler: ExceptionHandler) {
+        let a = this.exceptionHandler.get(object)
+        if (a === undefined) {
+            a = []
+            this.exceptionHandler.set(object, a)
+        }
+        a.push(handler)
     }
     static connectionClose(conn: Connection) {
-        conn.stubsById.forEach( stub => {
-            const handler = this.exceptionHandler.get(stub)
-            if (handler !== undefined) {
+        conn.stubsById.forEach(stub => {
+            const handlerList = this.exceptionHandler.get(stub)
+            if (handlerList !== undefined) {
                 this.exceptionHandler.delete(stub)
-                handler()
+                for (const handler of handlerList) {
+                    handler()
+                }
             }
         })
     }
@@ -663,7 +701,7 @@ export class ORB implements EventTarget {
                     // console.log(`caught error: ${e}`)
                     // FIXME: this works with tcp and tls but not the websocket library
                     handler.reject(e)
-                }    
+                }
             } break
             default: {
                 // NOTE: OmniORB closes idle connections after 30s
