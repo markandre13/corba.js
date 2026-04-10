@@ -1,7 +1,6 @@
 import { Type, Node } from "../idl-node"
 import { FileType } from "../util"
 
-
 export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
@@ -11,6 +10,10 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
             let identifierType = type.child[type.child.length - 1]!
             let relativeName = ""
             for (let x of type.child) {
+                if (x === undefined) {
+                    type.printTree()
+                    throw Error("undefined child unexpected")
+                }
                 relativeName = `${relativeName}.${x!.text!}`
             }
             relativeName = relativeName.substring(1)
@@ -85,16 +88,34 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
         case Type.SYN_UNSIGNED_LONGLONG:
             return "bigint"
         case Type.TKN_SEQUENCE:
-            switch(type!.child[0]!.type) {
-                case Type.TKN_OCTET:
-                    return "Uint8Array";
-                case Type.TKN_FLOAT:
-                    return "Float32Array";
-                case Type.TKN_DOUBLE:
-                    return "Float64Array";
-                default:
-                    return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
+            let specialType: string | undefined
+            if (type.child[2]?.type === Type.SYN_ANNOTAION) {
+                const annotation = type.child[2]
+                if (annotation.text === "js_mapping") {
+                    if (annotation.child[0]?.child[0]?.text === "type") {
+                        specialType = annotation.child[0]?.child[0]?.child[0]?.text
+                    }
+                }
             }
+            if (specialType) {
+                let typedArray: string | undefined
+                switch (type!.child[0]!.type) {
+                    case Type.TKN_OCTET:
+                        typedArray = "Uint8Array"
+                        break
+                    case Type.TKN_FLOAT:
+                        typedArray = "Float32Array"
+                        break
+                    case Type.TKN_DOUBLE:
+                        typedArray = "Float64Array"
+                        break
+                }
+                if (specialType !== typedArray) {
+                    throw Error(`unsupported js mapping ${specialType} for sequence<...>`)
+                }
+                return typedArray!
+            }
+            return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
         default:
             throw Error(`no mapping from IDL type to TS type for ${type.toString()}`)
     }

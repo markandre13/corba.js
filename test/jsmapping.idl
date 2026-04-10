@@ -1,0 +1,19 @@
+interface JsMapping {
+    // method return type
+    void arrayIn(
+        in sequence<float> value
+    );
+    void typedArrayIn(
+        @js_mapping(type=Float32Array)
+        in sequence<float> value
+    );
+    // method parameter type
+    sequence<float> arrayOut();
+    @js_mapping(type=Float32Array) sequence<float> typeArrayOut();
+
+    // attribute
+    attribute @js_mapping(type=Float32Array) sequence<float> attr;
+    attribute @js_mapping(type=Float32Array) sequence<float> typedAttr;
+
+    // TODO: struct
+};

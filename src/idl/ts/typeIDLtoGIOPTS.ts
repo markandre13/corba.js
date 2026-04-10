@@ -83,14 +83,23 @@ export function typeIDLtoGIOPTS(
         case Type.SYN_LONG_DOUBLE:
             throw Error("long double is not supported yet")
         case Type.TKN_SEQUENCE:
-            switch (type.child[0]!.type) {
-                case Type.TKN_OCTET:
+            let specialType: string | undefined
+            if (type.child[2]?.type === Type.SYN_ANNOTAION) {
+                const annotation = type.child[2]
+                if (annotation.text === "js_mapping") {
+                    if (annotation.child[0]?.child[0]?.text === "type") {
+                        specialType = annotation.child[0]?.child[0]?.child[0]?.text
+                    }
+                }
+            }
+            switch (specialType) {
+                case "Uint8Array":
                     name = "sequenceOctet"
-                    break;
-                case Type.TKN_FLOAT:
+                    break
+                case "Float32Array":
                     name = "sequenceFloat"
                     break
-                case Type.TKN_DOUBLE:
+                case "Float64Array":
                     name = "sequenceDouble"
                     break
                 default:

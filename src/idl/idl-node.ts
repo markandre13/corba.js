@@ -105,6 +105,7 @@ export enum Type {
     SYN_OPERATION_DECLARATION, // 87
     SYN_PARAMETER_DECLARATIONS, // 90
     SYN_PARAMETER_DECLARATION, // 91
+    SYN_ANNOTAION,
     
     // synthetic tokens (not part of the CORBA spec but required for the parse tree)
     SYN_TYPENAME,
@@ -220,7 +221,7 @@ export class Node
     
             case Type.SYN_PARAMETER_DECLARATIONS: return "SYN_PARAMETER_DECLARATIONS" // 90
             case Type.SYN_PARAMETER_DECLARATION:  return "SYN_PARAMETER_DECLARATION" // 91
-            
+            case Type.SYN_ANNOTAION:              return "SYN_ANNOTATION"
             case Type.SYN_TYPENAME:               return "SYN_TYPENAME"
 
             case Type.SYN_LONGLONG:               return "long long"

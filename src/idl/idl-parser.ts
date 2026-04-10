@@ -515,7 +515,7 @@ function type_dcl(): Node | undefined {
             return undefined
         }
         const identifiers = t1.child[1]!.child!
-        for(const id of identifiers) {
+        for (const id of identifiers) {
             scoper.addType(id!.text!, t1.child[0]!)
         }
         t1.type = t0.type
@@ -529,11 +529,11 @@ function type_dcl(): Node | undefined {
 
     t0 = union_type()
     if (t0 !== undefined)
-        return t0;
+        return t0
 
     t0 = enum_type()
     if (t0 !== undefined)
-        return t0;
+        return t0
 
     t0 = lexer.lex()
     if (t0 !== undefined && t0.type === Type.TKN_NATIVE) {
@@ -913,8 +913,8 @@ function member_list(): Node | undefined {
         return undefined
     const node = new Node(Type.SYN_MEMBER_LIST)
     node.append(t0)
-        
-    while(true) {
+
+    while (true) {
         const t1 = member()
         if (t1 === undefined)
             break
@@ -994,7 +994,7 @@ function switch_type_spec() {
 // 74
 function switch_body() {
     let t0 = new Node(Type.SYN_SWITCH_BODY)
-    while(true) {
+    while (true) {
         const t1 = _case()
         if (t1 === undefined)
             break
@@ -1172,7 +1172,7 @@ function except_dcl(): Node | undefined {
 
     t0.text = t1.text
     expect("{")
-    while(true) {
+    while (true) {
         let t2 = member()
         if (t2 === undefined)
             break
@@ -1181,43 +1181,43 @@ function except_dcl(): Node | undefined {
     expect("}")
 
     scoper.addType(t0.text!, t0)
-    
+
     return t0
 }
 
 
 // 87 (Operation Declaration)
 function op_dcl(): Node | undefined {
-    const t0 = op_attribute() // opt
-    const t1 = op_type_spec()
-    if (t1 === undefined) {
-        lexer.unlex(t0)
+    const node_attribute = op_attribute() // opt
+    const node_type = op_type_spec()
+    if (node_type === undefined) {
+        lexer.unlex(node_attribute)
         return undefined
     }
-    const t2 = identifier()
-    if (t2 === undefined) {
-        throw Error(`expected identifier after '${t1.toString()}'`)
+    const node_identifier = identifier()
+    if (node_identifier === undefined) {
+        throw Error(`expected identifier after '${node_type.toString()}'`)
     }
-    const t3 = parameter_dcls()
-    if (t3 === undefined) {
+    const node_parameter_dcls = parameter_dcls()
+    if (node_parameter_dcls === undefined) {
         // throw Error("expected parameter declaration after "+t2.toString())
-        lexer.unlex(t2)
+        lexer.unlex(node_identifier)
         // FIXME: missing private or public in valuetype caused this. also: we don't use the private/public declarators yet
-        if (t1.child.length != 0) {
-            throw Error("expected parameter declaration after "+t2.toString())
+        if (node_type.child.length != 0) {
+            throw Error("expected parameter declaration after " + node_identifier.toString())
         }
-        lexer.unlex(t1)
-        lexer.unlex(t0)
+        lexer.unlex(node_type)
+        lexer.unlex(node_attribute)
         return undefined
     }
     const t4 = raises_expr()
     // const t5 = context_expr()
 
     let node = new Node(Type.SYN_OPERATION_DECLARATION)
-    node.append(t0)
-    node.append(t1)
-    node.append(t2)
-    node.append(t3)
+    node.append(node_attribute)
+    node.append(node_type)
+    node.append(node_identifier)
+    node.append(node_parameter_dcls)
     node.append(t4)
     node.append(undefined)
     return node
@@ -1238,8 +1238,9 @@ function op_attribute(): Node | undefined {
 // 89
 function op_type_spec(): Node | undefined {
     let t0 = param_type_spec()
-    if (t0 !== undefined)
+    if (t0 !== undefined) {
         return t0
+    }
     t0 = lexer.lex()
     if (t0 !== undefined && t0.type === Type.TKN_VOID)
         return t0
@@ -1282,6 +1283,7 @@ function parameter_dcls(): Node | undefined {
 
 // 91
 function param_dcl(): Node | undefined {
+    let annotation = annotation_appl()
     let t0 = param_attribute()
     if (t0 === undefined)
         return undefined
@@ -1304,6 +1306,9 @@ function param_dcl(): Node | undefined {
     declaration.append(t0)
     declaration.append(t1)
     declaration.append(t2)
+    if (annotation) {
+        t1.append(annotation)
+    }
     return declaration
 }
 
@@ -1336,8 +1341,8 @@ function raises_expr(): Node | undefined {
     if (t1.child[0] === undefined || t1.child[0].type !== Type.TKN_EXCEPTION)
         throw Error(`expected ${t1.toString()} to be an exception`)
     if (t1.type)
-    t0.append(t1)
-    while(true) {
+        t0.append(t1)
+    while (true) {
         let t2 = lexer.lex()
         if (t2 === undefined || t2.type !== Type.TKN_TEXT || t0.text !== ",") {
             lexer.unlex(t2)
@@ -1357,12 +1362,10 @@ function raises_expr(): Node | undefined {
 // 95
 function param_type_spec(): Node | undefined {
     let t0
+    const annotation = annotation_appl()
     t0 = base_type_spec()
-    if (t0 !== undefined)
-        return t0
-    t0 = template_type_spec()	// not in the CORBA specs but MICO does this, usually an typedef would be required for this
-    if (t0 !== undefined)
-        return t0
+    if (t0 === undefined)
+        t0 = template_type_spec()	// not in the CORBA specs but MICO does this, usually an typedef would be required for this
     /*
         t0 = string_type()
         if (t0 !== undefined)
@@ -1371,10 +1374,13 @@ function param_type_spec(): Node | undefined {
         if (t0 !== undefined)
             return t0
     */
-    t0 = scoped_name()
-    if (t0)
-        return t0
-    return undefined
+    if (t0 === undefined)
+        t0 = scoped_name()
+
+    if (t0 !== undefined && annotation) {
+        t0.append(annotation)
+    }
+    return t0
 }
 
 // 104
@@ -1456,6 +1462,65 @@ function attr_declarator(): Node | undefined {
             throw Error("expected another declarator after ','")
         }
     }
+}
+
+// IDL 4, 7.4.15 Building Block Annotations
+
+// 209
+function annotation_appl(): Node | undefined {
+    // @ scoped_name [ ]
+    // console.log("------------------------")
+    let t0 = lexer.lex()
+    if (t0?.text !== "@") {
+        lexer.unlex(t0)
+        return undefined
+    }
+    const t1 = identifier() // should've been scoped_name but that doesn't work here
+    if (t1 === undefined) {
+        throw Error("expeced identifier after @")
+    }
+    expect("(")
+    const t3 = annotation_appl_params()
+    expect(")")
+    // throw Error("GOOD")
+    // console.log(t1)
+    t1.append(t3)
+    t1.type = Type.SYN_ANNOTAION
+    return t1
+}
+
+// 210
+function annotation_appl_params(): Node | undefined {
+    const params = new Node(Type.SYN_PARAMETER_DECLARATIONS)
+    while (true) {
+        const param = annotation_appl_param()
+        if (param === undefined) {
+            break
+        }
+        params.append(param)
+        const t1 = lexer.lex()
+        if (t1?.text !== ',') {
+            lexer.unlex(t1)
+            break
+        }
+    }
+    return params
+}
+
+// 211
+function annotation_appl_param(): Node | undefined {
+    const id = identifier()
+    if (id === undefined) {
+        throw Error(`expected identifier`)
+    }
+    expect("=")
+    const val = identifier()
+    if (val === undefined) {
+        throw Error(`expected value`)
+    }
+    // console.log(`${id?.text} = ${val?.text}`)
+    id.append(val)
+    return id
 }
 
 function identifier(): Node | undefined {
@@ -1541,11 +1606,11 @@ function resolve_module(identifierToken: Node, module: Node) {
     if (paamayimNekudotayim === undefined || paamayimNekudotayim.type !== Type.TKN_COLON_COLON)
         throw Error(`Expected :: after module identifier '${identifierToken.text}'`)
 
-        const identifier = lexer.lex()
+    const identifier = lexer.lex()
     if (identifier === undefined || identifier.type !== Type.TKN_IDENTIFIER)
         throw Error(`Expected identifier after ::'`)
 
-        for (let child of module.child) {
+    for (let child of module.child) {
         switch (child?.type) {
             case Type.TKN_MODULE:
                 if (child.text === identifier.text) {
