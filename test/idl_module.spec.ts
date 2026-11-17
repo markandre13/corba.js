@@ -65,15 +65,15 @@ describe("corba.js", function() {
 
         mockConnection(serverORB, clientORB)
 
-        let x1 = stub.X1.narrow(await clientORB.stringToObject("corbaname::mock:0#X1"))
-        let m1x3 = stub.M1.M1X3.narrow(await clientORB.stringToObject("corbaname::mock:0#M1X3"))
-        let m1m2x2 = stub.M1.M2.M1M2X2.narrow(await clientORB.stringToObject("corbaname::mock:0#M1M2X2"))
+        let x1 = stub.X1.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#X1"))
+        let m1x3 = stub.M1.M1X3.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1X3"))
+        let m1m2x2 = stub.M1.M2.M1M2X2.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1M2X2"))
 
         await x1.f()
         expect(text).is.equal("X1")
 
         // START OF TEST IF INTERNAL ERRORS ARE PROPAGATED
-        await expect(m1m2x2.m(x1)).to.be.rejectedWith(Error, "ORB: can not serialize Stub yet", "missing internal error")
+        await expect(m1m2x2.m(x1)).not.to.be.rejected
 
         await expect(m1m2x2.m(x1_impl)).to.be.rejectedWith(Error, "OBJECT_ADAPTER(minor=0x4f4d0003, completed=NO, No default servant)")
 

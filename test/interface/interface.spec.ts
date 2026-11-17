@@ -18,7 +18,7 @@ describe("interface", function () {
 
         mockConnection(serverORB, clientORB)
 
-        const object = await clientORB.stringToObject("corbaname::server:0#Backend")
+        const object = await clientORB.stringToObject("corbaname::remote-mock:0#Backend")
         const serverStub = stub.Interface.narrow(object)
 
         expect(await serverStub.callBoolean(true)).to.equal(true)
@@ -73,7 +73,7 @@ describe("interface", function () {
         clientORB.registerStubClass(stub.Interface)
 
         mockConnection(serverORB, clientORB)
-        const object = await clientORB.stringToObject("corbaname::server:0#Backend")
+        const object = await clientORB.stringToObject("corbaname::remote-mock:0#Backend")
         const serverStub = stub.Interface.narrow(object)
 
         // instantiate PeerSub and set it in the server

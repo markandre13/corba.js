@@ -56,7 +56,7 @@ describe("corba.js", function() {
         
         mockConnection(serverORB, clientORB)
 
-        const server = stub.testVT.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
+        const server = stub.testVT.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
         await server.setClient(new Client_impl(clientORB))
 
         // server will FigureModel to client

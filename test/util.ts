@@ -27,13 +27,13 @@ export function mockConnection(server: ORB, client: ORB, verbose = false): ORB {
 
     server.name = "server"
     server.addProtocol(proto)
-    const serverConn = new MockConnection(server, client, proto, 0, 1, verbose)
+    const serverConn = new MockConnection(server, client, proto, "remote-mock", "local-mock", 0, 1, verbose)
     proto.connections.push(serverConn)
     server.addConnection(serverConn)
 
     client.name = "client"
     client.addProtocol(proto)
-    const clientConn = new MockConnection(client, server, proto, 1, 0, verbose)
+    const clientConn = new MockConnection(client, server, proto, "local-mock", "remote-mock", 1, 0, verbose)
     proto.connections.push(clientConn)
     client.addConnection(clientConn)
 
@@ -51,14 +51,18 @@ class MockProtocol implements Protocol {
 
 class MockConnection extends Connection {
     _remoteORB: ORB
+    _localAddress: string
+    _remoteAddress: string
     _localPort: number
     _remotePort: number
     protocol: MockProtocol
     verbose: boolean
 
-    constructor(orb: ORB, remoteORB: ORB, protocol: MockProtocol, localPort: number, remotePort: number, verbose: boolean) {
+    constructor(orb: ORB, remoteORB: ORB, protocol: MockProtocol, localAddress: string, remoteAddress: string, localPort: number, remotePort: number, verbose: boolean) {
         super(orb)
         this._remoteORB = remoteORB
+        this._localAddress = localAddress
+        this._remoteAddress = remoteAddress
         this._localPort = localPort
         this._remotePort = remotePort
         this.protocol = protocol
@@ -66,13 +70,13 @@ class MockConnection extends Connection {
     }
 
     override get localAddress(): string {
-        return this.orb.name
+        return this._localAddress
     }
     override get localPort(): number {
         return this._localPort
     }
     override get remoteAddress(): string {
-        return this._remoteORB.name
+        return this._remoteAddress
     }
     override get remotePort(): number {
         return this._remotePort

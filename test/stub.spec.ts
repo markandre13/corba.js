@@ -38,7 +38,7 @@ describe("stub", function() {
         mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
-        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
+        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
         let data = await server.getData()
         data.hello()
         expect(Data_impl.numberOfInstances).to.equal(1)
@@ -57,7 +57,7 @@ describe("stub", function() {
         mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
-        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
+        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
 
         let data = new Data_impl(clientORB)
         Server_impl.dataCounter = 0
@@ -82,7 +82,7 @@ describe("stub", function() {
         mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
-        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
+        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
 
         let data = new Data_impl(clientORB)
         // expect(serverORB.stubsById.size).to.equal(0)

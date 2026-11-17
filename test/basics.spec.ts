@@ -89,7 +89,7 @@ describe("corba.js", function () {
         mockConnection(serverORB, clientORB)
 
         console.log(`# CLIENT: RESOLVE SERVER`)
-        let serverStub = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
+        let serverStub = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
         expect(serverStub).instanceOf(stub.Server)
        
         console.log("# CLIENT -> SERVER: GET/SET ATTRIBUTE")

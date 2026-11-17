@@ -38,7 +38,7 @@ describe("object by reference", function() {
             
         mockConnection(serverORB, clientORB)
            
-        let object = stub.Server.narrow(await clientORB.stringToObject("corbaname::mock:0#Server"))
+        let object = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
         let serverObject = stub.Server.narrow(object)
         
         let session = await serverObject.getSession()
