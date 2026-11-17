@@ -1,0 +1,106 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "CORBA IDL",
+    "scopeName": "source.idl",
+    "patterns": [
+        { "include": "#comments" },
+        { "include": "#strings" },
+        { "include": "#annotations" },
+        { "include": "#declarations" },
+        { "include": "#storage-modifiers" },
+        { "include": "#control" },
+        { "include": "#types" },
+        { "include": "#constants" },
+        { "include": "#keywords" },
+        { "include": "#numbers" },
+        { "include": "#escaped-identifiers" },
+        { "include": "#scope-operator" },
+        { "include": "#punctuation" }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.block.idl",
+                    "begin": "/\\*",
+                    "end": "\\*/",
+                    "beginCaptures": { "0": { "name": "punctuation.definition.comment.idl" } },
+                    "endCaptures": { "0": { "name": "punctuation.definition.comment.idl" } }
+                },
+                {
+                    "name": "comment.line.double-slash.idl",
+                    "match": "//.*$"
+                }
+            ]
+        },
+        "strings": {
+            "name": "string.quoted.double.idl",
+            "begin": "\"",
+            "end": "\"",
+            "patterns": [
+                { "match": "\\\\.", "name": "constant.character.escape.idl" }
+            ]
+        },
+        "annotations": {
+            "match": "(@)([A-Za-z_][A-Za-z0-9_]*)",
+            "captures": {
+                "1": { "name": "punctuation.definition.annotation.idl" },
+                "2": { "name": "entity.name.function.annotation.idl" }
+            }
+        },
+        "declarations": {
+            "patterns": [
+                {
+                    "match": "\\b(module)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+                    "captures": {
+                        "1": { "name": "keyword.declaration.module.idl" },
+                        "2": { "name": "entity.name.namespace.idl" }
+                    }
+                },
+                {
+                    "match": "\\b(interface|valuetype|struct|union|enum|exception|component|home|eventtype)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+                    "captures": {
+                        "1": { "name": "keyword.declaration.idl" },
+                        "2": { "name": "entity.name.type.idl" }
+                    }
+                }
+            ]
+        },
+        "storage-modifiers": {
+            "match": "\\b(abstract|custom|local|oneway|in|out|inout|public|private|readonly|native|truncatable|multiple|attribute|const|typedef)\\b",
+            "name": "storage.modifier.idl"
+        },
+        "control": {
+            "match": "\\b(case|default|switch|raises|getraises|setraises)\\b",
+            "name": "keyword.control.idl"
+        },
+        "types": {
+            "match": "\\b(any|boolean|char|wchar|double|float|fixed|long|short|octet|string|wstring|void|unsigned|sequence|Object|ValueBase)\\b",
+            "name": "support.type.idl"
+        },
+        "constants": {
+            "match": "\\b(TRUE|FALSE)\\b",
+            "name": "constant.language.idl"
+        },
+        "keywords": {
+            "match": "\\b(context|consumes|emits|publishes|provides|uses|supports|factory|finder|import|primarykey|typeid|typeprefix)\\b",
+            "name": "keyword.other.idl"
+        },
+        "numbers": {
+            "match": "\\b(0[xX][0-9a-fA-F]+|[0-9]+(\\.[0-9]*)?([eE][+-]?[0-9]+)?)\\b",
+            "name": "constant.numeric.idl"
+        },
+        "escaped-identifiers": {
+            "match": "\\b_[A-Za-z][A-Za-z0-9_]*\\b",
+            "name": "variable.other.idl"
+        },
+        "scope-operator": {
+            "match": "::",
+            "name": "keyword.operator.scope.idl"
+        },
+        "punctuation": {
+            "match": "[{}()\\[\\];,:=<>]",
+            "name": "punctuation.idl"
+        }
+    }
+}

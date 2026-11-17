@@ -1,0 +1,40 @@
+{
+    "name": "corba-idl-syntax",
+    "displayName": "CORBA IDL Syntax",
+    "description": "Syntax highlighting for CORBA IDL files as parsed by corba.js",
+    "version": "0.1.0",
+    "publisher": "markandre13",
+    "license": "AGPL-3.0",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/markandre13/corba.js.git"
+    },
+    "engines": {
+        "vscode": "^1.80.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [
+            {
+                "id": "idl",
+                "aliases": [
+                    "CORBA IDL",
+                    "idl"
+                ],
+                "extensions": [
+                    ".idl"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "idl",
+                "scopeName": "source.idl",
+                "path": "./syntaxes/idl.tmLanguage.json"
+            }
+        ]
+    }
+}
