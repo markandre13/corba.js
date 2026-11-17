@@ -15,6 +15,8 @@
         { "include": "#numbers" },
         { "include": "#escaped-identifiers" },
         { "include": "#scope-operator" },
+        { "include": "#method-names" },
+        { "include": "#custom-types" },
         { "include": "#punctuation" }
     ],
     "repository": {
@@ -45,7 +47,7 @@
             "match": "(@)([A-Za-z_][A-Za-z0-9_]*)",
             "captures": {
                 "1": { "name": "punctuation.definition.annotation.idl" },
-                "2": { "name": "entity.name.function.annotation.idl" }
+                "2": { "name": "storage.type.annotation.idl" }
             }
         },
         "declarations": {
@@ -101,6 +103,40 @@
         "punctuation": {
             "match": "[{}()\\[\\];,:=<>]",
             "name": "punctuation.idl"
+        },
+        "method-names": {
+            "match": "\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s*\\()",
+            "captures": {
+                "1": { "name": "entity.name.function.idl" }
+            }
+        },
+        "custom-types": {
+            "patterns": [
+                {
+                    "match": "(?!(?:abstract|any|attribute|boolean|case|char|component|const|consumes|context|custom|default|double|emits|enum|eventtype|exception|factory|FALSE|finder|fixed|float|getraises|home|import|in|inout|interface|local|long|module|multiple|native|Object|octet|oneway|out|primarykey|private|provides|public|publishes|raises|readonly|setraises|sequence|short|string|struct|supports|switch|TRUE|truncatable|typedef|typeid|typeprefix|unsigned|union|uses|ValueBase|valuetype|void|wchar|wstring)\\b)\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s*::)",
+                    "captures": {
+                        "1": { "name": "entity.name.namespace.idl" }
+                    }
+                },
+                {
+                    "match": "(?!(?:abstract|any|attribute|boolean|case|char|component|const|consumes|context|custom|default|double|emits|enum|eventtype|exception|factory|FALSE|finder|fixed|float|getraises|home|import|in|inout|interface|local|long|module|multiple|native|Object|octet|oneway|out|primarykey|private|provides|public|publishes|raises|readonly|setraises|sequence|short|string|struct|supports|switch|TRUE|truncatable|typedef|typeid|typeprefix|unsigned|union|uses|ValueBase|valuetype|void|wchar|wstring)\\b)\\b([A-Za-z_][A-Za-z0-9_]*)(?=\\s+[A-Za-z_][A-Za-z0-9_]*\\s*(?:[;,)=\\[(]|$))",
+                    "captures": {
+                        "1": { "name": "entity.name.type.idl" }
+                    }
+                },
+                {
+                    "match": "(<\\s*)(?!(?:abstract|any|attribute|boolean|case|char|component|const|consumes|context|custom|default|double|emits|enum|eventtype|exception|factory|FALSE|finder|fixed|float|getraises|home|import|in|inout|interface|local|long|module|multiple|native|Object|octet|oneway|out|primarykey|private|provides|public|publishes|raises|readonly|setraises|sequence|short|string|struct|supports|switch|TRUE|truncatable|typedef|typeid|typeprefix|unsigned|union|uses|ValueBase|valuetype|void|wchar|wstring)\\b)([A-Za-z_][A-Za-z0-9_]*)",
+                    "captures": {
+                        "2": { "name": "entity.name.type.idl" }
+                    }
+                },
+                {
+                    "match": "(?<!:):(?!:)\\s*(?!(?:abstract|any|attribute|boolean|case|char|component|const|consumes|context|custom|default|double|emits|enum|eventtype|exception|factory|FALSE|finder|fixed|float|getraises|home|import|in|inout|interface|local|long|module|multiple|native|Object|octet|oneway|out|primarykey|private|provides|public|publishes|raises|readonly|setraises|sequence|short|string|struct|supports|switch|TRUE|truncatable|typedef|typeid|typeprefix|unsigned|union|uses|ValueBase|valuetype|void|wchar|wstring)\\b)([A-Za-z_][A-Za-z0-9_]*)",
+                    "captures": {
+                        "1": { "name": "entity.name.type.idl" }
+                    }
+                }
+            ]
         }
     }
 }

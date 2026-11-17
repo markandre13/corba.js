@@ -1,5 +1,5 @@
 {
-    "name": "corba-idl-syntax",
+    "name": "m13-corba-idl",
     "displayName": "CORBA IDL Syntax",
     "description": "Syntax highlighting for CORBA IDL files as parsed by corba.js",
     "version": "0.1.0",
