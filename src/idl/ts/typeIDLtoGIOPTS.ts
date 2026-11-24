@@ -1,5 +1,5 @@
 import { Type } from "../idl-node"
-import { FileType, firstNode, isPointerName } from "../util"
+import { FileType, isPointerName } from "../util"
 import { TypeNode } from "./typeIDLtoTS"
 
 export function typeIDLtoGIOPTS(
@@ -12,9 +12,7 @@ export function typeIDLtoGIOPTS(
     let name: string
     switch (type.type) {
         case Type.SYN_SCOPED_NAME:
-            return typeIDLtoGIOPTS(firstNode(type), arg, filetype)
-        case Type.TKN_MODULE:
-            return typeIDLtoGIOPTS(type.definitions[0], arg, filetype)
+            return typeIDLtoGIOPTS(type.target, arg, filetype)
         case Type.TKN_VALUETYPE:
             return arg === undefined ? `decoder.value("${type.name}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:

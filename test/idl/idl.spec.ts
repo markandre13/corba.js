@@ -126,6 +126,19 @@ describe("IDL Parser", () => {
             expect(str).to.equal("encoder.short(a)")
         })
 
+        it("decode qualified interface name", function () {
+            const tree = parse(`
+                module M {
+                    struct S { long a; };
+                    interface I {};
+                };
+                interface X {
+                    M::I f();
+                };`)
+            const operation = (tree!.definitions[1] as InterfaceDecl).body[0] as Operation
+            expect(typeIDLtoGIOPTS(operation.returnType)).to.equal("decoder.object()")
+        })
+
         it("decode sequence<short>", function () {
             const n0 = { type: Type.TKN_SEQUENCE, elementType: { type: Type.TKN_SHORT } } as const
             const str = typeIDLtoGIOPTS(n0)
