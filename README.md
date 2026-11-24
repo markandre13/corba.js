@@ -68,17 +68,18 @@ the clients an object of type _Client_, which are to be defined in an IDL file:
   (`out` and `inout` are not implemented by corba.js)
 
 For each interface, the IDL compiler will generate stub and skeleton
-classes:
+classes. They are named after the interface with a `_stub` or `_skel` suffix,
+as in the C++ mapping, so for an interface `Server`:
 
-* the stub class represents the remote object as if it is a local object
-  within your program
-* the skeleton class is the super class of the interface's implementation
-  you will need to provide
+* the stub class `Server_stub` represents the remote object as if it is a
+  local object within your program
+* the skeleton class `Server_skel` is the super class of the interface's
+  implementation you will need to provide
 
 Here are example implementations for the client and server defined earlier:
 
 ```javascript
-    class Client_impl extends skel.Client {
+    class Client_impl extends Client_skel {
         constructor(orb: ORB) {
             super(orb)
         }
@@ -88,7 +89,7 @@ Here are example implementations for the client and server defined earlier:
         }
     }
 
-    class Server_impl extends skel.Server {
+    class Server_impl extends Server_skel {
         clients: Array<Client>
     
         constructor(orb: ORB) {
@@ -96,7 +97,7 @@ Here are example implementations for the client and server defined earlier:
             this.clients = new Array<Client>()
         }
         
-        async registerClient(client: stub.Client) {
+        async registerClient(client: Client_stub) {
             clients.push(client)
         }
         
@@ -123,7 +124,7 @@ The server side initialization:
     
     // for the server, the client is a remote object,
     // so we need to register the client's stub
-    orb.registerStubClass(stub.Client)
+    orb.registerStubClass(Client_stub)
     
     // listen for incoming WebSocket connections
     const protocol = new WsProtocol()
@@ -141,13 +142,13 @@ The client side initialization:
     
     // for the client, the server is a remote object,
     // so we need to register the server's stub
-    orb.registerStubClass(stub.Server)
+    orb.registerStubClass(Server_stub)
     
     // find the object registered as "MyServer"
     const object = orb.stringToObject("corbaname::localhost:8809#MyServer")
     
-    // try to cast it to type stub.Server
-    let server = stub.Server.narrow(object)
+    // try to cast it to type Server_stub
+    let server = Server_stub.narrow(object)
     
     // we also want the server to call us thru our Client object
     let me = new Client_impl(orb)
@@ -181,7 +182,7 @@ made the object publicly accessible via
 ```
 and the side using the remote object gained access to it via
 ```javascript
-    const server = stub.Server.narrow(
+    const server = Server_stub.narrow(
         await orb.stringToObject("corbaname::localhost:2809#MyServer")
     )
 ```
@@ -205,7 +206,7 @@ boolean                          | boolean
 octet, short, long float, double | number
 char, string                     | string
 sequence&lt;T&gt;                | Array&lt;T&gt;
-interface T                      | skel.T, stub.T
+interface T                      | T_skel, T_stub
 
 While IDL interfaces are used to provide communication between objects
 registered at different ORBs, valuetypes can be used to exchange data
