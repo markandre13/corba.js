@@ -33,11 +33,11 @@ export function typeIDLtoCC(type: Declaration, direction: Direction): string {
         case Type.SYN_SCOPED_NAME:
             {
                 const identifierType = type.target
-                let relativeName = [...type.path.map(x => x.name), declarationName(identifierType)].join(".")
+                let relativeName = [...type.path.map(x => x.name), declarationName(identifierType)].join("::")
 
                 let absolutePrefix = ""
                 for (let x: ModuleDecl | undefined = type.path.length > 0 ? type.path[0]!.parent : type.scope; x; x = x.parent) {
-                    absolutePrefix = `.${x.name}${absolutePrefix}`
+                    absolutePrefix = `::${x.name}${absolutePrefix}`
                 }
 
                 if (
@@ -47,7 +47,7 @@ export function typeIDLtoCC(type: Declaration, direction: Direction): string {
                     type.name.substring(type.name.length - 4) === "_ptr"
                 ) {
                     const ptrName = type.name.substring(0, type.name.length - 4)
-                    return `${absolutePrefix.length == 0 ? ptrName : `${absolutePrefix.substring(1)}.${ptrName}`} | undefined`
+                    return `${absolutePrefix.length == 0 ? ptrName : `${absolutePrefix.substring(2)}::${ptrName}`} | undefined`
                 }
 
                 let name: string
@@ -57,29 +57,29 @@ export function typeIDLtoCC(type: Declaration, direction: Direction): string {
                         // if (filetype !== FileType.VALUETYPE && filetype !== FileType.VALUE)
                         //     name = `valuetype${absolutePrefix}.${relativeName}`
                         // else
-                        //     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                        //     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(2)}::${relativeName}`
                         break
                     case Type.SYN_INTERFACE:
                         // throw Error("not implemented yet")
                         // if (filetype !== FileType.INTERFACE)
                         //     name = `_interface${absolutePrefix}.${relativeName}`
                         // else
-                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(2)}::${relativeName}`
                         name = `std::shared_ptr<${name}>`
                         break
                     case Type.TKN_ENUM:
                     case Type.TKN_UNION:
-                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(2)}::${relativeName}`
                         break
                     case Type.TKN_STRUCT:
-                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                        name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(2)}::${relativeName}`
                         if (direction == Direction.IN) {
                             name = `const ${name}&`
                         }
                         break
                     case Type.TKN_NATIVE:
                         name =
-                            absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
+                            absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(2)}::${relativeName}`
                         break
                     case Type.TKN_SEQUENCE:
                         name = typeIDLtoCC(identifierType, direction)

@@ -43,7 +43,7 @@ function writeCCStubDefinitions(out: fs.WriteStream, specification: Specificatio
         switch (definition.type) {
             case Type.TKN_MODULE:
                 out.write("namespace " + definition.name + " {\n\n")
-                writeCCStubDefinitions(out, definition, prefix + definition.name + ".", indent + 1)
+                writeCCStubDefinitions(out, definition, prefix + definition.name + "::", indent + 1)
                 out.write("} // namespace " + definition.name + "\n\n")
                 break
 

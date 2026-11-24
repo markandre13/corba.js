@@ -48,7 +48,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Specif
         switch (definition.type) {
             case Type.TKN_MODULE:
                 out.write("namespace " + definition.name + " {\n\n")
-                writeCCInterfaceDefinitions(out, definition, prefix + definition.name + ".", indent + 1)
+                writeCCInterfaceDefinitions(out, definition, prefix + definition.name + "::", indent + 1)
                 out.write("} // namespace " + definition.name + "\n\n")
                 break
 

@@ -42,7 +42,7 @@ function writeCCSkeletonDefinitions(out: fs.WriteStream, specification: Specific
         switch (definition.type) {
             case Type.TKN_MODULE:
                 out.write(`namespace ${definition.name}{\n\n`)
-                writeCCSkeletonDefinitions(out, definition, prefix + definition.name + ".", indent + 1)
+                writeCCSkeletonDefinitions(out, definition, prefix + definition.name + "::", indent + 1)
                 out.write(`} // namespace ${definition.name}\n\n`)
                 break
             case Type.SYN_INTERFACE: {

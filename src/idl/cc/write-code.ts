@@ -48,7 +48,7 @@ function writeCCCodeDefinitions(out: fs.WriteStream, specification: Specificatio
         switch (definition.type) {
             case Type.TKN_MODULE:
                 out.write(`namespace ${definition.name}{\n\n`)
-                writeCCCodeDefinitions(out, definition, prefix + definition.name + ".", indent + 1)
+                writeCCCodeDefinitions(out, definition, prefix + definition.name + "::", indent + 1)
                 out.write(`} // namespace ${definition.name}\n\n`)
                 break
             case Type.SYN_INTERFACE: {

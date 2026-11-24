@@ -119,6 +119,31 @@ describe("CC IDL", () => {
     })
 })
 
+describe("CC IDL qualified names", () => {
+    it("struct inside a module", async () => {
+        const data = await compileInterface(`
+            module M {
+                struct S { long a; };
+            };
+            interface Backend {
+                M::S call(in M::S value);
+            };
+        `)
+        expect(data).to.contain("virtual CORBA::async<M::S> call(const M::S& value) = 0;")
+    })
+    it("interface inside a module", async () => {
+        const data = await compileInterface(`
+            module M {
+                interface I {};
+            };
+            interface Backend {
+                M::I call();
+            };
+        `)
+        expect(data).to.contain("virtual CORBA::async<std::shared_ptr<M::I>> call() = 0;")
+    })
+})
+
 describe("CC IDL typedef", () => {
     it("typedef of a predefined type", async () => {
         const data = await compileInterface(`
