@@ -70,7 +70,8 @@ describe("access", async function () {
     describe("authorization", function () {
 
         // disabled: needs SecurityCurrent and an authenticator on the server,
-        // which are not implemented (see "Not implemented" in CORBA.md)
+        // which are not implemented (see "Not implemented" in CORBA.md).
+        // It also depends on the access check, see the FIXME below.
         xit("bind", async function () {
 
             // setup server
@@ -145,7 +146,9 @@ describe("access", async function () {
         })
 
         // disabled: needs access control (ACL) for objects, which is not implemented
-        // (see "Not implemented" in CORBA.md)
+        // (see "Not implemented" in CORBA.md).
+        // FIXME: the check is commented out in ORB.handleMethod() in src/orb/orb.ts
+        // because it does not work with multiple connections per ORB.
         xit("object send to server", async function () {
 
             // setup server
@@ -204,7 +207,9 @@ describe("access", async function () {
         })
 
         // disabled: needs access control (ACL) for objects, which is not implemented
-        // (see "Not implemented" in CORBA.md)
+        // (see "Not implemented" in CORBA.md).
+        // FIXME: the check is commented out in ORB.handleMethod() in src/orb/orb.ts
+        // because it does not work with multiple connections per ORB.
         xit("object received from server", async function () {
 
             // setup server
