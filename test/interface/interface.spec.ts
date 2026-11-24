@@ -11,15 +11,15 @@ describe("interface", function () {
         const serverORB = new ORB()
         const serverImpl = new Interface_impl(serverORB)
         serverORB.bind("Backend", serverImpl)
-        serverORB.registerStubClass(stub.Peer)
+        serverORB.registerStubClass(stub.Peer_stub)
 
         const clientORB = new ORB()
-        clientORB.registerStubClass(stub.Interface)
+        clientORB.registerStubClass(stub.Interface_stub)
 
         mockConnection(serverORB, clientORB)
 
         const object = await clientORB.stringToObject("corbaname::remote-mock:0#Backend")
-        const serverStub = stub.Interface.narrow(object)
+        const serverStub = stub.Interface_stub.narrow(object)
 
         expect(await serverStub.callBoolean(true)).to.equal(true)
         expect(await serverStub.callOctet(42)).to.equal(42)
@@ -66,15 +66,15 @@ describe("interface", function () {
         const serverORB = new ORB()
         const serverImpl = new Interface_impl(serverORB)
         serverORB.bind("Backend", serverImpl)
-        serverORB.registerStubClass(stub.Peer)
-        serverORB.registerStubClass(stub.PeerSub)
+        serverORB.registerStubClass(stub.Peer_stub)
+        serverORB.registerStubClass(stub.PeerSub_stub)
 
         const clientORB = new ORB()
-        clientORB.registerStubClass(stub.Interface)
+        clientORB.registerStubClass(stub.Interface_stub)
 
         mockConnection(serverORB, clientORB)
         const object = await clientORB.stringToObject("corbaname::remote-mock:0#Backend")
-        const serverStub = stub.Interface.narrow(object)
+        const serverStub = stub.Interface_stub.narrow(object)
 
         // instantiate PeerSub and set it in the server
         const frontend = new PeerSub_impl(clientORB)
@@ -82,8 +82,8 @@ describe("interface", function () {
 
         // server as the PeerSub stub
         const peerStub = await serverImpl.getPeer()
-        expect(peerStub).to.be.instanceOf(stub.PeerSub)
-        const peerSubStub = peerStub as stub.PeerSub
+        expect(peerStub).to.be.instanceOf(stub.PeerSub_stub)
+        const peerSubStub = peerStub as stub.PeerSub_stub
 
         // call the method that should be inherited from Peer
         expect(await peerSubStub.callString("hello")).to.equal("hello world")

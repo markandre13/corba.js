@@ -18,7 +18,7 @@
 
 import { expect } from "chai"
 
-import { JsMapping as JsMapping_skel } from "./generated/jsmapping_skel"
+import { JsMapping_skel } from "./generated/jsmapping_skel"
 
 class JsMapping_impl extends JsMapping_skel {
     override arrayIn(value: Array<number>): Promise<void> {

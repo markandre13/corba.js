@@ -54,9 +54,9 @@ describe("corba.js", function() {
         serverORB.bind("M1X3", new M1.M1X3_impl(serverORB))
         serverORB.bind("M1M2X2", new M1.M2.M1M2X2_impl(serverORB))
         
-        clientORB.registerStubClass(stub.X1)
-        clientORB.registerStubClass(stub.M1.M1X3)
-        clientORB.registerStubClass(stub.M1.M2.M1M2X2)
+        clientORB.registerStubClass(stub.X1_stub)
+        clientORB.registerStubClass(stub.M1.M1X3_stub)
+        clientORB.registerStubClass(stub.M1.M2.M1M2X2_stub)
 
         // wait, couldn't we get the name from the class? or at least check the name when registering?
         ORB.registerValueType("V1", V1)
@@ -65,9 +65,9 @@ describe("corba.js", function() {
 
         mockConnection(serverORB, clientORB)
 
-        let x1 = stub.X1.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#X1"))
-        let m1x3 = stub.M1.M1X3.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1X3"))
-        let m1m2x2 = stub.M1.M2.M1M2X2.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1M2X2"))
+        let x1 = stub.X1_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#X1"))
+        let m1x3 = stub.M1.M1X3_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1X3"))
+        let m1m2x2 = stub.M1.M2.M1M2X2_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1M2X2"))
 
         await x1.f()
         expect(text).is.equal("X1")
@@ -77,7 +77,7 @@ describe("corba.js", function() {
 
         await expect(m1m2x2.m(x1_impl)).to.be.rejectedWith(Error, "OBJECT_ADAPTER(minor=0x4f4d0003, completed=NO, No default servant)")
 
-        serverORB.registerStubClass(stub.X1)
+        serverORB.registerStubClass(stub.X1_stub)
         await expect(m1m2x2.m(x1_impl)).not.to.be.rejected
         // END OF TEST IF INTERNAL ERRORS ARE PROPAGATED
 
@@ -105,7 +105,7 @@ describe("corba.js", function() {
         let v3_copy = clientORB.deserialize(v3_json)
         expect(v3_orig).to.deep.equal(v3_copy)
 
-//         let server = stub.Server.narrow(await clientORB.resolve("Server"))
+//         let server = stub.Server_stub.narrow(await clientORB.resolve("Server"))
 //         await server.setClient(new Client_impl(clientORB))
 
 //         // method call
@@ -144,7 +144,7 @@ describe("corba.js", function() {
 })
 
 // interface X1
-class X1_impl extends skel.X1 {
+class X1_impl extends skel.X1_skel {
     constructor(orb: ORB) {
         super(orb)
     }   
@@ -201,7 +201,7 @@ namespace M1 {
             }
         }
 
-        export class M1M2X2_impl extends skel.M1.M2.M1M2X2 {
+        export class M1M2X2_impl extends skel.M1.M2.M1M2X2_skel {
             constructor(orb: ORB) {
                 super(orb)
             }
@@ -223,7 +223,7 @@ namespace M1 {
         }
     }
 
-    export class M1X3_impl extends skel.M1.M1X3 {
+    export class M1X3_impl extends skel.M1.M1X3_skel {
         constructor(orb: ORB) {
             super(orb)
         }  

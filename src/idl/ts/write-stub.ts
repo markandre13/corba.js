@@ -48,15 +48,15 @@ function writeTSStubDefinitions(out: fs.WriteStream, definitions: Definition[], 
                 let inheritance_spec = interface_dcl.base === undefined ? undefined : writtenName(interface_dcl.base)
                 let interface_body = interface_dcl.body
 
-                out.write(`export class ${identifier} extends ${inheritance_spec?inheritance_spec:"Stub"} implements _interface.${prefix}${identifier} {\n`)
+                out.write(`export class ${identifier}_stub extends ${inheritance_spec ? inheritance_spec + "_stub" : "Stub"} implements _interface.${prefix}${identifier} {\n`)
 
                 out.write(`    static ${inheritance_spec ? "override " : ""}_idlClassName(): string {\n`)
                 out.write(`        return "${prefix}${identifier}"\n`)
                 out.write(`    }\n\n`)
 
-                out.write(`    static ${inheritance_spec ? "override " : ""}narrow(object: any): ${prefix}${identifier} {\n`)
-                out.write(`        if (object instanceof ${prefix}${identifier})\n`)
-                out.write(`            return object as ${prefix}${identifier}\n`)
+                out.write(`    static ${inheritance_spec ? "override " : ""}narrow(object: any): ${prefix}${identifier}_stub {\n`)
+                out.write(`        if (object instanceof ${prefix}${identifier}_stub)\n`)
+                out.write(`            return object as ${prefix}${identifier}_stub\n`)
                 out.write(`        throw Error("${prefix}${identifier}.narrow() failed")\n`)
                 out.write(`    }\n\n`)
 

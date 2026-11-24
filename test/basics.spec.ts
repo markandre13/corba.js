@@ -77,8 +77,8 @@ describe("corba.js", function () {
         const serverImpl = new Server_impl(serverORB)
         serverORB.bind("Server", serverImpl)
 
-        serverORB.registerStubClass(stub.Client)
-        clientORB.registerStubClass(stub.Server)
+        serverORB.registerStubClass(stub.Client_stub)
+        clientORB.registerStubClass(stub.Server_stub)
 
         ORB.registerValueType("Origin", Origin)
         ORB.registerValueType("Size", Size)
@@ -89,8 +89,8 @@ describe("corba.js", function () {
         mockConnection(serverORB, clientORB)
 
         console.log(`# CLIENT: RESOLVE SERVER`)
-        let serverStub = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
-        expect(serverStub).instanceOf(stub.Server)
+        let serverStub = stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
+        expect(serverStub).instanceOf(stub.Server_stub)
        
         console.log("# CLIENT -> SERVER: GET/SET ATTRIBUTE")
         expect(await serverStub.id()).to.equal("IT'S ME")
@@ -103,7 +103,7 @@ describe("corba.js", function () {
         const clientImpl = new Client_impl(clientORB)
         expect(await serverStub.getClients()).to.have.lengthOf(0)
         await serverStub.setClient(clientImpl)
-        expect(serverImpl.client).instanceOf(stub.Client)
+        expect(serverImpl.client).instanceOf(stub.Client_stub)
         expect(await serverStub.getClients()).to.have.lengthOf(1)
 
         console.log(`# CLIENT -> SERVER: CALL METHOD`)
@@ -205,12 +205,12 @@ class Rectangle extends Figure implements value.Rectangle {
     }
 }
 
-class Server_impl extends skel.Server {
+class Server_impl extends skel.Server_skel {
     methodAWasCalled = false
     methodBWasCalled = false
     _message = "hello"
 
-    client?: stub.Client
+    client?: stub.Client_stub
     attributes?: _interface.Attribute[]
 
     constructor(orb: ORB) {
@@ -230,7 +230,7 @@ class Server_impl extends skel.Server {
         }
     }
 
-    override async setClient(client: stub.Client) {
+    override async setClient(client: stub.Client_stub) {
         this.client = client
     }
 
@@ -267,7 +267,7 @@ class Server_impl extends skel.Server {
     }
 }
 
-class Client_impl extends skel.Client {
+class Client_impl extends skel.Client_skel {
     instance?: Client_impl
     methodCWasCalled = false
     figureModelReceivedFromServer?: FigureModel

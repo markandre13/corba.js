@@ -32,13 +32,13 @@ describe("stub", function() {
 //clientORB.debug = 1
 
         serverORB.bind("Server", new Server_impl(serverORB))
-        clientORB.registerStubClass(stub.Server)
-        clientORB.registerStubClass(stub.Data)
+        clientORB.registerStubClass(stub.Server_stub)
+        clientORB.registerStubClass(stub.Data_stub)
 
         mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
-        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
+        let server = stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
         let data = await server.getData()
         data.hello()
         expect(Data_impl.numberOfInstances).to.equal(1)
@@ -51,13 +51,13 @@ describe("stub", function() {
 //clientORB.debug = 1
 
         serverORB.bind("Server", new Server_impl(serverORB))
-        clientORB.registerStubClass(stub.Server)
-        serverORB.registerStubClass(stub.Data)
+        clientORB.registerStubClass(stub.Server_stub)
+        serverORB.registerStubClass(stub.Data_stub)
 
         mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
-        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
+        let server = stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
 
         let data = new Data_impl(clientORB)
         Server_impl.dataCounter = 0
@@ -76,13 +76,13 @@ describe("stub", function() {
 //clientORB.debug = 1
 
         serverORB.bind("Server", new Server_impl(serverORB))
-        clientORB.registerStubClass(stub.Server)
-        serverORB.registerStubClass(stub.Data)
+        clientORB.registerStubClass(stub.Server_stub)
+        serverORB.registerStubClass(stub.Data_stub)
 
         mockConnection(serverORB, clientORB)
 
         // client creates server stub which lets server create it's client stub
-        let server = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
+        let server = stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
 
         let data = new Data_impl(clientORB)
         // expect(serverORB.stubsById.size).to.equal(0)
@@ -101,7 +101,7 @@ describe("stub", function() {
     })
 })
 
-class Data_impl extends skel.Data {
+class Data_impl extends skel.Data_skel {
     static numberOfInstances = 0
 
     constructor(orb: ORB) {
@@ -115,8 +115,8 @@ class Data_impl extends skel.Data {
     }
 }
 
-class Server_impl extends skel.Server {
-    static data = new Set<stub.Data>()
+class Server_impl extends skel.Server_skel {
+    static data = new Set<stub.Data_stub>()
     static dataCounter = 0
 
     constructor(orb: ORB) {
@@ -131,7 +131,7 @@ class Server_impl extends skel.Server {
         return data
     }
     
-    async setData(data: stub.Data) {
+    async setData(data: stub.Data_stub) {
         ++Server_impl.dataCounter
         Server_impl.data.add(data)
         return 0

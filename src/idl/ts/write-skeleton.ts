@@ -47,7 +47,7 @@ function writeTSSkeletonDefinitions(out: fs.WriteStream, definitions: Definition
                 let inheritance_spec = interface_dcl.base === undefined ? undefined : writtenName(interface_dcl.base)
                 let interface_body = interface_dcl.body
 
-                out.write(`export abstract class ${identifier} extends ${inheritance_spec ? inheritance_spec : "Skeleton"} implements _interface.${prefix}${identifier} {\n`)
+                out.write(`export abstract class ${identifier}_skel extends ${inheritance_spec ? inheritance_spec + "_skel" : "Skeleton"} implements _interface.${prefix}${identifier} {\n`)
                 out.write(`    constructor(orb: ORB) { super(orb) }\n`)
                 out.write(`    static ${inheritance_spec ? "override " : ""}_idlClassName(): string {\n`)
                 out.write(`        return "${prefix}${identifier}"\n`)

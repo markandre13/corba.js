@@ -280,7 +280,7 @@ describe("access", async function () {
 
             // setup client A
             let clientA = new ORB()
-            clientA.registerStubClass(stub.Server)
+            clientA.registerStubClass(stub.Server_stub)
 
             // // server side
             // const securityServerA = SecurityCurrent.narrow(serverA.resolveInitialReferences("SecurityCurrent"))
@@ -304,7 +304,7 @@ describe("access", async function () {
             mockConnection(serverORB, clientA)
 
             let objectA = await clientA.resolve("ServerA")
-            let serverStub = stub.Server.narrow(objectA)
+            let serverStub = stub.Server_stub.narrow(objectA)
 
             // object published with bind can be accessed
             serverA.wasCalled = false
@@ -349,13 +349,13 @@ describe("access", async function () {
             let serverImpl = new Server_impl(serverORB, "S")
 
             serverORB.bind("Server", serverImpl)
-            serverORB.registerStubClass(stub.Listener)
+            serverORB.registerStubClass(stub.Listener_stub)
 
             // setup client A
             let clientA = new ORB()
-            clientA.registerStubClass(stub.Server)
+            clientA.registerStubClass(stub.Server_stub)
             let connectionA = mockConnection(serverORB, clientA)
-            let serverStub = stub.Server.narrow(await clientA.resolve("Server"))
+            let serverStub = stub.Server_stub.narrow(await clientA.resolve("Server"))
             let objectA = new Listener_impl(clientA, "A")
             let objectB = new Listener_impl(clientA, "B")
             //connectionA.debug = 1
@@ -363,7 +363,7 @@ describe("access", async function () {
             await serverStub.set(objectA)
 
             expect(serverImpl.listener.get("A")).not.to.equal(undefined)
-            let objectAStub = serverImpl.listener.get("A") as stub.Listener
+            let objectAStub = serverImpl.listener.get("A") as stub.Listener_stub
 
             // make a legal call to the client
             objectA.wasCalled = false
@@ -413,12 +413,12 @@ describe("access", async function () {
 
             // setup client A
             let clientA = new ORB()
-            clientA.registerStubClass(stub.Server)
-            clientA.registerStubClass(stub.Listener)
+            clientA.registerStubClass(stub.Server_stub)
+            clientA.registerStubClass(stub.Listener_stub)
             let connectionA = mockConnection(serverORB, clientA)
-            let serverStub = stub.Server.narrow(await clientA.resolve("Server"))
+            let serverStub = stub.Server_stub.narrow(await clientA.resolve("Server"))
 
-            let objectAStub = (await serverStub.get("A") as any) as skel.Listener
+            let objectAStub = (await serverStub.get("A") as any) as skel.Listener_skel
 
             // make a legal call to the server
             objectA.wasCalled = false
@@ -456,7 +456,7 @@ describe("access", async function () {
     })
 })
 
-class SASDemo_impl extends skel.org.jacorb.demo.sas.SASDemo {
+class SASDemo_impl extends skel.org.jacorb.demo.sas.SASDemo_skel {
     async printSAS() {
         console.log("===============> printSAS")
     }
@@ -465,7 +465,7 @@ class SASDemo_impl extends skel.org.jacorb.demo.sas.SASDemo {
     }
 }
 
-class Server_impl extends skel.Server {
+class Server_impl extends skel.Server_skel {
     name: string
     wasCalled: boolean
     listener: Map<string, iface.Listener>
@@ -483,18 +483,18 @@ class Server_impl extends skel.Server {
         return 0
     }
 
-    async set(listener: skel.Listener) {
+    async set(listener: skel.Listener_skel) {
         let name = await listener.getName()
         this.listener.set(name, listener)
         return 0
     }
 
     async get(name: string) {
-        return this.listener.get(name) as skel.Listener
+        return this.listener.get(name) as skel.Listener_skel
     }
 }
 
-class Listener_impl extends skel.Listener {
+class Listener_impl extends skel.Listener_skel {
     name: string
     wasCalled: boolean
 

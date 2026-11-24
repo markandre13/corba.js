@@ -51,12 +51,12 @@ describe("corba.js", function() {
 
         serverORB.bind("Server", new Server_impl(serverORB))
         
-        serverORB.registerStubClass(stub.testVT.Client)
-        clientORB.registerStubClass(stub.testVT.Server)
+        serverORB.registerStubClass(stub.testVT.Client_stub)
+        clientORB.registerStubClass(stub.testVT.Server_stub)
         
         mockConnection(serverORB, clientORB)
 
-        const server = stub.testVT.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
+        const server = stub.testVT.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
         await server.setClient(new Client_impl(clientORB))
 
         // server will FigureModel to client
@@ -265,12 +265,12 @@ class Path extends Figure implements value.testVT.Path {
     }
 }
 
-class Server_impl extends skel.testVT.Server {
+class Server_impl extends skel.testVT.Server_skel {
     static instance?: Server_impl
     static methodAWasCalled = false
     static methodBWasCalled = false
 
-    client?: stub.testVT.Client
+    client?: stub.testVT.Client_stub
 
     constructor(orb: ORB) {
         super(orb)
@@ -278,12 +278,12 @@ class Server_impl extends skel.testVT.Server {
         Server_impl.instance = this
     }
     
-    async setClient(client: stub.testVT.Client) {
+    async setClient(client: stub.testVT.Client_stub) {
         this.client = client
     }
 }
 
-class Client_impl extends skel.testVT.Client {
+class Client_impl extends skel.testVT.Client_skel {
     static instance?: Client_impl
     static methodCWasCalled = false
     static figureModelReceivedFromServer?: FigureModel

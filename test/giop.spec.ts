@@ -30,8 +30,8 @@ describe("CDR/GIOP", () => {
         ORB.registerValueType("Size", Size)
         ORB.registerValueType("Rectangle", Rectangle)
 
-        orb.registerStubClass(stub.GIOPTest)
-        orb.registerStubClass(stub.GIOPSmall)
+        orb.registerStubClass(stub.GIOPTest_stub)
+        orb.registerStubClass(stub.GIOPSmall_stub)
 
         // const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
         // const obj = await orb.stringToObject(data)
@@ -42,7 +42,7 @@ describe("CDR/GIOP", () => {
         fake.expect("init")
         const obj = await orb.stringToObject("corbaname::192.168.1.10#TestService")
 
-        server = stub.GIOPTest.narrow(obj)
+        server = stub.GIOPTest_stub.narrow(obj)
         myserver = new GIOPTest_impl(orb)
     })
 
@@ -199,7 +199,7 @@ describe("CDR/GIOP", () => {
             // this does not work with the real orb because the host and port may be wrong
             fake.expect(this.test!.fullTitle())
             const obj = await server.getObject()
-            const small = stub.GIOPSmall.narrow(obj)
+            const small = stub.GIOPSmall_stub.narrow(obj)
             small.call("GIOPSmall.call()")
             expect(await server.peek()).to.equal("GIOPSmall.call()")
         })
@@ -921,7 +921,7 @@ describe("CDR/GIOP", () => {
     })
 })
 
-class GIOPTest_impl extends skel.GIOPTest {
+class GIOPTest_impl extends skel.GIOPTest_skel {
     msg = ""
 
     constructor(orb: ORB) {
@@ -1024,7 +1024,7 @@ class GIOPTest_impl extends skel.GIOPTest {
     }
 }
 
-class GIOPSmall extends skel.GIOPSmall {
+class GIOPSmall extends skel.GIOPSmall_skel {
     msg = ""
 
     constructor(orb: ORB) {

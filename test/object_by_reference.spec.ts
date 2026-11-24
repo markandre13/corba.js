@@ -29,17 +29,17 @@ describe("object by reference", function() {
         let serverORB = new ORB()
 //serverORB.debug = 1
         serverORB.bind("Server", new Server_impl(serverORB))
-        serverORB.registerStubClass(stub.Listener)
+        serverORB.registerStubClass(stub.Listener_stub)
             
         let clientORB = new ORB()
 //clientORB.debug = 1
-        clientORB.registerStubClass(stub.Server)
-        clientORB.registerStubClass(stub.Session)
+        clientORB.registerStubClass(stub.Server_stub)
+        clientORB.registerStubClass(stub.Session_stub)
             
         mockConnection(serverORB, clientORB)
            
-        let object = stub.Server.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
-        let serverObject = stub.Server.narrow(object)
+        let object = stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
+        let serverObject = stub.Server_stub.narrow(object)
         
         let session = await serverObject.getSession()
         
@@ -53,13 +53,13 @@ describe("object by reference", function() {
     })
 })
 
-class Server_impl extends skel.Server {
-    async getSession(): Promise<skel.Session> {
+class Server_impl extends skel.Server_skel {
+    async getSession(): Promise<skel.Session_skel> {
         return new Session_impl(this._orb) // FIXME: this.orb is not guaranteed to point to the client connection? could the ORB be set later?
     }
 }
 
-class Session_impl extends skel.Session {
+class Session_impl extends skel.Session_skel {
     static listener: iface.Listener | undefined
 
     async addListener(listener: iface.Listener) {
@@ -67,7 +67,7 @@ class Session_impl extends skel.Session {
     }
 }
 
-class Listener_impl extends skel.Listener {
+class Listener_impl extends skel.Listener_skel {
     static calledBack = false
 
     async callback() {

@@ -74,7 +74,7 @@ describe("net", async function () {
                 await tls.listen(serverORB, 2809)
 
                 const clientORB = new ORB()
-                clientORB.registerStubClass(stub.Server)
+                clientORB.registerStubClass(stub.Server_stub)
                 clientORB.addProtocol(new WsProtocol())
                 if (id !== 0) {
                     clientORB.setOutgoingAuthenticator((connection: Connection) => {
@@ -90,7 +90,7 @@ describe("net", async function () {
                     })
                 }
 
-                const server = stub.Server.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
+                const server = stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
 
                 switch (id) {
                     case 0:
@@ -113,7 +113,7 @@ describe("net", async function () {
     })
 })
 
-class Server_impl extends skel.Server {
+class Server_impl extends skel.Server_skel {
     wasCalled: boolean
 
     constructor(orb: ORB) {
@@ -126,11 +126,11 @@ class Server_impl extends skel.Server {
         return 0
     }
 
-    async set(listener: skel.Listener): Promise<number> {
+    async set(listener: skel.Listener_skel): Promise<number> {
         throw Error()
     }
 
-    async get(name: string): Promise<skel.Listener> {
+    async get(name: string): Promise<skel.Listener_skel> {
         throw Error()
     }
 }

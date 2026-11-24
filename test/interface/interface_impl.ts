@@ -1,5 +1,5 @@
 import { Peer } from "../generated/interface"
-import { Interface as Interface_skel, Peer as Peer_skel, PeerSub as PeerSub_skel } from "../generated/interface_skel"
+import { Interface_skel, Peer_skel, PeerSub_skel } from "../generated/interface_skel"
 
 export class Interface_impl extends Interface_skel {
     override async callBoolean(value: boolean): Promise<boolean> {

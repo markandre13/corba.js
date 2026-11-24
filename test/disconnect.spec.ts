@@ -31,17 +31,17 @@ xdescribe("disconnect", function() {
         let serverORB = new ORB()
 //serverORB.debug = 1
         serverORB.bind("Server", new Server_impl(serverORB))
-        serverORB.registerStubClass(stub.Listener)
+        serverORB.registerStubClass(stub.Listener_stub)
         
         // setup client A
         let clientA = new ORB()
 //clientA.debug = 1
-        clientA.registerStubClass(stub.Server)
-        clientA.registerStubClass(stub.Session)
+        clientA.registerStubClass(stub.Server_stub)
+        clientA.registerStubClass(stub.Session_stub)
         let connectionA = mockConnection(serverORB, clientA)
         
         let objectA = await clientA.resolve("Server")
-        let serverObjectA = stub.Server.narrow(objectA)
+        let serverObjectA = stub.Server_stub.narrow(objectA)
         
         let sessionA = await serverObjectA.getSession()
         
@@ -56,12 +56,12 @@ xdescribe("disconnect", function() {
         // setup client B
         let clientB = new ORB()
 //clientB.debug = 1
-        clientB.registerStubClass(stub.Server)
-        clientB.registerStubClass(stub.Session)
+        clientB.registerStubClass(stub.Server_stub)
+        clientB.registerStubClass(stub.Session_stub)
         let connectionB = mockConnection(serverORB, clientB)
         
         let objectB = await clientB.resolve("Server")
-        let serverObjectB = stub.Server.narrow(objectB)
+        let serverObjectB = stub.Server_stub.narrow(objectB)
         
         let sessionB = await serverObjectB.getSession()
         
@@ -97,13 +97,13 @@ xdescribe("disconnect", function() {
     })
 })
 
-class Server_impl extends skel.Server {
-    async getSession(): Promise<skel.Session> {
+class Server_impl extends skel.Server_skel {
+    async getSession(): Promise<skel.Session_skel> {
         return new Session_impl(this._orb) // FIXME: this.orb is not guaranteed to point to the client connection? could the ORB be set later?
     }
 }
 
-class Session_impl extends skel.Session implements EventListenerObject {
+class Session_impl extends skel.Session_skel implements EventListenerObject {
     static listeners = new Set<iface.Listener>()
     listener?: iface.Listener
 
@@ -144,7 +144,7 @@ class Session_impl extends skel.Session implements EventListenerObject {
     }
 }
 
-class Listener_impl extends skel.Listener {
+class Listener_impl extends skel.Listener_skel {
     calledBack: boolean
     
     constructor(orb: ORB) {

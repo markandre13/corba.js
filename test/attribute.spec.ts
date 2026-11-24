@@ -23,7 +23,7 @@ import * as server from "../src/orb/orb-nodejs"
 import * as client from "../src/orb/orb"
 import { Stub, Skeleton } from "../src/orb/orb"
 import { Servant_skel } from "./attribute_skel"
-import { Servant } from "./attribute_stub"
+import { Servant_stub } from "./attribute_stub"
 import { mockConnection } from "./util"
 
 class Servant_impl extends Servant_skel {
@@ -39,13 +39,13 @@ xdescribe("attribute", function() {
         serverORB.bind("Servant", new Servant_impl(serverORB))
             
         let clientORB = new client.ORB()
-        clientORB.registerStubClass(Servant)
+        clientORB.registerStubClass(Servant_stub)
             
         mockConnection(serverORB, clientORB)
            
         let object = await clientORB.resolve("Servant")
-        let servant = Servant.narrow(object)
-        expect(result).to.be.an.instanceof(Servant)
+        let servant = Servant_stub.narrow(object)
+        expect(result).to.be.an.instanceof(Servant_stub)
 */
     })
 })
