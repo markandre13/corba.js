@@ -119,6 +119,29 @@ describe("CC IDL", () => {
     })
 })
 
+describe("CC IDL typedef", () => {
+    it("typedef of a predefined type", async () => {
+        const data = await compileInterface(`
+            typedef short T;
+            interface Backend {
+                void call(in T value);
+            };
+        `)
+        expect(data).to.contain("virtual CORBA::async<void> call(int16_t value) = 0;")
+    })
+    it("typedef of a predefined type inside a module", async () => {
+        const data = await compileInterface(`
+            module M {
+                typedef short T;
+            };
+            interface Backend {
+                void call(in M::T value);
+            };
+        `)
+        expect(data).to.contain("virtual CORBA::async<void> call(int16_t value) = 0;")
+    })
+})
+
 function compileInterface(idl: string): Promise<string> {
     const tree = parse(idl)
     var out = new MemoryStream()

@@ -85,9 +85,8 @@ export function typeIDLtoCC(type: Declaration, direction: Direction): string {
                         name = typeIDLtoCC(identifierType, direction)
                         break
                     default:
-                        throw Error(
-                            `Internal Error in typeIDLtoCC(): type ${Type[identifierType.type]} is not implemented`
-                        )
+                        // a typedef of a predefined type, or of another name: map the aliased type
+                        return typeIDLtoCC(identifierType, direction)
                 }
                 return name
             }
