@@ -1,0 +1,60 @@
+name: tag version
+
+# When a push changes the "version" in package.json, tag the commit that changed it
+# as v<version>, e.g. v0.3.0. Existing tags are never moved.
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: tag the version
+        env:
+          BEFORE: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            echo "branch was created by this push, nothing to compare"
+            exit 0
+          fi
+
+          new=$(node -p "require('./package.json').version")
+
+          old=""
+          if git cat-file -e "$BEFORE:package.json" 2>/dev/null; then
+            old=$(git show "$BEFORE:package.json" | node -e 'let s = ""; process.stdin.on("data", d => s += d).on("end", () => console.log(JSON.parse(s).version))')
+          fi
+
+          if [ "$old" = "$new" ]; then
+            echo "version is still $new"
+            exit 0
+          fi
+
+          tag="v$new"
+          if git rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+            echo "tag $tag already exists"
+            exit 0
+          fi
+
+          # the commit in this push that last changed package.json
+          target=$(git rev-list -1 "$BEFORE..$HEAD_SHA" -- package.json)
+          target=${target:-$HEAD_SHA}
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "version $new" "$target"
+          git push origin "refs/tags/$tag"
+          echo "created tag $tag at $target"
