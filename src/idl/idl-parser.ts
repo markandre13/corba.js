@@ -1385,6 +1385,11 @@ function find_in_module(module: ModuleDecl, name: string): Declaration | undefin
                 if (child.name === name)
                     return child
                 break
+            case Type.TKN_TYPEDEF:
+                // like type_dcl(): a typedef name refers to the aliased type
+                if (child.names.includes(name))
+                    return child.typeSpec
+                break
         }
     }
     return undefined

@@ -55,7 +55,8 @@ export function typeIDLtoTS(type: TypeNode | undefined, filetype: FileType = Fil
                     name = typeIDLtoTS(target, filetype)
                     break
                 default:
-                    throw Error(`Internal Error in typeIDLtoTS(): type ${Type[target.type]} is not implemented`)
+                    // a typedef of a predefined type, or of another name: map the aliased type
+                    return typeIDLtoTS(target, filetype)
             }
             return name
         }

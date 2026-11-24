@@ -4,6 +4,7 @@ import { Lexer } from "corba.js/idl/idl-lexer"
 import { specification } from "corba.js/idl/idl-parser"
 import { typeIDLtoGIOPTS } from "corba.js/idl/ts/typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "corba.js/idl/ts/typeIDLtoTS"
+import { defaultValueIDLtoTS } from "corba.js/idl/util"
 
 describe("IDL Parser", () => {
     it("SYN_SPECIFICATION", function () {
@@ -53,6 +54,19 @@ describe("IDL Parser", () => {
             };`)
         const operation = (tree!.definitions[2] as InterfaceDecl).body[0] as Operation
         expect(operation.raises.map(name => name.name)).to.deep.equal(["E", "F"])
+    })
+
+    it("typedef name inside a module", function () {
+        const tree = parse(`
+            module M {
+                typedef short T;
+                interface I {};
+            };
+            interface X {
+                M::T f();
+            };`)
+        const operation = (tree!.definitions[1] as InterfaceDecl).body[0] as Operation
+        expect((operation.returnType as ScopedName).target.type).to.equal(Type.TKN_SHORT)
     })
 
     it("TKN_TYPEDEF", function () {
@@ -213,6 +227,19 @@ describe("typeIDLtoTS()", function () {
             };`)
         const operation = (tree!.definitions[1] as InterfaceDecl).body[0] as Operation
         expect(typeIDLtoTS(operation.returnType)).to.equal("_interface.M.S")
+    })
+
+    it("typedef of a base type inside a module", function () {
+        const tree = parse(`
+            module M {
+                typedef short T;
+            };
+            interface X {
+                M::T f();
+            };`)
+        const operation = (tree!.definitions[1] as InterfaceDecl).body[0] as Operation
+        expect(typeIDLtoTS(operation.returnType)).to.equal("number")
+        expect(defaultValueIDLtoTS(operation.returnType)).to.equal("0")
     })
 })
 

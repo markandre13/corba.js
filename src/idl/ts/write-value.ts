@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Specification, Definition, ValueTypeDecl } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, FileType, defaultValueIDLtoTS, writtenName, isPointerName } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, FileType, defaultValueIDLtoTS, writtenName, resolvedTarget, predefinedTypes, isPointerName } from "../util"
 import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
@@ -185,7 +185,7 @@ function writeTSInitValueFromPOJO(value_dcl: ValueTypeDecl, out: fs.WriteStream,
             for (let declarator of value_element.names) {
                 let decl_identifier = declarator
                 writeIndent(out, indent)
-                if (type.type === Type.SYN_SCOPED_NAME) {
+                if (type.type === Type.SYN_SCOPED_NAME && !predefinedTypes.includes(resolvedTarget(type).type)) {
                     // FIXME: doesn't work for Array<Layer>()
                     // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?
                     //                                out.write(") ? new "+type.text+"() : new "+type.text+"(init."+decl_identifier+")\n")
@@ -195,7 +195,7 @@ function writeTSInitValueFromPOJO(value_dcl: ValueTypeDecl, out: fs.WriteStream,
                         let name = typeIDLtoTS(type, FileType.VALUE)
                         out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init.${decl_identifier})\n`)
                     } else
-                    if (type.target.type == Type.TKN_SEQUENCE) {
+                    if (resolvedTarget(type).type == Type.TKN_SEQUENCE) {
                         out.write(`object.${decl_identifier} = init?.${decl_identifier} instanceof Array ? init!.${decl_identifier} : []\n`)
                     } else {
                         let name = typeIDLtoTS(type, FileType.VALUE)

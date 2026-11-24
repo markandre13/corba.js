@@ -1,5 +1,5 @@
 import * as fs from "fs"
-import { Type, Specification, ModuleDecl, ScopedName, TypeSpec } from "./idl-node"
+import { Type, Specification, ModuleDecl, Declaration, ScopedName, TypeSpec } from "./idl-node"
 import { typeIDLtoTS } from "./ts/typeIDLtoTS"
 import { Writable } from "stream"
 
@@ -43,6 +43,23 @@ export function writtenName(name: ScopedName): string {
     return [...name.path.map(module => module.name), name.name].join(".")
 }
 
+// The declaration a name finally refers to, following typedef chains
+export function resolvedTarget(name: ScopedName): Declaration {
+    let target: Declaration = name.target
+    while (target.type === Type.SYN_SCOPED_NAME)
+        target = target.target
+    return target
+}
+
+// types that map to a plain TypeScript value, not to a valuetype or interface
+export const predefinedTypes: Type[] = [
+    Type.TKN_FLOAT, Type.TKN_DOUBLE, Type.SYN_LONG_DOUBLE,
+    Type.TKN_SHORT, Type.TKN_LONG, Type.SYN_LONGLONG,
+    Type.SYN_UNSIGNED_SHORT, Type.SYN_UNSIGNED_LONG, Type.SYN_UNSIGNED_LONGLONG,
+    Type.TKN_CHAR, Type.TKN_WCHAR, Type.TKN_BOOLEAN, Type.TKN_OCTET, Type.TKN_ANY,
+    Type.TKN_STRING, Type.TKN_WSTRING
+]
+
 export function isPointerName(name: string): boolean {
     return name.length > 4 && name.substring(name.length - 4) === "_ptr"
 }
@@ -60,7 +77,19 @@ export function defaultValueIDLtoTS(type: TypeSpec | undefined, filetype: FileTy
         throw Error("internal error: parser delivered no type information")
     switch (type.type) {
         case Type.SYN_SCOPED_NAME:
-            return "new " + writtenName(type) + "()"
+            switch (type.target.type) {
+                case Type.TKN_VALUETYPE:
+                case Type.SYN_INTERFACE:
+                case Type.TKN_STRUCT:
+                case Type.TKN_UNION:
+                case Type.TKN_ENUM:
+                case Type.TKN_NATIVE:
+                case Type.TKN_EXCEPTION:
+                case Type.TKN_MODULE:
+                    return "new " + writtenName(type) + "()"
+                default:
+                    return defaultValueIDLtoTS(type.target, filetype)
+            }
         case Type.TKN_BOOLEAN:
             return "false"
         case Type.TKN_CHAR:
