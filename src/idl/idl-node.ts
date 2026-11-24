@@ -176,6 +176,7 @@ export type Member = {
     type: Type.SYN_MEMBER
     typeSpec: TypeSpec
     names: string[]
+    doc?: string[]
 }
 
 export type StructDecl = {
@@ -196,6 +197,7 @@ export type Enumerator = {
     type: Type.SYN_ENUMERATOR
     name: string
     enum: EnumDecl
+    doc?: string[]
 }
 
 export type EnumDecl = {

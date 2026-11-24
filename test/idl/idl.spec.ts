@@ -92,6 +92,26 @@ describe("IDL Parser", () => {
         expect(operation.params[0].doc).to.deep.equal(["the first summand"])
     })
 
+    it("documentation comments of struct members and enumerators", function () {
+        const tree = parse(`
+            struct P {
+                /// horizontal position
+                long x;
+                long y;
+            };
+            enum Color {
+                /// the first one
+                red,
+                green
+            };`)
+        const struct = tree!.definitions[0] as StructDecl
+        expect(struct.members[0].doc).to.deep.equal(["horizontal position"])
+        expect(struct.members[1].doc).to.be.undefined
+        const enumDecl = tree!.definitions[1] as EnumDecl
+        expect(enumDecl.enumerators[0].doc).to.deep.equal(["the first one"])
+        expect(enumDecl.enumerators[1].doc).to.be.undefined
+    })
+
     it("typedef name inside a module", function () {
         const tree = parse(`
             module M {

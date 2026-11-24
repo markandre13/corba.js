@@ -131,6 +131,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
                 out.write(`export interface ${identifier} {\n`)
 
                 for (const member of struct_type.members) {
+                    writeDoc(out, member.doc, indent + 1)
                     for (const declarator of member.names) {
                         writeIndent(out, indent + 1)
                         out.write(declarator + ": " + typeIDLtoTS(member.typeSpec, FileType.INTERFACE) + "\n")
@@ -237,6 +238,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
                 writeIndent(out, indent)
                 out.write(`export enum ${identifier} {\n`)
                 for (const enumerator of definition.enumerators) {
+                    writeDoc(out, enumerator.doc, indent + 1)
                     writeIndent(out, indent + 1)
                     out.write(`${enumerator.name},\n`)
                 }

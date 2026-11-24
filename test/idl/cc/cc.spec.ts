@@ -152,6 +152,15 @@ describe("CC IDL documentation", () => {
         `)
         expect(data).to.contain("/**\n * A point.\n */\nstruct P {")
     })
+    it("struct member", async () => {
+        const data = await compileInterface(`
+            struct P {
+                /// horizontal position
+                long x;
+            };
+        `)
+        expect(data).to.contain("    /**\n     * horizontal position\n     */\n    int32_t x;")
+    })
     it("parameter", async () => {
         const data = await compileInterface(`
             interface Backend {

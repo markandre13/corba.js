@@ -78,6 +78,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Specif
                 out.write(`struct ${identifier} {\n`)
 
                 for (const member of definition.members) {
+                    writeDoc(out, member.doc, indent + 1)
                     for (let declarator of member.names) {
                         writeIndent(out, indent + 1)
                         out.write(
@@ -176,6 +177,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Specif
                 writeIndent(out, indent)
                 out.write(`enum class ${identifier} {\n`)
                 for (const enumerator of definition.enumerators) {
+                    writeDoc(out, enumerator.doc, indent + 1)
                     writeIndent(out, indent + 1)
                     out.write(`${enumerator.name},\n`)
                 }

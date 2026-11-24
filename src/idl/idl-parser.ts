@@ -832,6 +832,7 @@ function member_list(): Member[] | undefined {
 
 // 71
 function member(): Member | undefined {
+    const doc = docBefore()
     const t0 = type_spec()
     if (t0 === undefined)
         return undefined
@@ -839,7 +840,7 @@ function member(): Member | undefined {
     if (names === undefined)
         throw Error(`expected declarators after type_spec ${describeTypeSpec(t0)}`)
     expect(";")
-    return { type: Type.SYN_MEMBER, typeSpec: t0, names }
+    return { type: Type.SYN_MEMBER, typeSpec: t0, names, doc }
 }
 
 // 72
@@ -983,7 +984,7 @@ function enum_type(): EnumDecl | undefined {
             }
             usedNames.add(t2.text!)
 
-            const enumerator: Enumerator = { type: Type.SYN_ENUMERATOR, name: t2.text!, enum: node }
+            const enumerator: Enumerator = { type: Type.SYN_ENUMERATOR, name: t2.text!, enum: node, doc: t2.doc }
             scoper.addType(enumerator.name, enumerator)
             node.enumerators.push(enumerator)
 
