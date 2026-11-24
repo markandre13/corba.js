@@ -43,6 +43,17 @@ describe("IDL Parser", () => {
         expect(arg.name).to.equal("a")
     })
 
+    it("raises with several exceptions", function () {
+        const tree = parse(`
+            exception E {};
+            exception F {};
+            interface X {
+                void f() raises (E, F);
+            };`)
+        const operation = (tree!.definitions[2] as InterfaceDecl).body[0] as Operation
+        expect(operation.raises.map(name => name.name)).to.deep.equal(["E", "F"])
+    })
+
     it("TKN_TYPEDEF", function () {
         const tree = parse(`
             typedef short T, U;

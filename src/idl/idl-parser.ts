@@ -1228,7 +1228,7 @@ function raises_expr(): ScopedName[] | undefined {
     raises.push(t1)
     while (true) {
         const t2 = lexer.lex()
-        if (t2 === undefined || t2.type !== Type.TKN_TEXT || t0.text !== ",") {
+        if (t2 === undefined || t2.type !== Type.TKN_TEXT || t2.text !== ",") {
             lexer.unlex(t2)
             break
         }
