@@ -20,215 +20,16 @@ import { Server_stub, Listener_stub } from "./generated/access_stub"
 import { Listener_skel, Server_skel, org as org_skel } from "./generated/access_skel"
 import { expect } from "chai"
 
-import { ORB, CORBAObject, EstablishContext, GSSUPInitialContextToken, AuthenticationStatus } from "corba.js"
+import { ORB } from "corba.js"
 import { TcpProtocol } from "corba.js/net/tcp"
-import { TlsConnection, TlsProtocol } from "corba.js/net/tls"
-import { Connection } from "corba.js/orb/connection"
 import * as iface from "./generated/access"
 import { mockConnection } from "./util"
-
-// Security Service Specification, v1.8, March 2002 is obsolete and
-// replaced by the Common Secure Interoperability Version 2 (CSIv2) as defined in
-// CORBA 3.4, Part 2, 10 Secure Interoperability
-//
-// It
-// * it assumes that the transport level protocol already provides protection
-//   (confidentiality & integrity) and also authenticates the server like SSL/TLS
-// * defines the CORBA Security Attribute Service (SAS) protocol
-// * the protocol is modeled is based on GSSAPI (Kerberos) and hence includes the
-//   use of ASN.1 encoding
-// * SAS is using the ServiceContext of GIOP request and reply messages
-// * The ServiceId is 15
-// * CSS: client security service
-// * TSS: target security service
-
-// CORBA 3.4 Part 1 refers to SecurityCurrent in the Security Service Specification v1.5 (formal/00-06-25)
-// but neither MICO, OmniORB nor JacORB really implement that stuff.
-// Hence instead I take a page from 
-// https://www.novell.com/documentation/extend5/Docs/help/MP/orb/tutorial/poaBankSecure-1.htm
-// Novel licenced VisiBroker in 1997, which was also bought by Borland 
-// it has a "VBSecurityContext"
-
-// SecurityService
-
-// EstablishContext
-// ContextError
-// CompleteEstablishContext
-// MessageInContext
-
-// page 176, that's the SAS message the client sends
-// struct EstablishContext {
-//     ContextId client_context_id;
-//     AuthorizationToken authorization_token;
-//     IdentityToken identity_token;
-//     GSSToken client_authentication_token;
-// };
-//
-// union SASContextBody switch ( MsgType ) {
-//     case MTEstablishContext: EstablishContext establish_msg;
-//     case MTCompleteEstablishContext: CompleteEstablishContext complete_msg;
-//     case MTContextError: ContextError error_msg;
-//     case MTMessageInContext: MessageInContext in_context_msg;
-// };
-
-// 10.9.1 Nodule GSSUP - Username/Password GSSAPI Token Formats
-
-// https://www.novell.com/documentation/extend5/Docs/help/MP/orb/tutorial/poaBankSecure-1.htm
-
-// security context is per thread or per ORB
-// class SecurityCurrent {
-//     static narrow(obj: CORBAObject): SecurityCurrent {
-//         if (obj instanceof SecurityCurrent)
-//             return obj
-//         throw Error()
-//     }
-
-//     /**
-//      * Get the port of the remote client
-//      */
-//     getPort(): number {
-//         return 0
-//     }
-
-//     getLocalAddress(): string {
-
-//     }
-
-//     getLocalPort(): string {
-
-//     }
-
-
-//     getSecurityContext() {
-
-//     }
-
-//     // get the SecurityContext of the caller
-//     getCaller() {
-
-//     }
-
-//     /**
-//      * Set the server side Authenticator to authenticate received InitialContextTokens
-//      */
-//     setAuthenticator(authenticator: Authenticator) {
-//     }
-
-//     /**
-//      * Set the client side AuthCallBack to create a security context if none has been set
-//      */
-//     setAuthCallback(authCallBack: AuthCallBack) {
-
-//     }
-
-//     newContext(): SecurityContext {
-//         return new SecurityContext()
-//     }
-
-//     setORBContext(ctx: SecurityContext) {       
-//     }
-
-//     createInitialContextToken(username: string, password: string, realm: string): InitialContextToken {
-//         return new InitialContextToken(username, password, realm)
-//     }
-
-// }
-
-// // Username/Password GSSUP
-
-// // The GSS Object Identifier allocated for the username/password mechanism
-// // { iso-itu-t (2) international-organization (23) omg (130) security (1) authentication (1) gssup-mechanism (1) }
-// const GSSUPMechOID = "oid:2.23.130.1.1.1"
-
-// // The following structure defines the inner contents of the
-// // username password initial context token. This structure is
-// // CDR encapsulated and appended at the end of the
-// // username/password GSS (initial context) Token.
-
-// // CORBA Security Service, v1.8; 3.4.3.1 The Initial Context Token
-// // send in an EstablishContext SECIOP message
-
-// // The GSSUP InitialContextToken specifying password credentials for a given user.
-
-
-// // https://www.novell.com/documentation/extend5/Docs/help/MP/orb/tutorial/
-// class SecurityContext {
-//     getIdentityToken(realm: string): IdentityToken {
-//         throw Error("yikes")
-//     }
-//     getIdentityTokens() {}
-
-//     getInitialIdentityToken(realm: string) {
-//     }
-
-//     getInitialIdentityTokens() {    
-//     }
-
-//     setIdentityToken(identityToken: IdentityToken) {
-//     }
-
-//     setInitialContextToken(initialContextToken: InitialContextToken) {
-//     }
-// }
-
-// values match 
-
-
-// Security Service Specification 1.5, 2.3.3.2 SecurityLevel2::PrincipalAuthenticator Interface
-// CORBA::Current -> SecurityLevel1::Current -> SecurityLevel2::Current
-// 2.3.7.2 The SecurityLevel1::Current Interface
-//   this only adds an get_attributes()
-//   the idea is that the application uses this to check who's calling it
-// 2.3.7.3 The SecurityLevel2::Current Interface
-//   set_credentials(type, list, mode)
-//   get_credentials(type)
-//
-//   target object attribute: received_credentials
-
-// the PrincipalAuthenticator object is to be used on the initiator
-// it created a Credentials object and places it on the Current object's own_credentials
-
-// 2.3.9
-// When an object is created, it automatically becomes a member of one or more domains,
-// and therefore is subject to the security policies of those domains.
-// 2.3.10 Access Control
-
-/**
- * Server side callback for Authentication and Trust evaluation.
- */
-
-// abstract class Authenticator {
-
-//     /**
-//      * Authenticate the username, password, realm contained in the given token.
-//      * @param initialContextToken 
-//      */
-//     abstract authenticate(initialContextToken: InitialContextToken): AuthenticationStatus
-
-//     /**
-//      * Evaluate trust in the given IdentityToken. The Authenticator can use the SecurityCurrent
-//      * to determine the IP address and the certificate chain of the caller (if using IIOP/SSL).
-//      * @param identityToken - user and realm
-//      */
-//     abstract assertIdentity(identityToken: IdentityToken): boolean
-// }
-
-
-// interface IdentityToken {
-//     getBytes(): ArrayBuffer
-//     getRealm(): string
-//     getType(): number
-//         // ITTAbsent
-//         // ITTAnonymous 
-//         // ITTDistinguishedName 
-//         // ITTPrincipalName
-//         // ITTX509CertChain 
-//     getUser(): string
-// }
 
 describe("access", async function () {
 
     describe("authentication", function () {
+        // disabled: manual interop check. It listens on port 8080 for a JacORB client
+        // and asserts nothing. The SAS/CSIv2 status is in CORBA.md
         xit("JacORB SAS", async function () {
             const orb = new ORB()
 
@@ -268,6 +69,8 @@ describe("access", async function () {
 
     describe("authorization", function () {
 
+        // disabled: needs SecurityCurrent and an authenticator on the server,
+        // which are not implemented (see "Not implemented" in CORBA.md)
         xit("bind", async function () {
 
             // setup server
@@ -341,6 +144,8 @@ describe("access", async function () {
             expect(serverB.wasCalled).to.equal(true)
         })
 
+        // disabled: needs access control (ACL) for objects, which is not implemented
+        // (see "Not implemented" in CORBA.md)
         xit("object send to server", async function () {
 
             // setup server
@@ -398,6 +203,8 @@ describe("access", async function () {
             expect(objectB.wasCalled).to.equal(true)
         })
 
+        // disabled: needs access control (ACL) for objects, which is not implemented
+        // (see "Not implemented" in CORBA.md)
         xit("object received from server", async function () {
 
             // setup server

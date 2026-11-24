@@ -72,6 +72,42 @@ ORB.setIncomingAuthenticator()
 
 ORB.setOutgoingAuthenticator()
 
+### SAS and CSIv2 reference
+
+* The Security Association Service (SAS) of the Security Service Specification v1.8
+  (2002) is obsolete. CSIv2 (CORBA 3.4, Part 2, 10 Secure Interoperability) replaces
+  it. It assumes that the transport (TLS) already provides confidentiality, integrity
+  and server authentication.
+* CSI uses the service context with ServiceId 15 (`ServiceId.SecurityAttributeService`
+  in `src/orb/giop.ts`). The SAS messages are EstablishContext, CompleteEstablishContext,
+  ContextError and MessageInContext, carried as a union switched on the message type.
+* CSS is the client security service and TSS the target security service.
+* The GSSUP mechanism (username/password) has the GSS object identifier
+  `oid:2.23.130.1.1.1` (`{ iso-itu-t(2) international-organization(23) omg(130)
+  security(1) authentication(1) gssup-mechanism(1) }`). Its initial context token is
+  a CDR encapsulation of the GSSUP::InitialContextToken, which contains the user name,
+  the password and the target name.
+
+### Not implemented
+
+These parts of the CORBA Security Service are not implemented in corba.js. The disabled
+tests in `test/access.spec.ts` are waiting for them.
+
+* SecurityLevel1::Current (`get_attributes()`), which lets the application check who
+  is calling it.
+* SecurityLevel2::Current (`set_credentials()`, `get_credentials()`) and the
+  received_credentials attribute of the target object, reached through
+  `resolve_initial_references("SecurityCurrent")`.
+* PrincipalAuthenticator, the initiator side object that creates credentials and stores
+  them in the Current object's own credentials.
+* Access control: an ACL for objects added to the NameService, checking an object's
+  attributes before it is sent or returned to a peer, and adding a reference to the ACL
+  when it is sent to a peer. Open questions are what happens to the ACL when a
+  connection is re-established and how it is persisted.
+
+The password authentication that is implemented is tested in `test/net/tls.spec.ts` and
+`test/net/wss.spec.ts`.
+
 ## Value Types
 
 CORBA 3.3, 9.3.4 Value Types
