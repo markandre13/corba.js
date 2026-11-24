@@ -17,13 +17,13 @@
  */
 
 import * as fs from "fs"
-import { Type, Node } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, FileType, defaultValueIDLtoTS } from "../util"
+import { Type, Specification, Definition, ValueTypeDecl } from "../idl-node"
+import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, FileType, defaultValueIDLtoTS, firstName, firstNode, isPointerName } from "../util"
 import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
 let initCalls = ""
-export function writeTSValue(specification: Node): void {
+export function writeTSValue(specification: Specification): void {
     initCalls = ""
 
     let out = fs.createWriteStream(filenamePrefix + "_value.ts")
@@ -37,10 +37,9 @@ export function writeTSValue(specification: Node): void {
     // out.write("import * as _interface from \"./" + filenameLocal + "\"\n\n")
     if (hasNative(specification)) {
         out.write("declare global {\n")
-        for (let definition of specification.child) {
-            if (definition!.type === Type.TKN_NATIVE) {
-                let native = definition!
-                let nativeName = native.text!
+        for (let definition of specification.definitions) {
+            if (definition.type === Type.TKN_NATIVE) {
+                let nativeName = definition.name
                 if (nativeName.length <= 4 ||
                     nativeName.substring(nativeName.length - 4) !== "_ptr") {
                     out.write(`    interface ${nativeName} {}\n`)
@@ -50,7 +49,7 @@ export function writeTSValue(specification: Node): void {
         out.write("}\n\n")
     }
 
-    writeTSValueDefinitions(out, specification)
+    writeTSValueDefinitions(out, specification.definitions)
 
     out.write("let initialized = false\n")
     out.write("export function _init() {\n")
@@ -62,24 +61,21 @@ export function writeTSValue(specification: Node): void {
     out.write("_init()\n")
 }
 
-function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefix = "", indent = 0): void {
-    for (let definition of specification.child) {
-        switch (definition!.type) {
+function writeTSValueDefinitions(out: fs.WriteStream, definitions: Definition[], prefix = "", indent = 0): void {
+    for (let definition of definitions) {
+        switch (definition.type) {
             case Type.TKN_MODULE: {
                 writeIndent(out, indent)
-                out.write(`export namespace ${definition!.text} {\n\n`)
-                writeTSValueDefinitions(out, definition!, prefix + definition!.text + ".", indent + 1)
+                out.write(`export namespace ${definition.name} {\n\n`)
+                writeTSValueDefinitions(out, definition.definitions, prefix + definition.name + ".", indent + 1)
                 writeIndent(out, indent)
-                out.write(`} // namespace ${definition!.text}\n\n`)
+                out.write(`} // namespace ${definition.name}\n\n`)
             } break
             case Type.TKN_NATIVE: {
             } break
             case Type.TKN_VALUETYPE: {
-                let value_dcl = definition!
-                let value_header = value_dcl.child[0]!
-                let custom = value_header.child[0]
-                let identifier = value_header.child[1]!.text
-                let inheritance_spec = value_header.child[2]
+                let value_dcl = definition
+                let identifier = value_dcl.name
 
                 writeIndent(out, indent)
                 out.write(`export interface ${identifier}`)
@@ -87,14 +83,15 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                 let attributes = new Array<string>()
                 classAttributes.set(prefix + identifier, attributes)
 
-                if (inheritance_spec !== undefined) {
-                    if (inheritance_spec.child.length > 2) // FIXME: for interfaces we can
+                if (value_dcl.base.length > 0) {
+                    if (value_dcl.base.length > 1) // FIXME: for interfaces we can
                         throw Error("multiple inheritance is not supported for TypeScript")
-                    out.write(` extends ${inheritance_spec.child[1]!.text}`)
+                    const base = firstName(value_dcl.base[0])
+                    out.write(` extends ${base}`)
 
-                    let superAttributes = classAttributes.get(prefix + inheritance_spec.child[1]!.text!)
+                    let superAttributes = classAttributes.get(prefix + base)
                     if (superAttributes === undefined) {
-                        superAttributes = classAttributes.get(inheritance_spec.child[1]!.text!)
+                        superAttributes = classAttributes.get(base)
                     }
                     if (superAttributes === undefined) {
                         throw Error("failed to find attributes for super class")
@@ -105,17 +102,12 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                 }
                 out.write(" {\n")
 
-                for (let i = 1; i < value_dcl.child.length; ++i) {
-                    let value_element = value_dcl.child[i]!
+                for (let value_element of value_dcl.elements) {
                     if (value_element.type === Type.SYN_STATE_MEMBER) {
-                        let state_member = value_element
-                        let attribute = state_member.child[0]!
-                        let type = state_member.child[1]!
-                        let declarators = state_member.child[2]!
-                        for (let declarator of declarators.child) {
+                        for (let declarator of value_element.names) {
                             writeIndent(out, indent + 1)
-                            out.write(declarator!.text + ": " + typeIDLtoTS(type, FileType.VALUE) + "\n")
-                            attributes.push(declarator!.text!)
+                            out.write(declarator + ": " + typeIDLtoTS(value_element.typeSpec, FileType.VALUE) + "\n")
+                            attributes.push(declarator)
                         }
                     }
                 }
@@ -142,20 +134,15 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
                 writeIndent(out, indent)
                 out.write(`export function encode${identifier}(encoder: GIOPEncoder, obj: ${identifier}) {\n`)
                 ++indent
-                if (inheritance_spec !== undefined) {
+                if (value_dcl.base.length > 0) {
                     writeIndent(out, indent)
-                    out.write(`encode${inheritance_spec.child[1]!.text}(encoder, obj)\n`)
+                    out.write(`encode${firstName(value_dcl.base[0])}(encoder, obj)\n`)
                 }
-                for (let i = 1; i < value_dcl.child.length; ++i) {
-                    let value_element = value_dcl.child[i]!
+                for (let value_element of value_dcl.elements) {
                     if (value_element.type === Type.SYN_STATE_MEMBER) {
-                        let state_member = value_element
-                        let attribute = state_member.child[0]!
-                        let type = state_member.child[1]!
-                        let declarators = state_member.child[2]!
-                        for (let declarator of declarators.child) {
+                        for (let declarator of value_element.names) {
                             writeIndent(out, indent)
-                            out.write(`${typeIDLtoGIOPTS(type, "obj." + declarator!.text!)}\n`)
+                            out.write(`${typeIDLtoGIOPTS(value_element.typeSpec, "obj." + declarator)}\n`)
                         }
                     }
                 }
@@ -179,45 +166,35 @@ function writeTSValueDefinitions(out: fs.WriteStream, specification: Node, prefi
     }
 }
 
-function writeTSInitValueFromGIOP(value_dcl: Node, out: fs.WriteStream, indent: number) {
-    for (let i = 1; i < value_dcl.child.length; ++i) {
-        let value_element = value_dcl.child[i]!
+function writeTSInitValueFromGIOP(value_dcl: ValueTypeDecl, out: fs.WriteStream, indent: number) {
+    for (let value_element of value_dcl.elements) {
         if (value_element.type === Type.SYN_STATE_MEMBER) {
-            let state_member = value_element
-            let type = state_member.child[1]!
-            let declarators = state_member.child[2]!
-            for (let declarator of declarators.child) {
-                let decl_identifier = declarator!.text
+            for (let declarator of value_element.names) {
                 writeIndent(out, indent)
-                out.write(`object.${decl_identifier} = ${typeIDLtoGIOPTS(type)}\n`)
+                out.write(`object.${declarator} = ${typeIDLtoGIOPTS(value_element.typeSpec)}\n`)
             }
         }
     }
 }
 
-function writeTSInitValueFromPOJO(value_dcl: Node, out: fs.WriteStream, indent: number) {
-    for (let i = 1; i < value_dcl.child.length; ++i) {
-        let value_element = value_dcl.child[i]!
+function writeTSInitValueFromPOJO(value_dcl: ValueTypeDecl, out: fs.WriteStream, indent: number) {
+    for (let value_element of value_dcl.elements) {
         if (value_element.type === Type.SYN_STATE_MEMBER) {
-            let state_member = value_element
-            let attribute = state_member.child[0]!
-            let type = state_member.child[1]!
-            let declarators = state_member.child[2]!
-            for (let declarator of declarators.child) {
-                let decl_identifier = declarator!.text
+            let type = value_element.typeSpec
+            for (let declarator of value_element.names) {
+                let decl_identifier = declarator
                 writeIndent(out, indent)
-                if (type.type === Type.TKN_IDENTIFIER) {
+                if (type.type === Type.SYN_SCOPED_NAME) {
                     // FIXME: doesn't work for Array<Layer>()
                     // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?
                     //                                out.write(") ? new "+type.text+"() : new "+type.text+"(init."+decl_identifier+")\n")
                     // console.log(`writeTSValueDefinitions`, type, typeIDLtoTS(type))
-                    if (type.child[0]?.type == Type.TKN_NATIVE &&
-                        type.text!.length > 4 &&
-                        type.text!.substring(type.text!.length - 4) === "_ptr") {
+                    if (firstNode(type).type == Type.TKN_NATIVE &&
+                        isPointerName(type.name)) {
                         let name = typeIDLtoTS(type, FileType.VALUE)
                         out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init.${decl_identifier})\n`)
                     } else
-                    if (type.child[0]?.type == Type.TKN_SEQUENCE) {
+                    if (firstNode(type).type == Type.TKN_SEQUENCE) {
                         out.write(`object.${decl_identifier} = init?.${decl_identifier} instanceof Array ? init!.${decl_identifier} : []\n`)
                     } else {
                         let name = typeIDLtoTS(type, FileType.VALUE)
@@ -234,4 +211,3 @@ function writeTSInitValueFromPOJO(value_dcl: Node, out: fs.WriteStream, indent: 
         }
     }
 }
-

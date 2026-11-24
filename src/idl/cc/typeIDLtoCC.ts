@@ -1,4 +1,4 @@
-import { Type, Node } from "../idl-node"
+import { Type, Declaration, ModuleDecl } from "../idl-node"
 
 export enum Direction {
     /** 
@@ -16,31 +16,38 @@ export enum Direction {
     NESTED = OUT
 }
 
+// the type that determines the C++ mapping, a scoped name stands for the declaration it refers to
+export function resolvedType(type: Declaration): Type {
+    return type.type === Type.SYN_SCOPED_NAME ? resolvedType(type.target) : type.type
+}
+
+// the name a declaration has in IDL, aliased types like sequences have none
+export function declarationName(declaration: Declaration): string {
+    if (declaration.type === Type.SYN_SCOPED_NAME) return declarationName(declaration.target)
+    return "name" in declaration ? declaration.name : ""
+}
+
 // this about how to encode the type
-export function typeIDLtoCC(type: Node | undefined, direction: Direction): string {
-    if (type === undefined) throw Error("internal error: parser delivered no type information")
-    switch (type!.type) {
-        case Type.TKN_IDENTIFIER:
+export function typeIDLtoCC(type: Declaration, direction: Direction): string {
+    switch (type.type) {
+        case Type.SYN_SCOPED_NAME:
             {
-                let identifierType = type.child[type.child.length - 1]!
-                let relativeName = ""
-                for (let x of type.child) {
-                    relativeName = `${relativeName}.${x!.text!}`
-                }
-                relativeName = relativeName.substring(1)
+                const identifierType = type.target
+                let relativeName = [...type.path.map(x => x.name), declarationName(identifierType)].join(".")
 
                 let absolutePrefix = ""
-                for (let x: Node | undefined = type.child[0]?.typeParent; x; x = x.typeParent) {
-                    absolutePrefix = `.${x!.text}${absolutePrefix}`
+                for (let x: ModuleDecl | undefined = type.path.length > 0 ? type.path[0]!.parent : type.scope; x; x = x.parent) {
+                    absolutePrefix = `.${x.name}${absolutePrefix}`
                 }
 
                 if (
-                    type.child.length > 0 &&
-                    type.child[0]!.type === Type.TKN_NATIVE &&
-                    type.text!.length > 4 &&
-                    type.text!.substring(type.text!.length - 4) === "_ptr"
+                    type.path.length === 0 &&
+                    resolvedType(identifierType) === Type.TKN_NATIVE &&
+                    type.name.length > 4 &&
+                    type.name.substring(type.name.length - 4) === "_ptr"
                 ) {
-                    return `${absolutePrefix.substring(1)} | undefined`
+                    const ptrName = type.name.substring(0, type.name.length - 4)
+                    return `${absolutePrefix.length == 0 ? ptrName : `${absolutePrefix.substring(1)}.${ptrName}`} | undefined`
                 }
 
                 let name: string
@@ -75,11 +82,11 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
                             absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                         break
                     case Type.TKN_SEQUENCE:
-                        name = typeIDLtoCC(type.child[0], direction)
+                        name = typeIDLtoCC(identifierType, direction)
                         break
                     default:
                         throw Error(
-                            `Internal Error in typeIDLtoCC(): type ${identifierType.toString()} is not implemented`
+                            `Internal Error in typeIDLtoCC(): type ${Type[identifierType.type]} is not implemented`
                         )
                 }
                 return name
@@ -121,7 +128,7 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
                     throw Error("yikes")
             }
         case Type.TKN_SEQUENCE:
-            switch(type?.child[0]?.type) {
+            switch(resolvedType(type.elementType)) {
                 case Type.TKN_OCTET:
                     switch (direction) {
                         case Direction.IN:
@@ -135,10 +142,10 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
                     // virtual CORBA::async<void> callSeqString(const std::vector<std::string_view> & value) = 0;
                     switch (direction) {
                         case Direction.IN:
-                            // return `const std::vector<${typeIDLtoCC(type!.child[0], direction)}> &`
+                            // return `const std::vector<${typeIDLtoCC(type.elementType, direction)}> &`
                             return `const std::vector<std::string_view> &`
                         case Direction.OUT:
-                            return `std::vector<${typeIDLtoCC(type!.child[0], direction)}>`
+                            return `std::vector<${typeIDLtoCC(type.elementType, direction)}>`
                         default:
                             throw Error("yikes")
                     }
@@ -146,23 +153,23 @@ export function typeIDLtoCC(type: Node | undefined, direction: Direction): strin
                 case Type.TKN_DOUBLE:
                     switch (direction) {
                         case Direction.IN:
-                            return `const std::span<${typeIDLtoCC(type!.child[0], direction)}> &`
+                            return `const std::span<${typeIDLtoCC(type.elementType, direction)}> &`
                         case Direction.OUT:
-                            return `std::vector<${typeIDLtoCC(type!.child[0], direction)}>`
+                            return `std::vector<${typeIDLtoCC(type.elementType, direction)}>`
                         default:
                             throw Error("yikes")
                     }
                 default:
                     switch (direction) {
                         case Direction.IN:
-                            return `const std::vector<${typeIDLtoCC(type!.child[0], Direction.NESTED)}> &`
+                            return `const std::vector<${typeIDLtoCC(type.elementType, Direction.NESTED)}> &`
                         case Direction.OUT:
-                            return `std::vector<${typeIDLtoCC(type!.child[0], Direction.NESTED)}>`
+                            return `std::vector<${typeIDLtoCC(type.elementType, Direction.NESTED)}>`
                         default:
                             throw Error("yikes")
                     }
             }
         default:
-            throw Error(`no mapping from IDL type to C++ type for ${type.toString()}`)
+            throw Error(`no mapping from IDL type to C++ type for ${Type[type.type]}`)
     }
 }

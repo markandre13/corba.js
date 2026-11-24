@@ -1,37 +1,29 @@
-import { Type, Node } from "../idl-node"
-import { FileType } from "../util"
+import { Type, Definition, TypeSpec } from "../idl-node"
+import { FileType, firstName, firstNode, isPointerName, scopePrefix } from "../util"
 
-export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE): string {
+// a type, or a declaration reached through a scoped name
+export type TypeNode = TypeSpec | Definition
+
+export function typeIDLtoTS(type: TypeNode | undefined, filetype: FileType = FileType.NONE): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
-    switch (type!.type) {
-        case Type.TKN_IDENTIFIER: {
+    switch (type.type) {
+        case Type.SYN_SCOPED_NAME: {
+            const target = type.target
+            const relativeName = [...type.path.map(module => module.name), "name" in target ? target.name : undefined].join(".")
 
-            let identifierType = type.child[type.child.length - 1]!
-            let relativeName = ""
-            for (let x of type.child) {
-                if (x === undefined) {
-                    type.printTree()
-                    throw Error("undefined child unexpected")
-                }
-                relativeName = `${relativeName}.${x!.text!}`
-            }
-            relativeName = relativeName.substring(1)
-
-            let absolutePrefix = ""
-            for (let x: Node | undefined = type.child[0]?.typeParent; x; x = x.typeParent) {
-                absolutePrefix = `.${x!.text}${absolutePrefix}`
+            if (target.type === Type.TKN_NATIVE &&
+                type.path.length === 0 &&
+                isPointerName(type.name)) {
+                const ptrTarget = target.ptrTarget
+                const absoluteName = ptrTarget === undefined ? "" : `${scopePrefix(ptrTarget.scope)}.${ptrTarget.name}`
+                return `${absoluteName.substring(1)} | undefined`
             }
 
-            if (type.child.length > 0 &&
-                type.child[0]!.type === Type.TKN_NATIVE &&
-                type.text!.length > 4 &&
-                type.text!.substring(type.text!.length - 4) === "_ptr") {
-                return `${absolutePrefix.substring(1)} | undefined`
-            }
+            const absolutePrefix = scopePrefix(type.path.length > 0 ? type.path[0]!.parent : type.scope)
 
             let name: string
-            switch (identifierType.type) {
+            switch (target.type) {
                 case Type.TKN_VALUETYPE:
                     if (filetype !== FileType.VALUETYPE && filetype !== FileType.VALUE) {
                         name = `valuetype${absolutePrefix}.${relativeName}`
@@ -52,7 +44,7 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                     break
                 case Type.TKN_STRUCT:
                     // FIXME: struct uses a wrong identifier node structure
-                    name = type!.text!
+                    name = firstName(type)
                     if (filetype !== FileType.INTERFACE) {
                         name = `_interface${absolutePrefix}.${name}`
                     }
@@ -61,13 +53,13 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                     break
                 case Type.TKN_SEQUENCE:
-                    name = typeIDLtoTS(type.child[0], filetype)
+                    name = typeIDLtoTS(firstNode(type), filetype)
                     break
                 default:
-                    throw Error(`Internal Error in typeIDLtoTS(): type ${identifierType.toString()} is not implemented`)
+                    throw Error(`Internal Error in typeIDLtoTS(): type ${Type[target.type]} is not implemented`)
             }
             return name
-        } break
+        }
         case Type.TKN_VOID:
             return "void"
         case Type.TKN_BOOLEAN:
@@ -87,19 +79,15 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
         case Type.SYN_LONGLONG:
         case Type.SYN_UNSIGNED_LONGLONG:
             return "bigint"
-        case Type.TKN_SEQUENCE:
+        case Type.TKN_SEQUENCE: {
             let specialType: string | undefined
-            if (type.child[2]?.type === Type.SYN_ANNOTAION) {
-                const annotation = type.child[2]
-                if (annotation.text === "js_mapping") {
-                    if (annotation.child[0]?.child[0]?.text === "type") {
-                        specialType = annotation.child[0]?.child[0]?.child[0]?.text
-                    }
-                }
+            const annotation = type.annotation
+            if (annotation?.name === "js_mapping" && annotation.params[0]?.name === "type") {
+                specialType = annotation.params[0].value
             }
             if (specialType) {
                 let typedArray: string | undefined
-                switch (type!.child[0]!.type) {
+                switch (type.elementType.type) {
                     case Type.TKN_OCTET:
                         typedArray = "Uint8Array"
                         break
@@ -115,8 +103,9 @@ export function typeIDLtoTS(type: Node | undefined, filetype: FileType = FileTyp
                 }
                 return typedArray!
             }
-            return `Array<${typeIDLtoTS(type!.child[0], filetype)}>`
+            return `Array<${typeIDLtoTS(type.elementType, filetype)}>`
+        }
         default:
-            throw Error(`no mapping from IDL type to TS type for ${type.toString()}`)
+            throw Error(`no mapping from IDL type to TS type for ${Type[type.type]}`)
     }
 }

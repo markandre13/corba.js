@@ -36,5 +36,5 @@ the server is `remote-mock`, the client is `local-mock`. Specs must address the 
 
 - Cross-package imports use the `corba.js/...` alias (see `tsconfig.json` paths). `m13-es-transformer.cjs` rewrites them and appends `.js` in the emitted output. Keep imports in the same style as the existing files.
 - Changing the IDL compiler (`src/idl/**`) or any `.idl` file needs `npm run build`. The rollup bundle and `test/generated` both have to be regenerated before `tspc`.
-- Tests bind fixed ports (2809 in `net/*.spec.ts`, 8080 in `access.spec.ts`). A leftover process holding one of these ports can break those specs, so check for stale ones if they fail oddly.
+- Tests bind fixed ports: 2809 in the active `test/net/{ws,tls,wss}.spec.ts` specs (8080 in `access.spec.ts` is only used by disabled `xit` tests). A leftover process holding 2809 can break those specs, so check for stale ones if they fail oddly.
 - `README.md` is partly stale. Its "Protocol" section says JSON, but the implementation speaks CORBA GIOP/CDR (`src/orb/giop.ts`, `test/giop/`). Trust the code over the README.

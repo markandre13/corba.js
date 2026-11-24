@@ -1,43 +1,41 @@
-import { Type, Node } from "../idl-node"
-import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
+import { Type, Declaration } from "../idl-node"
+import { Direction, typeIDLtoCC, resolvedType } from "./typeIDLtoCC"
 
 // this is about how to call the GIOP(Encoder|Decoder)
 export function typeIDLtoGIOPCC(
-    type: Node | undefined,
+    type: Declaration,
     arg: string | undefined,
     direction: Direction,
     struct = false
 ): string {
-    if (type === undefined) throw Error("internal error: parser delivered no type information")
     // console.log(`typeIDLtoGIOP(${type.toString()}, ${arg})`)
     let name: string
-    switch (type!.type) {
-        case Type.TKN_IDENTIFIER:
-        case Type.TKN_MODULE:
-            return typeIDLtoGIOPCC(type.child[0], arg, direction, struct)
+    switch (type.type) {
+        case Type.SYN_SCOPED_NAME:
+            return typeIDLtoGIOPCC(type.target, arg, direction, struct)
         case Type.TKN_VALUETYPE:
-            return arg === undefined ? `decoder.value("${type.text}")` : `encoder.value(${arg})`
+            return arg === undefined ? `decoder.value("${type.name}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:
             switch(direction) {
                 case Direction.IN: // skel/impl: decode incoming argument
-                    return arg === undefined ? `${type.text}::_narrow(decoder.readObject(obj->get_ORB()))` : `encoder.writeObject(${arg}.get())`
+                    return arg === undefined ? `${type.name}::_narrow(decoder.readObject(obj->get_ORB()))` : `encoder.writeObject(${arg}.get())`
                 case Direction.OUT: // stub: decode incoming return value
-                    return arg === undefined ? `${type.text}::_narrow(decoder.readObject(${struct?"orb":"get_ORB()"}))` : `encoder.writeObject(${arg}.get())`
+                    return arg === undefined ? `${type.name}::_narrow(decoder.readObject(${struct?"orb":"get_ORB()"}))` : `encoder.writeObject(${arg}.get())`
             }
         case Type.TKN_UNION:
             throw Error("union is not implemented yet")
         case Type.TKN_STRUCT: {
             // const prefix = filetype === FileType.INTERFACE ? "" : "_interface."
             // return arg === undefined
-            //     ? `${prefix}decode${type!.text!}(decoder)`
-            //     : `${prefix}encode${type!.text!}(encoder,${arg})`
+            //     ? `${prefix}decode${type.name}(decoder)`
+            //     : `${prefix}encode${type.name}(encoder,${arg})`
             return arg === undefined
-                 ? `_decode${type.text}(get_ORB(), decoder)` 
-                 : `_encode${type.text}(encoder,${arg})`
+                 ? `_decode${type.name}(get_ORB(), decoder)` 
+                 : `_encode${type.name}(encoder,${arg})`
         }
         case Type.TKN_NATIVE:
             {
-                const id = type!.child[0]!.text!
+                const id = type.name
                 if (id.length > 4 && id.substring(id.length - 4) === "_ptr") {
                     return arg === undefined
                         ? `decoder.value("${id.substring(0, id.length - 4)}")`
@@ -96,9 +94,9 @@ export function typeIDLtoGIOPCC(
             }
             throw Error("yikes")
         case Type.TKN_ENUM:
-            return arg === undefined ? `static_cast<${type.text}>(decoder.readUlong())` : `encoder.writeUlong(std::to_underlying(${arg}))`
+            return arg === undefined ? `static_cast<${type.name}>(decoder.readUlong())` : `encoder.writeUlong(std::to_underlying(${arg}))`
         case Type.TKN_SEQUENCE:
-            switch (type!.child[0]!.type) {
+            switch (resolvedType(type.elementType)) {
                 case Type.TKN_OCTET: {
                     switch (direction) {
                         case Direction.IN:
@@ -136,12 +134,11 @@ export function typeIDLtoGIOPCC(
                     }
                 default:
                     return arg === undefined
-                        ? `decoder.readSequence<${typeIDLtoCC(type.child[0], Direction.NESTED)}>([&] { return ${typeIDLtoGIOPCC(type.child[0], undefined, direction, struct)}; })`
-                        : `encoder.writeSequence<${typeIDLtoCC(type.child[0], Direction.NESTED)}>(${arg}, [&](auto item) { ${typeIDLtoGIOPCC(type.child[0], "item", direction, struct)}; })`
+                        ? `decoder.readSequence<${typeIDLtoCC(type.elementType, Direction.NESTED)}>([&] { return ${typeIDLtoGIOPCC(type.elementType, undefined, direction, struct)}; })`
+                        : `encoder.writeSequence<${typeIDLtoCC(type.elementType, Direction.NESTED)}>(${arg}, [&](auto item) { ${typeIDLtoGIOPCC(type.elementType, "item", direction, struct)}; })`
             }
         default:
-            type.printTree()
-            throw Error(`no mapping from IDL type '${type.toString()}' to GIOP encoder/decoder`)
+            throw Error(`no mapping from IDL type '${Type[type.type]}' to GIOP encoder/decoder`)
     }
     return arg === undefined ? `decoder.read${name}()` : `encoder.write${name}(${arg})`
 }

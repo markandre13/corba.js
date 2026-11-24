@@ -131,7 +131,6 @@ function parse(data: string) {
     const lexer = new Lexer(data)
     try {
         const syntaxTree = specification(lexer)
-        // syntaxTree?.printTree()
         return syntaxTree
     } catch (e) {
         if (e instanceof Error) {

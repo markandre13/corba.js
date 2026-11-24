@@ -1,20 +1,22 @@
-import { Type, Node } from "../idl-node"
-import { FileType } from "../util"
+import { Type } from "../idl-node"
+import { FileType, firstNode, isPointerName } from "../util"
+import { TypeNode } from "./typeIDLtoTS"
 
 export function typeIDLtoGIOPTS(
-    type: Node | undefined,
+    type: TypeNode | undefined,
     arg: string | undefined = undefined,
     filetype = FileType.NONE
 ): string {
     if (type === undefined) throw Error("internal error: parser delivered no type information")
     // console.log(`typeIDLtoGIOP(${type.toString()}, ${arg})`)
     let name: string
-    switch (type!.type) {
-        case Type.TKN_IDENTIFIER:
+    switch (type.type) {
+        case Type.SYN_SCOPED_NAME:
+            return typeIDLtoGIOPTS(firstNode(type), arg, filetype)
         case Type.TKN_MODULE:
-            return typeIDLtoGIOPTS(type.child[0], arg, filetype)
+            return typeIDLtoGIOPTS(type.definitions[0], arg, filetype)
         case Type.TKN_VALUETYPE:
-            return arg === undefined ? `decoder.value("${type.text}")` : `encoder.value(${arg})`
+            return arg === undefined ? `decoder.value("${type.name}")` : `encoder.value(${arg})`
         case Type.SYN_INTERFACE:
             name = "object"
             break
@@ -23,14 +25,14 @@ export function typeIDLtoGIOPTS(
         case Type.TKN_STRUCT: {
             const prefix = filetype === FileType.INTERFACE ? "" : "_interface."
             return arg === undefined
-                ? `${prefix}decode${type!.text!}(decoder)`
-                : `${prefix}encode${type!.text!}(encoder,${arg})`
+                ? `${prefix}decode${type.name}(decoder)`
+                : `${prefix}encode${type.name}(encoder,${arg})`
         }
 
         case Type.TKN_NATIVE:
             {
-                const id = type!.child[0]!.text!
-                if (id.length > 4 && id.substring(id.length - 4) === "_ptr") {
+                const id = type.name
+                if (isPointerName(id)) {
                     return arg === undefined
                         ? `decoder.value("${id.substring(0, id.length - 4)}")`
                         : `encoder.value(${arg})`
@@ -82,15 +84,11 @@ export function typeIDLtoGIOPTS(
             break
         case Type.SYN_LONG_DOUBLE:
             throw Error("long double is not supported yet")
-        case Type.TKN_SEQUENCE:
+        case Type.TKN_SEQUENCE: {
             let specialType: string | undefined
-            if (type.child[2]?.type === Type.SYN_ANNOTAION) {
-                const annotation = type.child[2]
-                if (annotation.text === "js_mapping") {
-                    if (annotation.child[0]?.child[0]?.text === "type") {
-                        specialType = annotation.child[0]?.child[0]?.child[0]?.text
-                    }
-                }
+            const annotation = type.annotation
+            if (annotation?.name === "js_mapping" && annotation.params[0]?.name === "type") {
+                specialType = annotation.params[0].value
             }
             switch (specialType) {
                 case "Uint8Array":
@@ -104,13 +102,13 @@ export function typeIDLtoGIOPTS(
                     break
                 default:
                     return arg === undefined
-                        ? `decoder.sequence(() => ${typeIDLtoGIOPTS(type.child[0], undefined, filetype)})`
-                        : `encoder.sequence(${arg}, (item) => ${typeIDLtoGIOPTS(type.child[0], "item", filetype)})`
+                        ? `decoder.sequence(() => ${typeIDLtoGIOPTS(type.elementType, undefined, filetype)})`
+                        : `encoder.sequence(${arg}, (item) => ${typeIDLtoGIOPTS(type.elementType, "item", filetype)})`
             }
             break
+        }
         default:
-            type.printTree()
-            throw Error(`no mapping from IDL type '${type.toString()}' to GIOP encoder/decoder`)
+            throw Error(`no mapping from IDL type '${Type[type.type]}' to GIOP encoder/decoder`)
     }
     return arg === undefined ? `decoder.${name}()` : `encoder.${name}(${arg})`
 }

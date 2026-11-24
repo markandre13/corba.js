@@ -1,5 +1,5 @@
 import * as fs from "fs"
-import { Type, Node } from "./idl-node"
+import { Type, Specification, ModuleDecl, Declaration, ScopedName, TypeSpec } from "./idl-node"
 import { typeIDLtoTS } from "./ts/typeIDLtoTS"
 import { Writable } from "stream"
 
@@ -36,12 +36,35 @@ export enum FileType {
     STUB
 }
 
-export function defaultValueIDLtoTS(type: Node | undefined, filetype: FileType = FileType.NONE): string {
+// The generators refer to a scoped name by the first name component, e.g. 'M' for 'M::Foo'.
+// This is what the old parse tree stored as the text of the identifier.
+export function firstName(name: ScopedName): string {
+    return name.path[0]?.name ?? name.name
+}
+
+// The first node of a scoped name: its outermost module or, without a module path, the target itself.
+export function firstNode(name: ScopedName): ModuleDecl | Declaration {
+    return name.path[0] ?? name.target
+}
+
+export function isPointerName(name: string): boolean {
+    return name.length > 4 && name.substring(name.length - 4) === "_ptr"
+}
+
+// '.A.B' for the module chain from scope outwards, '' for the global scope
+export function scopePrefix(scope: ModuleDecl | undefined): string {
+    let prefix = ""
+    for (let x: ModuleDecl | undefined = scope; x; x = x.parent)
+        prefix = `.${x.name}${prefix}`
+    return prefix
+}
+
+export function defaultValueIDLtoTS(type: TypeSpec | undefined, filetype: FileType = FileType.NONE): string {
     if (type === undefined)
         throw Error("internal error: parser delivered no type information")
-    switch (type!.type) {
-        case Type.TKN_IDENTIFIER:
-            return "new " + type.text! + "()"
+    switch (type.type) {
+        case Type.SYN_SCOPED_NAME:
+            return "new " + firstName(type) + "()"
         case Type.TKN_BOOLEAN:
             return "false"
         case Type.TKN_CHAR:
@@ -60,19 +83,19 @@ export function defaultValueIDLtoTS(type: Node | undefined, filetype: FileType =
         case Type.SYN_LONG_DOUBLE:
             return "0"
         case Type.TKN_SEQUENCE:
-            return `new Array<${typeIDLtoTS(type!.child[0], filetype)}>()`
+            return `new Array<${typeIDLtoTS(type.elementType, filetype)}>()`
         default:
-            throw Error(`no default value from IDL type '${type.toString()}' to default value`)
+            throw Error(`no default value from IDL type '${Type[type.type]}' to default value`)
     }
 }
 
-export function hasValueType(specification: Node): boolean {
-    for (let definition of specification.child) {
-        switch (definition!.type) {
+export function hasValueType(scope: Specification | ModuleDecl): boolean {
+    for (let definition of scope.definitions) {
+        switch (definition.type) {
             case Type.TKN_VALUETYPE:
                 return true
             case Type.TKN_MODULE:
-                if (hasValueType(definition!))
+                if (hasValueType(definition))
                     return true
 
         }
@@ -80,15 +103,11 @@ export function hasValueType(specification: Node): boolean {
     return false
 }
 
-export function hasNative(specification: Node): boolean {
-    for (let definition of specification.child) {
-        if (definition!.type === Type.TKN_NATIVE) {
-            let native = definition!
-            let nativeName = native.text!
-            if (nativeName.length <= 4 ||
-                nativeName.substring(nativeName.length - 4) !== "_ptr") {
+export function hasNative(specification: Specification): boolean {
+    for (let definition of specification.definitions) {
+        if (definition.type === Type.TKN_NATIVE) {
+            if (!isPointerName(definition.name))
                 return true
-            }
         }
     }
     return false

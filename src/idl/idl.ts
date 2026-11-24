@@ -17,7 +17,7 @@
  */
 
 import * as fs from "fs"
-import { Node } from "./idl-node"
+import { Specification } from "./idl-node"
 import { Lexer } from "./idl-lexer"
 import { specification } from "./idl-parser"
 
@@ -78,8 +78,6 @@ function main() {
     for (; i < process.argv.length; ++i) {
         setupFilenameVars(process.argv[i])
         let syntaxTree = parseIDLFile()
-        if (verbose > 1)
-            syntaxTree.printTree()
         createOutputFiles(syntaxTree)
     }
 }
@@ -199,7 +197,7 @@ function setupFilenameVars(idlFilename: string): void {
         setFilenameLocal(filenamePrefix.substr(n + 1))
 }
 
-function parseIDLFile(): Node {
+function parseIDLFile(): Specification {
     let filedata: string
     try {
         filedata = fs.readFileSync(filename, "utf8")
@@ -214,7 +212,7 @@ function parseIDLFile(): Node {
     }
 
     let lexer = new Lexer(filedata)
-    let syntaxTree: Node | undefined
+    let syntaxTree: Specification | undefined
     try {
         syntaxTree = specification(lexer)
     }
@@ -235,7 +233,7 @@ function parseIDLFile(): Node {
     return syntaxTree
 }
 
-function createOutputFiles(syntaxTree: Node): void {
+function createOutputFiles(syntaxTree: Specification): void {
     try {
         if (tsInterface) {
             writeTSInterface(syntaxTree!)

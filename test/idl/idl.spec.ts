@@ -1,5 +1,5 @@
 import { expect } from "chai"
-import { Node, Type } from "corba.js/idl/idl-node"
+import { Type, InterfaceDecl, Operation, TypedefDecl, ValueTypeDecl, StateMember, ScopedName } from "corba.js/idl/idl-node"
 import { Lexer } from "corba.js/idl/idl-lexer"
 import { specification } from "corba.js/idl/idl-parser"
 import { typeIDLtoGIOPTS } from "corba.js/idl/ts/typeIDLtoGIOPTS"
@@ -9,43 +9,38 @@ describe("IDL Parser", () => {
         const tree = parse(``)
         expect(tree).to.not.be.undefined
         expect(tree?.type).to.equal(Type.SYN_SPECIFICATION)
-        expect(tree?.child).to.be.empty
+        expect(tree?.definitions).to.be.empty
     })
 
     it("SYN_INTERFACE", function () {
         const tree = parse(`interface X {};`)
-        const anInterface = tree!.child[0]!
-        const header = anInterface.child[0]!
-        const body = anInterface.child[1]!
+        const anInterface = tree!.definitions[0] as InterfaceDecl
         expect(anInterface.type).to.equal(Type.SYN_INTERFACE)
-        expect(header.type).to.equal(Type.SYN_INTERFACE_HEADER)
-        expect(header.child[1]!.type).to.equal(Type.TKN_IDENTIFIER)
-        expect(header.child[1]!.text).to.equal("X")
-        expect(body.type).to.equal(Type.SYN_INTERFACE_BODY)
+        expect(anInterface.name).to.equal("X")
+        expect(anInterface.modifier).to.be.undefined
+        expect(anInterface.base).to.be.undefined
+        expect(anInterface.body).to.be.empty
     })
 
     it("SYN_OPERATION_DECLARATION", function () {
         const tree = parse(`interface X {
             oneway short f(in short a);
         };`)
-        const anInterface = tree!.child[0]!
-        const body = anInterface.child[1]!
-        expect(body.child).to.be.lengthOf(1)
+        const anInterface = tree!.definitions[0] as InterfaceDecl
+        expect(anInterface.body).to.be.lengthOf(1)
 
-        const operation = body.child[0]!
+        const operation = anInterface.body[0] as Operation
         expect(operation.type).to.equal(Type.SYN_OPERATION_DECLARATION)
-        expect(operation.child[0]?.type).to.equal(Type.TKN_ONEWAY)
-        expect(operation.child[1]?.type).to.equal(Type.TKN_SHORT)
-        expect(operation.child[2]!.type).to.equal(Type.TKN_IDENTIFIER)
-        expect(operation.child[2]!.text).to.equal("f")
-        expect(operation.child[3]?.type).to.equal(Type.SYN_PARAMETER_DECLARATIONS)
-        expect(operation.child[3]?.child).to.be.lengthOf(1)
-        const arg = operation.child[3]?.child[0]!
+        expect(operation.oneway).to.be.true
+        expect(operation.returnType.type).to.equal(Type.TKN_SHORT)
+        expect(operation.name).to.equal("f")
+        expect(operation.params).to.be.lengthOf(1)
+        expect(operation.raises).to.be.empty
+        const arg = operation.params[0]
         expect(arg.type).to.equal(Type.SYN_PARAMETER_DECLARATION)
-        expect(arg.child[0]?.type).to.equal(Type.TKN_IN)
-        expect(arg.child[1]?.type).to.equal(Type.TKN_SHORT)
-        expect(arg.child[2]?.type).to.equal(Type.TKN_IDENTIFIER)
-        expect(arg.child[2]?.text).to.equal("a")
+        expect(arg.attribute).to.equal(Type.TKN_IN)
+        expect(arg.typeSpec.type).to.equal(Type.TKN_SHORT)
+        expect(arg.name).to.equal("a")
     })
 
     it("TKN_TYPEDEF", function () {
@@ -55,17 +50,19 @@ describe("IDL Parser", () => {
                 oneway T f(in U a);
             };
         `)
-        const td = tree?.child[0]!
-        const type = td.child[0]!
-        const decls = td.child[1]!
+        const td = tree?.definitions[0] as TypedefDecl
         expect(td.type).to.equal(Type.TKN_TYPEDEF)
-        expect(type.type).to.equal(Type.TKN_SHORT)
-        expect(decls.type).to.equal(Type.SYN_DECLARATORS)
-        expect(decls.child).to.be.lengthOf(2)
-        expect(decls.child[0]?.type).to.equal(Type.TKN_IDENTIFIER)
-        expect(decls.child[0]?.text).to.equal("T")
-        expect(decls.child[1]?.type).to.equal(Type.TKN_IDENTIFIER)
-        expect(decls.child[1]?.text).to.equal("U")
+        expect(td.typeSpec.type).to.equal(Type.TKN_SHORT)
+        expect(td.names).to.deep.equal(["T", "U"])
+
+        // the names refer to the aliased type, not to the typedef
+        const anInterface = tree!.definitions[1] as InterfaceDecl
+        const operation = anInterface.body[0] as Operation
+        const returnType = operation.returnType as ScopedName
+        expect(returnType.type).to.equal(Type.SYN_SCOPED_NAME)
+        expect(returnType.name).to.equal("T")
+        expect(returnType.target).to.deep.equal({ type: Type.TKN_SHORT })
+        expect(operation.params[0].typeSpec).to.include({ type: Type.SYN_SCOPED_NAME, name: "U" })
     })
 
     it("TKN_VALUETYPE", function () {
@@ -78,33 +75,23 @@ describe("IDL Parser", () => {
                 oneway Point f(in Point a);
             };
         `)
-        // tree?.printTree()
-        const vt = tree!.child[0]!
-        const vhdr = vt.child[0]!
-        const member0 = vt.child[1]!
-        const member1 = vt.child[2]!
+        const vt = tree!.definitions[0] as ValueTypeDecl
+        const member0 = vt.elements[0] as StateMember
+        const member1 = vt.elements[1] as StateMember
 
         expect(vt.type).to.equal(Type.TKN_VALUETYPE)
-        expect(vhdr.child[1]!.type).to.equal(Type.TKN_IDENTIFIER)
-        expect(vhdr.child[1]!.text).to.equal("Point")
+        expect(vt.name).to.equal("Point")
+        expect(vt.base).to.be.empty
 
         expect(member0.type).to.equal(Type.SYN_STATE_MEMBER)
-        expect(member0.child[0]!.type).to.equal(Type.TKN_PUBLIC)
-        expect(member0.child[1]!.type).to.equal(Type.TKN_DOUBLE)
-        const dcls0 = member0.child[2]!
-        expect(dcls0.type).to.equal(Type.SYN_DECLARATORS)
-        expect(dcls0.child[0]!.type).to.equal(Type.TKN_IDENTIFIER)
-        expect(dcls0.child[0]!.text).to.equal("x")
-        expect(dcls0.child[1]!.type).to.equal(Type.TKN_IDENTIFIER)
-        expect(dcls0.child[1]!.text).to.equal("y")
+        expect(member0.visibility).to.equal(Type.TKN_PUBLIC)
+        expect(member0.typeSpec.type).to.equal(Type.TKN_DOUBLE)
+        expect(member0.names).to.deep.equal(["x", "y"])
 
         expect(member1.type).to.equal(Type.SYN_STATE_MEMBER)
-        expect(member1.child[0]!.type).to.equal(Type.TKN_PUBLIC)
-        expect(member1.child[1]!.type).to.equal(Type.TKN_SHORT)
-        const dcls1 = member1.child[2]!
-        expect(dcls1.type).to.equal(Type.SYN_DECLARATORS)
-        expect(dcls1.child[0]!.type).to.equal(Type.TKN_IDENTIFIER)
-        expect(dcls1.child[0]!.text).to.equal("s")
+        expect(member1.visibility).to.equal(Type.TKN_PUBLIC)
+        expect(member1.typeSpec.type).to.equal(Type.TKN_SHORT)
+        expect(member1.names).to.deep.equal(["s"])
     })
 
     // struct
@@ -119,48 +106,42 @@ describe("IDL Parser", () => {
         // NOTE: here 'short' represents all other elementary types. if the other elementary
         // types are wrong, we'll catch them in the GIOP encoding/decoding tests
         it("decode short", function () {
-            const str = typeIDLtoGIOPTS(new Node(Type.TKN_SHORT))
+            const str = typeIDLtoGIOPTS({ type: Type.TKN_SHORT })
             expect(str).to.equal("decoder.short()")
         })
 
         it("encode short", function () {
-            const str = typeIDLtoGIOPTS(new Node(Type.TKN_SHORT), "a")
+            const str = typeIDLtoGIOPTS({ type: Type.TKN_SHORT }, "a")
             expect(str).to.equal("encoder.short(a)")
         })
 
         it("decode sequence<short>", function () {
-            const n0 = new Node(Type.TKN_SEQUENCE)
-            n0.append(new Node(Type.TKN_SHORT))
+            const n0 = { type: Type.TKN_SEQUENCE, elementType: { type: Type.TKN_SHORT } } as const
             const str = typeIDLtoGIOPTS(n0)
             expect(str).to.equal("decoder.sequence(() => decoder.short())")
         })
 
         it("encode sequence<short>", function () {
-            const n0 = new Node(Type.TKN_SEQUENCE)
-            n0.append(new Node(Type.TKN_SHORT))
+            const n0 = { type: Type.TKN_SEQUENCE, elementType: { type: Type.TKN_SHORT } } as const
             const str = typeIDLtoGIOPTS(n0, "a")
             expect(str).to.equal("encoder.sequence(a, (item) => encoder.short(item))")
         })
 
         it("encode sequence<sequence<short>>", function () {
-            const n0 = new Node(Type.TKN_SEQUENCE)
-            const n1 = new Node(Type.TKN_SEQUENCE)
-            n0.append(n1)
-            n1.append(new Node(Type.TKN_SHORT))
+            const n1 = { type: Type.TKN_SEQUENCE, elementType: { type: Type.TKN_SHORT } } as const
+            const n0 = { type: Type.TKN_SEQUENCE, elementType: n1 } as const
             const str = typeIDLtoGIOPTS(n0, "a")
             expect(str).to.equal("encoder.sequence(a, (item) => encoder.sequence(item, (item) => encoder.short(item)))")
         })
 
         it("decode typedef short", function () {
-            const n0 = new Node(Type.TKN_IDENTIFIER)
-            n0.append(new Node(Type.TKN_SHORT))
+            const n0: ScopedName = { type: Type.SYN_SCOPED_NAME, name: "T", path: [], scope: undefined, target: { type: Type.TKN_SHORT } }
             const str = typeIDLtoGIOPTS(n0)
             expect(str).to.equal("decoder.short()")
         })
 
         it("encode typedef short", function () {
-            const n0 = new Node(Type.TKN_IDENTIFIER)
-            n0.append(new Node(Type.TKN_SHORT))
+            const n0: ScopedName = { type: Type.SYN_SCOPED_NAME, name: "T", path: [], scope: undefined, target: { type: Type.TKN_SHORT } }
             const str = typeIDLtoGIOPTS(n0, "a")
             expect(str).to.equal("encoder.short(a)")
         })
@@ -172,17 +153,10 @@ describe("IDL Parser", () => {
                 oneway T f(in U a);
             };
         `)
-            const td = tree?.child[0]!
-            const type = td.child[0]!
-            const decls = td.child[1]!
+            const td = tree?.definitions[0] as TypedefDecl
             expect(td.type).to.equal(Type.TKN_TYPEDEF)
-            expect(type.type).to.equal(Type.TKN_SHORT)
-            expect(decls.type).to.equal(Type.SYN_DECLARATORS)
-            expect(decls.child).to.be.lengthOf(2)
-            expect(decls.child[0]?.type).to.equal(Type.TKN_IDENTIFIER)
-            expect(decls.child[0]?.text).to.equal("T")
-            expect(decls.child[1]?.type).to.equal(Type.TKN_IDENTIFIER)
-            expect(decls.child[1]?.text).to.equal("U")
+            expect(td.typeSpec.type).to.equal(Type.TKN_SHORT)
+            expect(td.names).to.deep.equal(["T", "U"])
         })
 
         xit("TKN_VALUETYPE", function () {
@@ -196,7 +170,7 @@ describe("IDL Parser", () => {
                 };
             `)
             // tree?.printTree()
-            const vt = tree!.child[0]!
+            const vt = tree!.definitions[0] as ValueTypeDecl
             const str = typeIDLtoGIOPTS(vt)
             // console.log(str)
         })
@@ -207,7 +181,6 @@ function parse(data: string) {
     const lexer = new Lexer(data)
     try {
         const syntaxTree = specification(lexer)
-        // syntaxTree?.printTree()
         return syntaxTree
     }
     catch (e) {
