@@ -797,6 +797,7 @@ function any_type(): BaseType | undefined {
 
 // 69
 function struct_type(): StructDecl | undefined {
+    const doc = docBefore()
     const t0 = lexer.lex()
     if (t0 === undefined || t0.type !== Type.TKN_STRUCT) {
         lexer.unlex(t0)
@@ -811,7 +812,7 @@ function struct_type(): StructDecl | undefined {
         throw Error("expected at least one member within 'struct'")
     expect('}')
 
-    const node: StructDecl = { type: Type.TKN_STRUCT, name: t1.text!, members }
+    const node: StructDecl = { type: Type.TKN_STRUCT, name: t1.text!, members, doc }
     scoper.addType(node.name, node)
 
     return node
@@ -843,6 +844,7 @@ function member(): Member | undefined {
 
 // 72
 function union_type(): UnionDecl | undefined {
+    const doc = docBefore()
     const t0 = lexer.lex()
     if (t0 === undefined)
         return undefined
@@ -868,7 +870,7 @@ function union_type(): UnionDecl | undefined {
     const cases = switch_body()
     expect("}")
 
-    const node: UnionDecl = { type: Type.TKN_UNION, name: t1.text!, switchType, cases }
+    const node: UnionDecl = { type: Type.TKN_UNION, name: t1.text!, switchType, cases, doc }
     scoper.addType(node.name, node)
 
     return node
@@ -954,12 +956,13 @@ function element_spec(): { typeSpec: TypeSpec, name: string } | undefined {
 
 // 78
 function enum_type(): EnumDecl | undefined {
+    const doc = docBefore()
     const t0 = lexer.lex()
     if (t0 !== undefined && t0.type == Type.TKN_ENUM) {
         const t1 = identifier()
         if (t1 === undefined)
             throw Error("expected identifier after 'enum'")
-        const node: EnumDecl = { type: Type.TKN_ENUM, name: t1.text!, enumerators: [] }
+        const node: EnumDecl = { type: Type.TKN_ENUM, name: t1.text!, enumerators: [], doc }
         expect("{")
         const usedNames = new Set<string>()
         let t3: Token | undefined
@@ -1054,6 +1057,7 @@ function attr_dcl(): Attribute | undefined {
 
 // 86
 function except_dcl(): ExceptionDecl | undefined {
+    const doc = docBefore()
     const t0 = lexer.lex()
     if (t0 === undefined || t0.type != Type.TKN_EXCEPTION) {
         lexer.unlex(t0)
@@ -1073,7 +1077,7 @@ function except_dcl(): ExceptionDecl | undefined {
     }
     expect("}")
 
-    const node: ExceptionDecl = { type: Type.TKN_EXCEPTION, name: t1.text!, members }
+    const node: ExceptionDecl = { type: Type.TKN_EXCEPTION, name: t1.text!, members, doc }
     scoper.addType(node.name, node)
 
     return node
@@ -1179,6 +1183,7 @@ function parameter_dcls(): Parameter[] | undefined {
 
 // 91
 function param_dcl(): Parameter | undefined {
+    const doc = docBefore()
     const annotation = annotation_appl()
     const attribute = param_attribute()
     if (attribute === undefined)
@@ -1201,7 +1206,7 @@ function param_dcl(): Parameter | undefined {
     if (annotation !== undefined && typeSpec.type === Type.TKN_SEQUENCE) {
         typeSpec.annotation = annotation
     }
-    return { type: Type.SYN_PARAMETER_DECLARATION, attribute, typeSpec, name: t2.text!, annotation }
+    return { type: Type.SYN_PARAMETER_DECLARATION, attribute, typeSpec, name: t2.text!, annotation, doc }
 }
 
 // 92

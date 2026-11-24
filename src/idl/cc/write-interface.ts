@@ -19,7 +19,7 @@
 import * as fs from "fs"
 import { Writable } from "stream"
 import { Type, Specification, ModuleDecl, Export } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent, writeDoc } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent, writeDoc, operationDoc } from "../util"
 import { typeIDLtoGIOPCC } from "./typeIDLtoGIOPCC"
 import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
 
@@ -69,6 +69,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Specif
 
             case Type.TKN_STRUCT: {
                 let identifier = definition.name
+                writeDoc(out, definition.doc, indent)
                 // let value_header = value_dcl.child[0]!
                 // let custom = value_header.child[0]
                 // const member_list = struct_type.child[0]!.child[1]!.child!
@@ -92,6 +93,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Specif
             case Type.TKN_UNION: {
                 const identifier = definition.name
                 const union_type = definition
+                writeDoc(out, union_type.doc, indent)
                 // unions with a default branch have no C++ mapping yet
                 const cases = union_type.cases.map(x => {
                     if (x.type === Type.TKN_DEFAULT) {
@@ -170,6 +172,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Specif
 
             case Type.TKN_ENUM: {
                 const identifier = definition.name
+                writeDoc(out, definition.doc, indent)
                 writeIndent(out, indent)
                 out.write(`enum class ${identifier} {\n`)
                 for (const enumerator of definition.enumerators) {
@@ -188,7 +191,7 @@ export function writeCCInterfaceBody(out: Writable, interface_body: Export[]) {
         switch (_export.type) {
             case Type.SYN_OPERATION_DECLARATION: {
                 let op_dcl = _export
-                writeDoc(out, op_dcl.doc, 1)
+                writeDoc(out, operationDoc(op_dcl), 1)
                 let type = op_dcl.returnType
 
                 let oneway = op_dcl.oneway

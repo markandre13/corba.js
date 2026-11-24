@@ -145,6 +145,23 @@ describe("CC IDL qualified names", () => {
 })
 
 describe("CC IDL documentation", () => {
+    it("struct", async () => {
+        const data = await compileInterface(`
+            /// A point.
+            struct P { long a; };
+        `)
+        expect(data).to.contain("/**\n * A point.\n */\nstruct P {")
+    })
+    it("parameter", async () => {
+        const data = await compileInterface(`
+            interface Backend {
+                /// Calls the backend.
+                void call(/// the input
+                    in long value);
+            };
+        `)
+        expect(data).to.contain("    /**\n     * Calls the backend.\n     *\n     * @param value the input\n     */\n    virtual CORBA::async<void> call(int32_t value) = 0;")
+    })
     it("operation", async () => {
         const data = await compileInterface(`
             interface Backend {

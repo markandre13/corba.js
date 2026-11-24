@@ -182,12 +182,14 @@ export type StructDecl = {
     type: Type.TKN_STRUCT
     name: string
     members: Member[]
+    doc?: string[]
 }
 
 export type ExceptionDecl = {
     type: Type.TKN_EXCEPTION
     name: string
     members: Member[]
+    doc?: string[]
 }
 
 export type Enumerator = {
@@ -200,6 +202,7 @@ export type EnumDecl = {
     type: Type.TKN_ENUM
     name: string
     enumerators: Enumerator[]
+    doc?: string[]
 }
 
 export type SwitchCase = {
@@ -218,6 +221,7 @@ export type UnionDecl = {
     name: string
     switchType: TypeSpec
     cases: SwitchCase[]
+    doc?: string[]
 }
 
 export type TypedefDecl = {
@@ -289,6 +293,7 @@ export type Parameter = {
     typeSpec: TypeSpec
     name: string
     annotation?: Annotation
+    doc?: string[]
 }
 
 export type Export = Operation | Attribute

@@ -1,5 +1,5 @@
 import * as fs from "fs"
-import { Type, Specification, ModuleDecl, Declaration, ScopedName, TypeSpec } from "./idl-node"
+import { Type, Specification, ModuleDecl, Declaration, ScopedName, TypeSpec, Operation } from "./idl-node"
 import { typeIDLtoTS } from "./ts/typeIDLtoTS"
 import { Writable } from "stream"
 
@@ -24,6 +24,22 @@ export let classAttributes = new Map<string, Array<string>>()
 export function writeIndent(out: Writable, indent: number) {
     for (let i = 0; i < indent; ++i)
         out.write("    ")
+}
+
+// the documentation of an operation followed by a @param line for each documented parameter
+export function operationDoc(op: Operation): string[] | undefined {
+    const params: string[] = []
+    for (const param of op.params) {
+        if (param.doc === undefined || param.doc.length === 0)
+            continue
+        const [first, ...rest] = param.doc
+        params.push(`@param ${param.name} ${first}`.trimEnd(), ...rest)
+    }
+    if (params.length === 0)
+        return op.doc
+    if (op.doc === undefined || op.doc.length === 0)
+        return params
+    return [...op.doc, "", ...params]
 }
 
 // copies a documentation comment from the IDL as a /** */ block, which doxygen and JSDoc both read

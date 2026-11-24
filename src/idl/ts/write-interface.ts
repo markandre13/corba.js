@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Specification, Definition, Enumerator, SwitchCase, TypeSpec } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent, writeDoc, writtenName } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent, writeDoc, operationDoc, writtenName } from "../util"
 import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
@@ -76,7 +76,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
                     switch (_export.type) {
                         case Type.SYN_OPERATION_DECLARATION: {
                             let op_dcl = _export
-                            writeDoc(out, op_dcl.doc, 1)
+                            writeDoc(out, operationDoc(op_dcl), 1)
                             let oneway = op_dcl.oneway
                             if (oneway && op_dcl.returnType.type !== Type.TKN_VOID)
                                 throw Error("oneway methods must return void")
@@ -126,6 +126,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
                 let struct_type = definition
                 let identifier = struct_type.name
 
+                writeDoc(out, struct_type.doc, indent)
                 writeIndent(out, indent)
                 out.write(`export interface ${identifier} {\n`)
 
@@ -180,6 +181,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
                     composite = `${composite}_${identifier}_${declarator}`
                 }
 
+                writeDoc(out, union_type.doc, indent)
                 writeIndent(out, indent)
                 out.write(`export type ${identifier} = ${composite}\n`)
 
@@ -231,6 +233,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
 
             case Type.TKN_ENUM: {
                 const identifier = definition.name
+                writeDoc(out, definition.doc, indent)
                 writeIndent(out, indent)
                 out.write(`export enum ${identifier} {\n`)
                 for (const enumerator of definition.enumerators) {

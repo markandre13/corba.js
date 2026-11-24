@@ -1,5 +1,5 @@
 import { expect } from "chai"
-import { Type, InterfaceDecl, Operation, TypedefDecl, ValueTypeDecl, StateMember, ScopedName } from "corba.js/idl/idl-node"
+import { Type, InterfaceDecl, Operation, TypedefDecl, ValueTypeDecl, StateMember, ScopedName, StructDecl, EnumDecl, ExceptionDecl } from "corba.js/idl/idl-node"
 import { Lexer } from "corba.js/idl/idl-lexer"
 import { specification } from "corba.js/idl/idl-parser"
 import { typeIDLtoGIOPTS } from "corba.js/idl/ts/typeIDLtoGIOPTS"
@@ -71,6 +71,25 @@ describe("IDL Parser", () => {
         expect(anInterface.doc).to.deep.equal(["Adds two numbers.", "@param a first"])
         expect((anInterface.body[0] as Operation).doc).to.deep.equal(["the answer"])
         expect((anInterface.body[1] as Operation).doc).to.deep.equal(["bang style"])
+    })
+
+    it("documentation comments of types and parameters", function () {
+        const tree = parse(`
+            /// A point.
+            struct P { long a; };
+            /// Colors.
+            enum Color { red, green };
+            /// Something went wrong.
+            exception E {};
+            interface X {
+                long add(/// the first summand
+                    in long a);
+            };`)
+        expect((tree!.definitions[0] as StructDecl).doc).to.deep.equal(["A point."])
+        expect((tree!.definitions[1] as EnumDecl).doc).to.deep.equal(["Colors."])
+        expect((tree!.definitions[2] as ExceptionDecl).doc).to.deep.equal(["Something went wrong."])
+        const operation = (tree!.definitions[3] as InterfaceDecl).body[0] as Operation
+        expect(operation.params[0].doc).to.deep.equal(["the first summand"])
     })
 
     it("typedef name inside a module", function () {
