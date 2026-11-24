@@ -1,5 +1,5 @@
 import { Type, Definition, TypeSpec } from "../idl-node"
-import { FileType, firstName, firstNode, isPointerName, scopePrefix } from "../util"
+import { FileType, isPointerName, scopePrefix } from "../util"
 
 // a type, or a declaration reached through a scoped name
 export type TypeNode = TypeSpec | Definition
@@ -43,8 +43,7 @@ export function typeIDLtoTS(type: TypeNode | undefined, filetype: FileType = Fil
                     // name += ` | undefined`
                     break
                 case Type.TKN_STRUCT:
-                    // FIXME: struct uses a wrong identifier node structure
-                    name = firstName(type)
+                    name = relativeName
                     if (filetype !== FileType.INTERFACE) {
                         name = `_interface${absolutePrefix}.${name}`
                     }
@@ -53,7 +52,7 @@ export function typeIDLtoTS(type: TypeNode | undefined, filetype: FileType = Fil
                     name = absolutePrefix.length == 0 ? relativeName : `${absolutePrefix.substring(1)}.${relativeName}`
                     break
                 case Type.TKN_SEQUENCE:
-                    name = typeIDLtoTS(firstNode(type), filetype)
+                    name = typeIDLtoTS(target, filetype)
                     break
                 default:
                     throw Error(`Internal Error in typeIDLtoTS(): type ${Type[target.type]} is not implemented`)

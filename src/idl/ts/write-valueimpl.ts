@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Specification, Definition, ValueTypeDecl } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, FileType, firstName, firstNode } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, FileType, writtenName } from "../util"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
 export function writeTSValueImpl(specification: Specification): void {
@@ -59,7 +59,7 @@ function hasOperationDeclarations(value_dcl: ValueTypeDecl): boolean {
     }
 
     if (value_dcl.base.length > 0) {
-        const base = firstNode(value_dcl.base[0])
+        const base = value_dcl.base[0].target
         if (base.type === Type.TKN_VALUETYPE) {
             if (hasOperationDeclarations(base)) {
                 return true
@@ -89,7 +89,7 @@ function writeTSValueImplDefinitions(out: fs.WriteStream, definitions: Definitio
                     out.write("abstract ")
 
                 else if (value_dcl.base.length > 0) { // FIXME: this works only over one inheritance level, make it recursive
-                    const base = firstNode(value_dcl.base[0])
+                    const base = value_dcl.base[0].target
                     if (base.type === Type.TKN_VALUETYPE) {
                         if (hasOperationDeclarations(base))
                             out.write("abstract ")
@@ -99,7 +99,7 @@ function writeTSValueImplDefinitions(out: fs.WriteStream, definitions: Definitio
                 if (value_dcl.base.length > 0) {
                     if (value_dcl.base.length > 1)
                         throw Error("multiple inheritance is not supported for TypeScript")
-                    out.write(" extends " + firstName(value_dcl.base[0]))
+                    out.write(" extends " + writtenName(value_dcl.base[0]))
                 }
                 out.write(` implements valuetype.${prefix}${identifier} {\n`)
 

@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Specification, Definition, Enumerator, SwitchCase, TypeSpec } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent, firstName } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent, writtenName } from "../util"
 import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
@@ -43,7 +43,7 @@ function caseLabel(switchCase: SwitchCase): Enumerator {
 function switchTypeName(switchType: TypeSpec): string | undefined {
     switch (switchType.type) {
         case Type.SYN_SCOPED_NAME:
-            return firstName(switchType)
+            return writtenName(switchType)
         case Type.TKN_ENUM:
             return switchType.name
         default:
@@ -63,7 +63,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition
                 let identifier = interface_dcl.name
-                let inheritance_spec = interface_dcl.base === undefined ? undefined : firstName(interface_dcl.base)
+                let inheritance_spec = interface_dcl.base === undefined ? undefined : writtenName(interface_dcl.base)
                 let interface_body = interface_dcl.body
 
                 out.write(`export interface ${identifier}`)

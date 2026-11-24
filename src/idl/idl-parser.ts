@@ -1378,6 +1378,10 @@ function find_in_module(module: ModuleDecl, name: string): Declaration | undefin
             case Type.TKN_NATIVE:
             case Type.TKN_VALUETYPE:
             case Type.SYN_INTERFACE:
+            case Type.TKN_STRUCT:
+            case Type.TKN_UNION:
+            case Type.TKN_ENUM:
+            case Type.TKN_EXCEPTION:
                 if (child.name === name)
                     return child
                 break

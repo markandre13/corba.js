@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Specification, Definition, ValueTypeDecl } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, FileType, defaultValueIDLtoTS, firstName, firstNode, isPointerName } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, FileType, defaultValueIDLtoTS, writtenName, isPointerName } from "../util"
 import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
@@ -86,7 +86,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, definitions: Definition[],
                 if (value_dcl.base.length > 0) {
                     if (value_dcl.base.length > 1) // FIXME: for interfaces we can
                         throw Error("multiple inheritance is not supported for TypeScript")
-                    const base = firstName(value_dcl.base[0])
+                    const base = writtenName(value_dcl.base[0])
                     out.write(` extends ${base}`)
 
                     let superAttributes = classAttributes.get(prefix + base)
@@ -136,7 +136,8 @@ function writeTSValueDefinitions(out: fs.WriteStream, definitions: Definition[],
                 ++indent
                 if (value_dcl.base.length > 0) {
                     writeIndent(out, indent)
-                    out.write(`encode${firstName(value_dcl.base[0])}(encoder, obj)\n`)
+                    const base = value_dcl.base[0]
+                    out.write(`${base.path.map(module => module.name + ".").join("")}encode${base.name}(encoder, obj)\n`)
                 }
                 for (let value_element of value_dcl.elements) {
                     if (value_element.type === Type.SYN_STATE_MEMBER) {
@@ -189,12 +190,12 @@ function writeTSInitValueFromPOJO(value_dcl: ValueTypeDecl, out: fs.WriteStream,
                     // FIXME: in this case workflow doesn't require a copy, maybe just copy when the prototypes are wrong or a deep copy flag had been set?
                     //                                out.write(") ? new "+type.text+"() : new "+type.text+"(init."+decl_identifier+")\n")
                     // console.log(`writeTSValueDefinitions`, type, typeIDLtoTS(type))
-                    if (firstNode(type).type == Type.TKN_NATIVE &&
+                    if (type.target.type == Type.TKN_NATIVE &&
                         isPointerName(type.name)) {
                         let name = typeIDLtoTS(type, FileType.VALUE)
                         out.write(`if (init !== undefined && init.${decl_identifier} !== undefined) object.${decl_identifier} = new (ORB.lookupValueType("${name}"))(init.${decl_identifier})\n`)
                     } else
-                    if (firstNode(type).type == Type.TKN_SEQUENCE) {
+                    if (type.target.type == Type.TKN_SEQUENCE) {
                         out.write(`object.${decl_identifier} = init?.${decl_identifier} instanceof Array ? init!.${decl_identifier} : []\n`)
                     } else {
                         let name = typeIDLtoTS(type, FileType.VALUE)

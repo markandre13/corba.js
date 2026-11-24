@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Specification, Definition } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, firstName } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writtenName } from "../util"
 import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
@@ -45,7 +45,7 @@ function writeTSStubDefinitions(out: fs.WriteStream, definitions: Definition[], 
             case Type.SYN_INTERFACE: {
                 let interface_dcl = definition
                 let identifier = interface_dcl.name
-                let inheritance_spec = interface_dcl.base === undefined ? undefined : firstName(interface_dcl.base)
+                let inheritance_spec = interface_dcl.base === undefined ? undefined : writtenName(interface_dcl.base)
                 let interface_body = interface_dcl.body
 
                 out.write(`export class ${identifier} extends ${inheritance_spec?inheritance_spec:"Stub"} implements _interface.${prefix}${identifier} {\n`)

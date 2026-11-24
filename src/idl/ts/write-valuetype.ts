@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Specification, Definition } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, FileType, firstName } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, FileType, writtenName } from "../util"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
 export function writeTSValueType(specification: Specification): void {
@@ -68,7 +68,7 @@ function writeTSValueTypeDefinitions(out: fs.WriteStream, definitions: Definitio
                 if (value_dcl.base.length > 0) {
                     if (value_dcl.base.length > 1)
                         throw Error("multiple inheritance is not supported for TypeScript") // FIXME: for interfaces we can
-                    out.write(", " + firstName(value_dcl.base[0]))
+                    out.write(", " + writtenName(value_dcl.base[0]))
                 }
                 out.write(" {\n")
 

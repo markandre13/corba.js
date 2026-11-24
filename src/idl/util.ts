@@ -1,5 +1,5 @@
 import * as fs from "fs"
-import { Type, Specification, ModuleDecl, Declaration, ScopedName, TypeSpec } from "./idl-node"
+import { Type, Specification, ModuleDecl, ScopedName, TypeSpec } from "./idl-node"
 import { typeIDLtoTS } from "./ts/typeIDLtoTS"
 import { Writable } from "stream"
 
@@ -38,13 +38,9 @@ export enum FileType {
 
 // The generators refer to a scoped name by the first name component, e.g. 'M' for 'M::Foo'.
 // This is what the old parse tree stored as the text of the identifier.
-export function firstName(name: ScopedName): string {
-    return name.path[0]?.name ?? name.name
-}
-
-// The first node of a scoped name: its outermost module or, without a module path, the target itself.
-export function firstNode(name: ScopedName): ModuleDecl | Declaration {
-    return name.path[0] ?? name.target
+// The name as written in the IDL, e.g. 'M.I' for 'M::I'
+export function writtenName(name: ScopedName): string {
+    return [...name.path.map(module => module.name), name.name].join(".")
 }
 
 export function isPointerName(name: string): boolean {
@@ -64,7 +60,7 @@ export function defaultValueIDLtoTS(type: TypeSpec | undefined, filetype: FileTy
         throw Error("internal error: parser delivered no type information")
     switch (type.type) {
         case Type.SYN_SCOPED_NAME:
-            return "new " + firstName(type) + "()"
+            return "new " + writtenName(type) + "()"
         case Type.TKN_BOOLEAN:
             return "false"
         case Type.TKN_CHAR:

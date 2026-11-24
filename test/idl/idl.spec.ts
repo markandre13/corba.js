@@ -3,6 +3,7 @@ import { Type, InterfaceDecl, Operation, TypedefDecl, ValueTypeDecl, StateMember
 import { Lexer } from "corba.js/idl/idl-lexer"
 import { specification } from "corba.js/idl/idl-parser"
 import { typeIDLtoGIOPTS } from "corba.js/idl/ts/typeIDLtoGIOPTS"
+import { typeIDLtoTS } from "corba.js/idl/ts/typeIDLtoTS"
 
 describe("IDL Parser", () => {
     it("SYN_SPECIFICATION", function () {
@@ -198,6 +199,20 @@ describe("IDL Parser", () => {
             const str = typeIDLtoGIOPTS(vt)
             // console.log(str)
         })
+    })
+})
+
+describe("typeIDLtoTS()", function () {
+    it("qualified struct name", function () {
+        const tree = parse(`
+            module M {
+                struct S { long a; };
+            };
+            interface X {
+                M::S f();
+            };`)
+        const operation = (tree!.definitions[1] as InterfaceDecl).body[0] as Operation
+        expect(typeIDLtoTS(operation.returnType)).to.equal("_interface.M.S")
     })
 })
 
