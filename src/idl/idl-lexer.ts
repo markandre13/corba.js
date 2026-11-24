@@ -115,6 +115,8 @@ export class Lexer {
     state: number
     text?: string
     tokenStack: Array<Token>
+    // documentation comment lines seen since the last token
+    doc: string[] = []
 
     static isAlpha(c: string): boolean {
         let n = c.charCodeAt(0)
@@ -183,6 +185,33 @@ export class Lexer {
         if (this.tokenStack.length > 0) {
             return this.tokenStack.pop()
         }
+        const token = this.lexToken()
+        if (token !== undefined && this.doc.length > 0) {
+            token.doc = this.doc
+            this.doc = []
+        }
+        return token
+    }
+
+    // doc comments are /** */, /*! */, /// and //! (doxygen and JSDoc style)
+    collectDoc(comment: string): void {
+        let lines: string[]
+        if (comment.startsWith("///") && !comment.startsWith("////") || comment.startsWith("//!")) {
+            lines = [comment.substring(3)]
+        } else if (comment.startsWith("/**") || comment.startsWith("/*!")) {
+            lines = comment.substring(3, comment.length - 1).split("\n")
+        } else {
+            return
+        }
+        lines = lines.map(line => line.replace(/^\s*\*?\s*/, "").trimEnd())
+        while (lines.length > 0 && lines[0] === "")
+            lines.shift()
+        while (lines.length > 0 && lines[lines.length - 1] === "")
+            lines.pop()
+        this.doc.push(...lines)
+    }
+
+    private lexToken(): Token | undefined {
         while(!this.eof()) {
             let c = this.getc()
 //console.log("state="+this.state+" c='"+c+"'")
@@ -263,6 +292,7 @@ export class Lexer {
                     switch(c) {
                         case '\n':
                             this.state = 0
+                            this.collectDoc(this.text!)
                             break
                     }
                     break
@@ -277,6 +307,7 @@ export class Lexer {
                     switch(c) {
                         case '/':
                             this.state = 0
+                            this.collectDoc(this.text!)
                             break
                         case '*':
                             break

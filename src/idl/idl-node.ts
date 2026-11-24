@@ -113,6 +113,8 @@ export enum Type {
 export interface Token {
     type: Type
     text?: string
+    // the documentation comment lines directly before this token
+    doc?: string[]
 }
 
 export type Annotation = {
@@ -244,6 +246,7 @@ export type InterfaceDecl = {
     modifier?: Type.TKN_ABSTRACT | Type.TKN_LOCAL
     base?: ScopedName
     body: Export[]
+    doc?: string[]
 }
 
 export type ValueTypeDecl = {
@@ -251,6 +254,7 @@ export type ValueTypeDecl = {
     name: string
     base: ScopedName[]
     elements: Array<Export | StateMember>
+    doc?: string[]
 }
 
 export type Operation = {
@@ -260,6 +264,7 @@ export type Operation = {
     name: string
     params: Parameter[]
     raises: ScopedName[]
+    doc?: string[]
 }
 
 export type Attribute = {
@@ -267,6 +272,7 @@ export type Attribute = {
     readonly: boolean
     typeSpec: TypeSpec
     names: string[]
+    doc?: string[]
 }
 
 export type StateMember = {
@@ -274,6 +280,7 @@ export type StateMember = {
     visibility: Type.TKN_PUBLIC | Type.TKN_PRIVATE
     typeSpec: TypeSpec
     names: string[]
+    doc?: string[]
 }
 
 export type Parameter = {

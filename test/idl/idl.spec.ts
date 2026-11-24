@@ -56,6 +56,23 @@ describe("IDL Parser", () => {
         expect(operation.raises.map(name => name.name)).to.deep.equal(["E", "F"])
     })
 
+    it("documentation comments", function () {
+        const tree = parse(`
+            /** Adds two numbers.
+             *  @param a first
+             */
+            interface X {
+                /// the answer
+                long f();
+                //! bang style
+                long g();
+            };`)
+        const anInterface = tree!.definitions[0] as InterfaceDecl
+        expect(anInterface.doc).to.deep.equal(["Adds two numbers.", "@param a first"])
+        expect((anInterface.body[0] as Operation).doc).to.deep.equal(["the answer"])
+        expect((anInterface.body[1] as Operation).doc).to.deep.equal(["bang style"])
+    })
+
     it("typedef name inside a module", function () {
         const tree = parse(`
             module M {

@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Specification, Definition, ValueTypeDecl } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, classAttributes, FileType, defaultValueIDLtoTS, writtenName, resolvedTarget, predefinedTypes, isPointerName } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasNative, hasValueType, writeIndent, writeDoc, classAttributes, FileType, defaultValueIDLtoTS, writtenName, resolvedTarget, predefinedTypes, isPointerName } from "../util"
 import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
@@ -77,6 +77,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, definitions: Definition[],
                 let value_dcl = definition
                 let identifier = value_dcl.name
 
+                writeDoc(out, value_dcl.doc, indent)
                 writeIndent(out, indent)
                 out.write(`export interface ${identifier}`)
 
@@ -104,6 +105,7 @@ function writeTSValueDefinitions(out: fs.WriteStream, definitions: Definition[],
 
                 for (let value_element of value_dcl.elements) {
                     if (value_element.type === Type.SYN_STATE_MEMBER) {
+                        writeDoc(out, value_element.doc, indent + 1)
                         for (let declarator of value_element.names) {
                             writeIndent(out, indent + 1)
                             out.write(declarator + ": " + typeIDLtoTS(value_element.typeSpec, FileType.VALUE) + "\n")

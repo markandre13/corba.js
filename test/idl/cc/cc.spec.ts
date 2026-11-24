@@ -144,6 +144,18 @@ describe("CC IDL qualified names", () => {
     })
 })
 
+describe("CC IDL documentation", () => {
+    it("operation", async () => {
+        const data = await compileInterface(`
+            interface Backend {
+                /// Calls the backend.
+                void call();
+            };
+        `)
+        expect(data).to.contain("    /**\n     * Calls the backend.\n     */\n    virtual CORBA::async<void> call() = 0;")
+    })
+})
+
 describe("CC IDL typedef", () => {
     it("typedef of a predefined type", async () => {
         const data = await compileInterface(`

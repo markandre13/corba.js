@@ -19,7 +19,7 @@
 import * as fs from "fs"
 import { Writable } from "stream"
 import { Type, Specification, ModuleDecl, Export } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent, writeDoc } from "../util"
 import { typeIDLtoGIOPCC } from "./typeIDLtoGIOPCC"
 import { Direction, typeIDLtoCC } from "./typeIDLtoCC"
 
@@ -57,6 +57,7 @@ export function writeCCInterfaceDefinitions(out: Writable, specification: Specif
                 let inheritance_spec = definition.base?.name
                 let interface_body = definition.body
 
+                writeDoc(out, definition.doc, 0)
                 out.write(`class ${identifier}: public virtual ${inheritance_spec?inheritance_spec:"CORBA::Object"} {\n`)
                 out.write(`public:\n`)
                 writeCCInterfaceBody(out, interface_body)
@@ -187,6 +188,7 @@ export function writeCCInterfaceBody(out: Writable, interface_body: Export[]) {
         switch (_export.type) {
             case Type.SYN_OPERATION_DECLARATION: {
                 let op_dcl = _export
+                writeDoc(out, op_dcl.doc, 1)
                 let type = op_dcl.returnType
 
                 let oneway = op_dcl.oneway
@@ -218,6 +220,7 @@ export function writeCCInterfaceBody(out: Writable, interface_body: Export[]) {
             } break
             case Type.TKN_ATTRIBUTE: {
                 const readonly = _export.readonly
+                writeDoc(out, _export.doc, 1)
                 const param_type_spec = _export.typeSpec
                 for (const identifier of _export.names) {
                     out.write(`    virtual CORBA::async<${typeIDLtoCC(param_type_spec, Direction.OUT)}> ${identifier}() = 0;\n`)

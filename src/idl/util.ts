@@ -26,6 +26,20 @@ export function writeIndent(out: Writable, indent: number) {
         out.write("    ")
 }
 
+// copies a documentation comment from the IDL as a /** */ block, which doxygen and JSDoc both read
+export function writeDoc(out: Writable, doc: string[] | undefined, indent: number) {
+    if (doc === undefined || doc.length === 0)
+        return
+    writeIndent(out, indent)
+    out.write("/**\n")
+    for (const line of doc) {
+        writeIndent(out, indent)
+        out.write(line === "" ? " *\n" : ` * ${line.replace(/\*\//g, "*\\/")}\n`)
+    }
+    writeIndent(out, indent)
+    out.write(" */\n")
+}
+
 export enum FileType {
     NONE,
     VALUE,

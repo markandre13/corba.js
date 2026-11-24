@@ -104,6 +104,7 @@ function _interface(): InterfaceDecl | undefined {
 
 // 5
 function interface_dcl(): InterfaceDecl | undefined {
+    const doc = docBefore()
     const t0 = interface_header()
     if (!t0) {
         const t = lexer.lex()
@@ -118,7 +119,7 @@ function interface_dcl(): InterfaceDecl | undefined {
     if (t1.type !== Type.TKN_TEXT && t1.text != '{')
         throw Error(`expected { after interface header but got ${describeToken(t1)}`)
 
-    const node: InterfaceDecl = { type: Type.SYN_INTERFACE, name: t0.name, modifier: t0.modifier, base: t0.base, body: [] }
+    const node: InterfaceDecl = { type: Type.SYN_INTERFACE, name: t0.name, modifier: t0.modifier, base: t0.base, body: [], doc }
     scoper.addType(node.name, node)
 
     node.body = interface_body()
@@ -307,6 +308,7 @@ function value_abs_dcl(): ValueTypeDecl | undefined {
 
 // 17
 function value_dcl(): ValueTypeDecl | undefined {
+    const doc = docBefore()
     const header = value_header()
     if (header === undefined) {
         return undefined
@@ -314,7 +316,7 @@ function value_dcl(): ValueTypeDecl | undefined {
 
     expect('{')
 
-    const node: ValueTypeDecl = { type: Type.TKN_VALUETYPE, name: header.name, base: header.base, elements: [] }
+    const node: ValueTypeDecl = { type: Type.TKN_VALUETYPE, name: header.name, base: header.base, elements: [], doc }
     scoper.addType(node.name, node)
 
     while (true) {
@@ -400,6 +402,7 @@ function value_element(): Export | StateMember | undefined {
 
 // 22
 function state_member(): StateMember | undefined {
+    const doc = docBefore()
     const t0 = lexer.lex()
     if (t0 === undefined)
         return undefined
@@ -421,7 +424,7 @@ function state_member(): StateMember | undefined {
 
     expect(";")
 
-    return { type: Type.SYN_STATE_MEMBER, visibility: t0.type, typeSpec: t1, names }
+    return { type: Type.SYN_STATE_MEMBER, visibility: t0.type, typeSpec: t1, names, doc }
 }
 
 // 42
@@ -1039,10 +1042,13 @@ function wide_string_type(): StringType | undefined {
 
 // 85
 function attr_dcl(): Attribute | undefined {
+    const doc = docBefore()
     let t0
     t0 = readonly_attr_spec()
     if (t0 === undefined)
         t0 = attr_spec()
+    if (t0 !== undefined)
+        t0.doc = doc
     return t0
 }
 
@@ -1076,6 +1082,7 @@ function except_dcl(): ExceptionDecl | undefined {
 
 // 87 (Operation Declaration)
 function op_dcl(): Operation | undefined {
+    const doc = docBefore()
     const node_attribute = op_attribute() // opt
     const node_type = op_type_spec()
     if (node_type === undefined) {
@@ -1107,7 +1114,8 @@ function op_dcl(): Operation | undefined {
         returnType: node_type,
         name: node_identifier.text!,
         params: node_parameter_dcls,
-        raises
+        raises,
+        doc
     }
 }
 
@@ -1348,6 +1356,13 @@ function annotation_appl_param(): { name: string, value: string } {
         throw Error(`expected value`)
     }
     return { name: id.text!, value: val.text! }
+}
+
+// the documentation comment in front of the next token, the token itself stays in the stream
+function docBefore(): string[] | undefined {
+    const t = lexer.lex()
+    lexer.unlex(t)
+    return t?.doc
 }
 
 function identifier(): Token | undefined {

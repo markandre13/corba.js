@@ -18,7 +18,7 @@
 
 import * as fs from "fs"
 import { Type, Specification, Definition, Enumerator, SwitchCase, TypeSpec } from "../idl-node"
-import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent, writtenName } from "../util"
+import { filenamePrefix, filename, filenameLocal, hasValueType, FileType, writeIndent, writeDoc, writtenName } from "../util"
 import { typeIDLtoGIOPTS } from "./typeIDLtoGIOPTS"
 import { typeIDLtoTS } from "./typeIDLtoTS"
 
@@ -66,6 +66,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
                 let inheritance_spec = interface_dcl.base === undefined ? undefined : writtenName(interface_dcl.base)
                 let interface_body = interface_dcl.body
 
+                writeDoc(out, interface_dcl.doc, 0)
                 out.write(`export interface ${identifier}`)
                 if (inheritance_spec) {
                     out.write(` extends ${inheritance_spec}`)
@@ -75,6 +76,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
                     switch (_export.type) {
                         case Type.SYN_OPERATION_DECLARATION: {
                             let op_dcl = _export
+                            writeDoc(out, op_dcl.doc, 1)
                             let oneway = op_dcl.oneway
                             if (oneway && op_dcl.returnType.type !== Type.TKN_VOID)
                                 throw Error("oneway methods must return void")
@@ -104,6 +106,7 @@ function writeTSInterfaceDefinitions(out: fs.WriteStream, definitions: Definitio
                         } break
                         case Type.TKN_ATTRIBUTE: {
                             const readonly = _export.readonly
+                            writeDoc(out, _export.doc, 1)
                             const type = typeIDLtoTS(_export.typeSpec, FileType.INTERFACE)
                             for (const identifier of _export.names) {
                                 if (!readonly) {
