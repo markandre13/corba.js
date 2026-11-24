@@ -100,10 +100,20 @@ tests in `test/access.spec.ts` are waiting for them.
   `resolve_initial_references("SecurityCurrent")`.
 * PrincipalAuthenticator, the initiator side object that creates credentials and stores
   them in the Current object's own credentials.
-* Access control: an ACL for objects added to the NameService, checking an object's
-  attributes before it is sent or returned to a peer, and adding a reference to the ACL
-  when it is sent to a peer. Open questions are what happens to the ACL when a
-  connection is re-established and how it is persisted.
+* Access control for servants. The intended rule is that a peer can only call an object
+  whose id it has been given. An object's id becomes known to the peer when the object is
+  published with `ORB.bind()` and resolved by the peer, or when the id is sent to the peer
+  in an outgoing call or as part of the response to an incoming call. A call that uses an
+  id the peer has not been given is rejected with "client required method ... but has no
+  rights to access servant with ...". The tests that check this rule are the disabled
+  `bind`, `object send to server` and `object received from server` tests in
+  `test/access.spec.ts`.
+
+  The rule is not enforced yet. The check is commented out in `ORB.handleMethod()` in
+  `src/orb/orb.ts` with a FIXME, because it does not work with multiple connections per
+  ORB. The commented message there says "object key", the tests expect "id". Open
+  questions are what happens to the ACL when a connection is re-established and how it
+  is persisted.
 
 The password authentication that is implemented is tested in `test/net/tls.spec.ts` and
 `test/net/wss.spec.ts`.
