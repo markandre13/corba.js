@@ -16,13 +16,13 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Client_stub, Server_stub } from "./generated/basics_stub"
+import { Server_skel, Client_skel } from "./generated/basics_skel"
 import { expect } from "chai"
 
 import { ORB, GIOPDecoder, MessageType } from "corba.js"
 import * as _interface from "./generated/basics"
 import * as value from "./generated/basics_value"
-import * as skel from "./generated/basics_skel"
-import * as stub from "./generated/basics_stub"
 import { mockConnection, parseHexDump } from "./util"
 
 describe("corba.js", function () {
@@ -77,8 +77,8 @@ describe("corba.js", function () {
         const serverImpl = new Server_impl(serverORB)
         serverORB.bind("Server", serverImpl)
 
-        serverORB.registerStubClass(stub.Client_stub)
-        clientORB.registerStubClass(stub.Server_stub)
+        serverORB.registerStubClass(Client_stub)
+        clientORB.registerStubClass(Server_stub)
 
         ORB.registerValueType("Origin", Origin)
         ORB.registerValueType("Size", Size)
@@ -89,8 +89,8 @@ describe("corba.js", function () {
         mockConnection(serverORB, clientORB)
 
         console.log(`# CLIENT: RESOLVE SERVER`)
-        let serverStub = stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
-        expect(serverStub).instanceOf(stub.Server_stub)
+        let serverStub = Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
+        expect(serverStub).instanceOf(Server_stub)
        
         console.log("# CLIENT -> SERVER: GET/SET ATTRIBUTE")
         expect(await serverStub.id()).to.equal("IT'S ME")
@@ -103,7 +103,7 @@ describe("corba.js", function () {
         const clientImpl = new Client_impl(clientORB)
         expect(await serverStub.getClients()).to.have.lengthOf(0)
         await serverStub.setClient(clientImpl)
-        expect(serverImpl.client).instanceOf(stub.Client_stub)
+        expect(serverImpl.client).instanceOf(Client_stub)
         expect(await serverStub.getClients()).to.have.lengthOf(1)
 
         console.log(`# CLIENT -> SERVER: CALL METHOD`)
@@ -205,12 +205,12 @@ class Rectangle extends Figure implements value.Rectangle {
     }
 }
 
-class Server_impl extends skel.Server_skel {
+class Server_impl extends Server_skel {
     methodAWasCalled = false
     methodBWasCalled = false
     _message = "hello"
 
-    client?: stub.Client_stub
+    client?: Client_stub
     attributes?: _interface.Attribute[]
 
     constructor(orb: ORB) {
@@ -230,7 +230,7 @@ class Server_impl extends skel.Server_skel {
         }
     }
 
-    override async setClient(client: stub.Client_stub) {
+    override async setClient(client: Client_stub) {
         this.client = client
     }
 
@@ -267,7 +267,7 @@ class Server_impl extends skel.Server_skel {
     }
 }
 
-class Client_impl extends skel.Client_skel {
+class Client_impl extends Client_skel {
     instance?: Client_impl
     methodCWasCalled = false
     figureModelReceivedFromServer?: FigureModel

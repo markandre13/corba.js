@@ -18,9 +18,9 @@
 
  import { expect } from "chai"
 
+import { Server_stub, Client_stub } from "./generated/initialreferences_stub"
+import { Server_skel } from "./generated/initialreferences_skel"
 import { ORB, Skeleton} from "corba.js"
-import * as skel from "./generated/initialreferences_skel"
-import * as stub from "./generated/initialreferences_stub"
 import { mockConnection } from "./util"
 
 xdescribe("initial references", function() {
@@ -85,7 +85,7 @@ xdescribe("initial references", function() {
                 serverORB.bind("Server", serve)
             
                 let clientORB = new ORB()
-                clientORB.registerStubClass(stub.Server_stub)
+                clientORB.registerStubClass(Server_stub)
             
                 mockConnection(serverORB, clientORB)
 
@@ -119,12 +119,12 @@ xdescribe("initial references", function() {
                 serverORB.bind("Server", serve)
             
                 let clientORB = new ORB()
-                clientORB.registerStubClass(stub.Server_stub)
+                clientORB.registerStubClass(Server_stub)
             
                 mockConnection(serverORB, clientORB)
             
                 let result = await clientORB.resolve("Server")
-                expect(result).to.be.an.instanceof(stub.Server_stub)
+                expect(result).to.be.an.instanceof(Server_stub)
             })
         })
     })
@@ -135,13 +135,13 @@ xdescribe("initial references", function() {
                 serverORB.bind("Server", serve)
             
                 let clientORB = new ORB()
-                clientORB.registerStubClass(stub.Server_stub)
+                clientORB.registerStubClass(Server_stub)
             
                 mockConnection(serverORB, clientORB)
             
                 let result = await clientORB.resolve("Server")
                 expect(()=>{
-                    stub.Client_stub.narrow(result)
+                    Client_stub.narrow(result)
                 }).to.throw(Error)
         })
         it("will return the type casted object", async function() {
@@ -150,24 +150,24 @@ xdescribe("initial references", function() {
                 serverORB.bind("Server", serve)
             
                 let clientORB = new ORB()
-                clientORB.registerStubClass(stub.Server_stub)
+                clientORB.registerStubClass(Server_stub)
             
                 mockConnection(serverORB, clientORB)
             
                 let result = await clientORB.resolve("Server")
-                let localServer = stub.Server_stub.narrow(result)
-                expect(result).to.be.an.instanceof(stub.Server_stub)
+                let localServer = Server_stub.narrow(result)
+                expect(result).to.be.an.instanceof(Server_stub)
         })
     })
 })
 
-class Server_impl extends skel.Server_skel {
+class Server_impl extends Server_skel {
     constructor(orb: ORB) {
         super(orb)
     }
 }
 
-class Client_impl extends skel.Server_skel {
+class Client_impl extends Server_skel {
     constructor(orb: ORB) {
         super(orb)
     }

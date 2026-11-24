@@ -16,12 +16,12 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { testVT as testVT_stub } from "./generated/valuetype_stub"
+import { testVT as testVT_skel } from "./generated/valuetype_skel"
 import { expect } from "chai"
 
 import { ORB } from "corba.js"
 import * as value from "./generated/valuetype_value"
-import * as skel from "./generated/valuetype_skel"
-import * as stub from "./generated/valuetype_stub"
 import { mockConnection } from "./util"
 
 describe("corba.js", function() {
@@ -51,12 +51,12 @@ describe("corba.js", function() {
 
         serverORB.bind("Server", new Server_impl(serverORB))
         
-        serverORB.registerStubClass(stub.testVT.Client_stub)
-        clientORB.registerStubClass(stub.testVT.Server_stub)
+        serverORB.registerStubClass(testVT_stub.Client_stub)
+        clientORB.registerStubClass(testVT_stub.Server_stub)
         
         mockConnection(serverORB, clientORB)
 
-        const server = stub.testVT.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
+        const server = testVT_stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
         await server.setClient(new Client_impl(clientORB))
 
         // server will FigureModel to client
@@ -265,12 +265,12 @@ class Path extends Figure implements value.testVT.Path {
     }
 }
 
-class Server_impl extends skel.testVT.Server_skel {
+class Server_impl extends testVT_skel.Server_skel {
     static instance?: Server_impl
     static methodAWasCalled = false
     static methodBWasCalled = false
 
-    client?: stub.testVT.Client_stub
+    client?: testVT_stub.Client_stub
 
     constructor(orb: ORB) {
         super(orb)
@@ -278,12 +278,12 @@ class Server_impl extends skel.testVT.Server_skel {
         Server_impl.instance = this
     }
     
-    async setClient(client: stub.testVT.Client_stub) {
+    async setClient(client: testVT_stub.Client_stub) {
         this.client = client
     }
 }
 
-class Client_impl extends skel.testVT.Client_skel {
+class Client_impl extends testVT_skel.Client_skel {
     static instance?: Client_impl
     static methodCWasCalled = false
     static figureModelReceivedFromServer?: FigureModel

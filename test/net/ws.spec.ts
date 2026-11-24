@@ -16,6 +16,8 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Server_stub } from "../generated/access_stub"
+import { Server_skel, Listener_skel } from "../generated/access_skel"
 import forEach from "mocha-each"
 import { expect, use } from "chai"
 import chaiAsPromised from "chai-as-promised"
@@ -25,8 +27,6 @@ import { AuthenticationStatus, EstablishContext, GSSUPInitialContextToken, NO_PE
 import { WsProtocol } from "corba.js/net/ws"
 import { Connection } from "corba.js/orb/connection"
 
-import * as skel from "../generated/access_skel"
-import * as stub from "../generated/access_stub"
 
 describe("net", async function () {
     describe("ws", function () {
@@ -74,7 +74,7 @@ describe("net", async function () {
                 await tls.listen(serverORB, 2809)
 
                 const clientORB = new ORB()
-                clientORB.registerStubClass(stub.Server_stub)
+                clientORB.registerStubClass(Server_stub)
                 clientORB.addProtocol(new WsProtocol())
                 if (id !== 0) {
                     clientORB.setOutgoingAuthenticator((connection: Connection) => {
@@ -90,7 +90,7 @@ describe("net", async function () {
                     })
                 }
 
-                const server = stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
+                const server = Server_stub.narrow(await clientORB.stringToObject("corbaname::localhost:2809#Server"))
 
                 switch (id) {
                     case 0:
@@ -113,7 +113,7 @@ describe("net", async function () {
     })
 })
 
-class Server_impl extends skel.Server_skel {
+class Server_impl extends Server_skel {
     wasCalled: boolean
 
     constructor(orb: ORB) {
@@ -126,11 +126,11 @@ class Server_impl extends skel.Server_skel {
         return 0
     }
 
-    async set(listener: skel.Listener_skel): Promise<number> {
+    async set(listener: Listener_skel): Promise<number> {
         throw Error()
     }
 
-    async get(name: string): Promise<skel.Listener_skel> {
+    async get(name: string): Promise<Listener_skel> {
         throw Error()
     }
 }

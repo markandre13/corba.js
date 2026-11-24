@@ -16,6 +16,8 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { X1_stub, M1 as M1_stub } from "./generated/idl_module_stub"
+import { X1_skel, M1 as M1_skel } from "./generated/idl_module_skel"
 import * as chai from "chai"
 import chaiAsPromised from "chai-as-promised"
 chai.use(chaiAsPromised)
@@ -26,8 +28,6 @@ import * as _interface from "./generated/idl_module"
 import * as value from "./generated/idl_module_value"
 //import * as valueimpl from "./idl_module_valueimpl"
 import * as valuetype from "./generated/idl_module_valuetype"
-import * as skel from "./generated/idl_module_skel"
-import * as stub from "./generated/idl_module_stub"
 import { mockConnection } from "./util"
 
 // o In TypeScript, just as in ECMAScript 2015, any file containing a top-level import or export is considered a module.
@@ -54,9 +54,9 @@ describe("corba.js", function() {
         serverORB.bind("M1X3", new M1.M1X3_impl(serverORB))
         serverORB.bind("M1M2X2", new M1.M2.M1M2X2_impl(serverORB))
         
-        clientORB.registerStubClass(stub.X1_stub)
-        clientORB.registerStubClass(stub.M1.M1X3_stub)
-        clientORB.registerStubClass(stub.M1.M2.M1M2X2_stub)
+        clientORB.registerStubClass(X1_stub)
+        clientORB.registerStubClass(M1_stub.M1X3_stub)
+        clientORB.registerStubClass(M1_stub.M2.M1M2X2_stub)
 
         // wait, couldn't we get the name from the class? or at least check the name when registering?
         ORB.registerValueType("V1", V1)
@@ -65,9 +65,9 @@ describe("corba.js", function() {
 
         mockConnection(serverORB, clientORB)
 
-        let x1 = stub.X1_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#X1"))
-        let m1x3 = stub.M1.M1X3_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1X3"))
-        let m1m2x2 = stub.M1.M2.M1M2X2_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1M2X2"))
+        let x1 = X1_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#X1"))
+        let m1x3 = M1_stub.M1X3_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1X3"))
+        let m1m2x2 = M1_stub.M2.M1M2X2_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#M1M2X2"))
 
         await x1.f()
         expect(text).is.equal("X1")
@@ -77,7 +77,7 @@ describe("corba.js", function() {
 
         await expect(m1m2x2.m(x1_impl)).to.be.rejectedWith(Error, "OBJECT_ADAPTER(minor=0x4f4d0003, completed=NO, No default servant)")
 
-        serverORB.registerStubClass(stub.X1_stub)
+        serverORB.registerStubClass(X1_stub)
         await expect(m1m2x2.m(x1_impl)).not.to.be.rejected
         // END OF TEST IF INTERNAL ERRORS ARE PROPAGATED
 
@@ -105,7 +105,7 @@ describe("corba.js", function() {
         let v3_copy = clientORB.deserialize(v3_json)
         expect(v3_orig).to.deep.equal(v3_copy)
 
-//         let server = stub.Server_stub.narrow(await clientORB.resolve("Server"))
+//         let server = Server_stub.narrow(await clientORB.resolve("Server"))
 //         await server.setClient(new Client_impl(clientORB))
 
 //         // method call
@@ -144,7 +144,7 @@ describe("corba.js", function() {
 })
 
 // interface X1
-class X1_impl extends skel.X1_skel {
+class X1_impl extends X1_skel {
     constructor(orb: ORB) {
         super(orb)
     }   
@@ -201,7 +201,7 @@ namespace M1 {
             }
         }
 
-        export class M1M2X2_impl extends skel.M1.M2.M1M2X2_skel {
+        export class M1M2X2_impl extends M1_skel.M2.M1M2X2_skel {
             constructor(orb: ORB) {
                 super(orb)
             }
@@ -223,7 +223,7 @@ namespace M1 {
         }
     }
 
-    export class M1X3_impl extends skel.M1.M1X3_skel {
+    export class M1X3_impl extends M1_skel.M1X3_skel {
         constructor(orb: ORB) {
             super(orb)
         }  

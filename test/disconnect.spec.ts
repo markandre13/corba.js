@@ -16,12 +16,12 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Listener_stub, Server_stub, Session_stub } from "./generated/disconnect_stub"
+import { Server_skel, Session_skel, Listener_skel } from "./generated/disconnect_skel"
 import { expect } from "chai"
 
 import { ORB } from "corba.js"
 import * as iface from "./generated/disconnect"
-import * as skel from "./generated/disconnect_skel"
-import * as stub from "./generated/disconnect_stub"
 import { mockConnection } from "./util"
 
 xdescribe("disconnect", function() {
@@ -31,17 +31,17 @@ xdescribe("disconnect", function() {
         let serverORB = new ORB()
 //serverORB.debug = 1
         serverORB.bind("Server", new Server_impl(serverORB))
-        serverORB.registerStubClass(stub.Listener_stub)
+        serverORB.registerStubClass(Listener_stub)
         
         // setup client A
         let clientA = new ORB()
 //clientA.debug = 1
-        clientA.registerStubClass(stub.Server_stub)
-        clientA.registerStubClass(stub.Session_stub)
+        clientA.registerStubClass(Server_stub)
+        clientA.registerStubClass(Session_stub)
         let connectionA = mockConnection(serverORB, clientA)
         
         let objectA = await clientA.resolve("Server")
-        let serverObjectA = stub.Server_stub.narrow(objectA)
+        let serverObjectA = Server_stub.narrow(objectA)
         
         let sessionA = await serverObjectA.getSession()
         
@@ -56,12 +56,12 @@ xdescribe("disconnect", function() {
         // setup client B
         let clientB = new ORB()
 //clientB.debug = 1
-        clientB.registerStubClass(stub.Server_stub)
-        clientB.registerStubClass(stub.Session_stub)
+        clientB.registerStubClass(Server_stub)
+        clientB.registerStubClass(Session_stub)
         let connectionB = mockConnection(serverORB, clientB)
         
         let objectB = await clientB.resolve("Server")
-        let serverObjectB = stub.Server_stub.narrow(objectB)
+        let serverObjectB = Server_stub.narrow(objectB)
         
         let sessionB = await serverObjectB.getSession()
         
@@ -97,13 +97,13 @@ xdescribe("disconnect", function() {
     })
 })
 
-class Server_impl extends skel.Server_skel {
-    async getSession(): Promise<skel.Session_skel> {
+class Server_impl extends Server_skel {
+    async getSession(): Promise<Session_skel> {
         return new Session_impl(this._orb) // FIXME: this.orb is not guaranteed to point to the client connection? could the ORB be set later?
     }
 }
 
-class Session_impl extends skel.Session_skel implements EventListenerObject {
+class Session_impl extends Session_skel implements EventListenerObject {
     static listeners = new Set<iface.Listener>()
     listener?: iface.Listener
 
@@ -144,7 +144,7 @@ class Session_impl extends skel.Session_skel implements EventListenerObject {
     }
 }
 
-class Listener_impl extends skel.Listener_skel {
+class Listener_impl extends Listener_skel {
     calledBack: boolean
     
     constructor(orb: ORB) {

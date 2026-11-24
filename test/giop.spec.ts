@@ -1,7 +1,7 @@
+import { GIOPTest_stub, GIOPSmall_stub } from "./generated/giop_stub"
+import { GIOPTest_skel, GIOPSmall_skel } from "./generated/giop_skel"
 import { ORB, GIOPDecoder, MessageType, LocateStatusType, ReplyStatus, GIOPEncoder } from "corba.js"
 import * as api from "./generated/giop"
-import * as skel from "./generated/giop_skel"
-import * as stub from "./generated/giop_stub"
 import * as value from "./generated/giop_value"
 import { expect } from "chai"
 import { FakeTcpProtocol } from "./fake"
@@ -30,8 +30,8 @@ describe("CDR/GIOP", () => {
         ORB.registerValueType("Size", Size)
         ORB.registerValueType("Rectangle", Rectangle)
 
-        orb.registerStubClass(stub.GIOPTest_stub)
-        orb.registerStubClass(stub.GIOPSmall_stub)
+        orb.registerStubClass(GIOPTest_stub)
+        orb.registerStubClass(GIOPSmall_stub)
 
         // const data = fs.readFileSync("test/giop/IOR.txt").toString().trim()
         // const obj = await orb.stringToObject(data)
@@ -42,7 +42,7 @@ describe("CDR/GIOP", () => {
         fake.expect("init")
         const obj = await orb.stringToObject("corbaname::192.168.1.10#TestService")
 
-        server = stub.GIOPTest_stub.narrow(obj)
+        server = GIOPTest_stub.narrow(obj)
         myserver = new GIOPTest_impl(orb)
     })
 
@@ -199,7 +199,7 @@ describe("CDR/GIOP", () => {
             // this does not work with the real orb because the host and port may be wrong
             fake.expect(this.test!.fullTitle())
             const obj = await server.getObject()
-            const small = stub.GIOPSmall_stub.narrow(obj)
+            const small = GIOPSmall_stub.narrow(obj)
             small.call("GIOPSmall.call()")
             expect(await server.peek()).to.equal("GIOPSmall.call()")
         })
@@ -921,7 +921,7 @@ describe("CDR/GIOP", () => {
     })
 })
 
-class GIOPTest_impl extends skel.GIOPTest_skel {
+class GIOPTest_impl extends GIOPTest_skel {
     msg = ""
 
     constructor(orb: ORB) {
@@ -1024,7 +1024,7 @@ class GIOPTest_impl extends skel.GIOPTest_skel {
     }
 }
 
-class GIOPSmall extends skel.GIOPSmall_skel {
+class GIOPSmall extends GIOPSmall_skel {
     msg = ""
 
     constructor(orb: ORB) {

@@ -1,4 +1,4 @@
-import * as stub from "../generated/interface_stub"
+import { Peer_stub, Interface_stub, PeerSub_stub } from "../generated/interface_stub"
 import { Interface_impl, Peer_impl, PeerSub_impl } from "./interface_impl"
 
 import { ORB } from "corba.js"
@@ -11,15 +11,15 @@ describe("interface", function () {
         const serverORB = new ORB()
         const serverImpl = new Interface_impl(serverORB)
         serverORB.bind("Backend", serverImpl)
-        serverORB.registerStubClass(stub.Peer_stub)
+        serverORB.registerStubClass(Peer_stub)
 
         const clientORB = new ORB()
-        clientORB.registerStubClass(stub.Interface_stub)
+        clientORB.registerStubClass(Interface_stub)
 
         mockConnection(serverORB, clientORB)
 
         const object = await clientORB.stringToObject("corbaname::remote-mock:0#Backend")
-        const serverStub = stub.Interface_stub.narrow(object)
+        const serverStub = Interface_stub.narrow(object)
 
         expect(await serverStub.callBoolean(true)).to.equal(true)
         expect(await serverStub.callOctet(42)).to.equal(42)
@@ -66,15 +66,15 @@ describe("interface", function () {
         const serverORB = new ORB()
         const serverImpl = new Interface_impl(serverORB)
         serverORB.bind("Backend", serverImpl)
-        serverORB.registerStubClass(stub.Peer_stub)
-        serverORB.registerStubClass(stub.PeerSub_stub)
+        serverORB.registerStubClass(Peer_stub)
+        serverORB.registerStubClass(PeerSub_stub)
 
         const clientORB = new ORB()
-        clientORB.registerStubClass(stub.Interface_stub)
+        clientORB.registerStubClass(Interface_stub)
 
         mockConnection(serverORB, clientORB)
         const object = await clientORB.stringToObject("corbaname::remote-mock:0#Backend")
-        const serverStub = stub.Interface_stub.narrow(object)
+        const serverStub = Interface_stub.narrow(object)
 
         // instantiate PeerSub and set it in the server
         const frontend = new PeerSub_impl(clientORB)
@@ -82,8 +82,8 @@ describe("interface", function () {
 
         // server as the PeerSub stub
         const peerStub = await serverImpl.getPeer()
-        expect(peerStub).to.be.instanceOf(stub.PeerSub_stub)
-        const peerSubStub = peerStub as stub.PeerSub_stub
+        expect(peerStub).to.be.instanceOf(PeerSub_stub)
+        const peerSubStub = peerStub as PeerSub_stub
 
         // call the method that should be inherited from Peer
         expect(await peerSubStub.callString("hello")).to.equal("hello world")

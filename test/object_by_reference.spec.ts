@@ -16,12 +16,12 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { Listener_stub, Server_stub, Session_stub } from "./generated/object_by_reference_stub"
+import { Server_skel, Session_skel, Listener_skel } from "./generated/object_by_reference_skel"
 import { expect } from "chai"
 
 import { ORB } from "corba.js"
 import * as iface from "./generated/object_by_reference"
-import * as skel from "./generated/object_by_reference_skel"
-import * as stub from "./generated/object_by_reference_stub"
 import { mockConnection } from "./util"
 
 describe("object by reference", function() {
@@ -29,17 +29,17 @@ describe("object by reference", function() {
         let serverORB = new ORB()
 //serverORB.debug = 1
         serverORB.bind("Server", new Server_impl(serverORB))
-        serverORB.registerStubClass(stub.Listener_stub)
+        serverORB.registerStubClass(Listener_stub)
             
         let clientORB = new ORB()
 //clientORB.debug = 1
-        clientORB.registerStubClass(stub.Server_stub)
-        clientORB.registerStubClass(stub.Session_stub)
+        clientORB.registerStubClass(Server_stub)
+        clientORB.registerStubClass(Session_stub)
             
         mockConnection(serverORB, clientORB)
            
-        let object = stub.Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
-        let serverObject = stub.Server_stub.narrow(object)
+        let object = Server_stub.narrow(await clientORB.stringToObject("corbaname::remote-mock:0#Server"))
+        let serverObject = Server_stub.narrow(object)
         
         let session = await serverObject.getSession()
         
@@ -53,13 +53,13 @@ describe("object by reference", function() {
     })
 })
 
-class Server_impl extends skel.Server_skel {
-    async getSession(): Promise<skel.Session_skel> {
+class Server_impl extends Server_skel {
+    async getSession(): Promise<Session_skel> {
         return new Session_impl(this._orb) // FIXME: this.orb is not guaranteed to point to the client connection? could the ORB be set later?
     }
 }
 
-class Session_impl extends skel.Session_skel {
+class Session_impl extends Session_skel {
     static listener: iface.Listener | undefined
 
     async addListener(listener: iface.Listener) {
@@ -67,7 +67,7 @@ class Session_impl extends skel.Session_skel {
     }
 }
 
-class Listener_impl extends skel.Listener_skel {
+class Listener_impl extends Listener_skel {
     static calledBack = false
 
     async callback() {
